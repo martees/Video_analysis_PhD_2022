@@ -65,16 +65,16 @@ def in_patch(position, patch):
     """
     center = patch[0]
     radius = patch[1]
-    distance = sqrt((position[0]-center[0])**2 + (position[1]-center[1])**2)
+    distance = np.sqrt((position[0]-center[0])**2 + (position[1]-center[1])**2)
     return distance < radius + radial_tolerance
 
-def patch_visits(trajectory, list_of_patches):
+def patch_visits_single_traj(trajectory, list_of_patches):
     """
     returns a list [[d0,d1,...], [d0,d1,...],...] with one list per patch
     each sublist contains the durations of visits to each patch
     """
     is_in_patch = np.ones(len(list_of_patches)) # Bool list to store where the worm is currently
-    list_of_durations = [list(i) for i in np.zeros((10,1), dtype='int')] # List with the right format, 0 for each patch
+    list_of_durations = [list(i) for i in np.zeros((10,1), dtype='int')] # List with the right format [[0],[0],...,[0]]
     #In list_of_durations, zero means "the worm was not in the patch in the previous timestep"
     #As soon as the worm enters the patch, this zero starts being incremented
     #As soon as the worm leaves the patch, a new zero is added to this patch's list
@@ -85,8 +85,8 @@ def patch_visits(trajectory, list_of_patches):
         was_in_patch = is_in_patch # Keeping in memory where the worm was [0 0 1 0] = in patch 2
         patch_where_it_was = patch_where_it_is #Index of the patch where it is
         patch_where_it_is = -1 # By default the worm is not in a patch
-        for i_patch in list_of_patches:
-            is_in_patch[i_patch] = in_patch(trajectory[t], list_of_patches[i])
+        for i_patch in range(len(list_of_patches)):
+            is_in_patch[i_patch] = in_patch(trajectory[t], list_of_patches[i_patch])
             if is_in_patch[i_patch] == True:
                 patch_where_it_is = i_patch
         if patch_where_it_is==-1: # Worm currently out
@@ -96,12 +96,39 @@ def patch_visits(trajectory, list_of_patches):
             list_of_durations[patch_where_it_is]+=1
     return list_of_durations
 
+def patch_visits_multiple_traj(list_of_trajectories, list_of_patches):
+    """
+    returns a list of outputs from the single_traj function, one output per trajectory
+    """
+    list_of_durations = []
+    for traj in list_of_trajectories:
+        list_of_durations.append(patch_visits_single_traj(traj, list_of_patches))
+    return list_of_durations
 
+def deNaN_trajectories():
+    trajectories = []
+    for i_traj in range(len(trajectories_with_nans)):
+        cleaned_trajectory = []
+        for time in range(len(trajectories_with_nans[i_traj])):
+            if np.isnan(trajectories_with_nans[i_traj][0][time]) and np.isnan(trajectories_with_nans[i_traj][1][time]) == False:
+                cleaned_trajectory.append([trajectories_with_nans[i_traj][0][time],trajectories_with_nans[i_traj][1][time]])
+        if len(cleaned_trajectory)>0:
+            trajectories.append(cleaned_trajectory)
+    return trajectories
 
 # Parameters
 radial_tolerance = 0.1
-fake_patch = [[1400, 1200], 100]  # [[x,y], radius] with x y = position of the center
+fake_patch1 = [[1400, 1200], 100]  # [[x,y], radius] with x y = position of the center
+fake_patch2 = [[500, 1000], 30]  # [[x,y], radius] with x y = position of the center
 
 # Function tests
-draw(trajmat_to_pandas(path_finding()))
+trajectories_with_nans = trajmat_to_pandas(path_finding())
+# Initial format of the trajectories:
+# List of trajectories, and each trajectory:
+# [x0 x1 ... xN] [y0 y1 ... yN]
 
+
+
+# draw(trajectories)
+patch_list = [fake_patch1, fake_patch2]
+patch_visits_multiple_traj(trajectories_with_nans, patch_list)
