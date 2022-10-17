@@ -58,7 +58,7 @@ def draw(trajectories):
         plt.plot(trajectories[i_traj][0],trajectories[i_traj][1])
     plt.show()
 
-def in_patch(position, patch, ):
+def in_patch(position, patch):
     """
     returns true if position = [x,y] is inside the patch
     tolerance is that the worm is still considered inside the patch when its center is sticking out but only a bit
@@ -75,19 +75,33 @@ def patch_visits(trajectory, list_of_patches):
     """
     is_in_patch = np.ones(len(list_of_patches)) # Bool list to store where the worm is currently
     list_of_durations = [list(i) for i in np.zeros((10,1), dtype='int')] # List with the right format, 0 for each patch
+    #In list_of_durations, zero means "the worm was not in the patch in the previous timestep"
+    #As soon as the worm enters the patch, this zero starts being incremented
+    #As soon as the worm leaves the patch, a new zero is added to this patch's list
 
+    patch_where_it_is = -1 #initialization
     #We go through the whole trajectory
     for t in range(len(trajectory)):
-        was_in_patch = is_in_patch # Keeping in memory where the worm was
+        was_in_patch = is_in_patch # Keeping in memory where the worm was [0 0 1 0] = in patch 2
+        patch_where_it_was = patch_where_it_is #Index of the patch where it is
+        patch_where_it_is = -1 # By default the worm is not in a patch
         for i_patch in list_of_patches:
             is_in_patch[i_patch] = in_patch(trajectory[t], list_of_patches[i])
+            if is_in_patch[i_patch] == True:
+                patch_where_it_is = i_patch
+        if patch_where_it_is==-1: # Worm currently out
+            if patch_where_it_was != patch_where_it_is:  # Worm exited a patch
+                list_of_durations[patch_where_it_was].append(0) # Add a zero because previous visit was interrupted
+        if patch_where_it_is!=-1: # Worm currently inside, no matter whether it just entered or stayed inside
+            list_of_durations[patch_where_it_is]+=1
+    return list_of_durations
 
 
-
-
-draw(trajmat_to_pandas(path_finding()))
 
 # Parameters
 radial_tolerance = 0.1
 fake_patch = [[1400, 1200], 100]  # [[x,y], radius] with x y = position of the center
+
+# Function tests
+draw(trajmat_to_pandas(path_finding()))
 
