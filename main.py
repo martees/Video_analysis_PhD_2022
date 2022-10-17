@@ -55,7 +55,8 @@ def draw(trajectories):
     :return: trajectory plot
     """
     for i_traj in range(len(trajectories)):
-        plt.plot(trajectories[i_traj][0],trajectories[i_traj][1])
+        reformatted_trajectory = list(zip(*trajectories[i_traj])) # our trajectories are not in the right format, easier to convert them here
+        plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
     plt.show()
 
 def in_patch(position, patch):
@@ -81,12 +82,12 @@ def patch_visits_single_traj(trajectory, list_of_patches):
 
     patch_where_it_is = -1 #initialization
     #We go through the whole trajectory
-    for t in range(len(trajectory)):
+    for time in range(len(trajectory)):
         was_in_patch = is_in_patch # Keeping in memory where the worm was [0 0 1 0] = in patch 2
         patch_where_it_was = patch_where_it_is #Index of the patch where it is
         patch_where_it_is = -1 # By default the worm is not in a patch
         for i_patch in range(len(list_of_patches)):
-            is_in_patch[i_patch] = in_patch(trajectory[t], list_of_patches[i_patch])
+            is_in_patch[i_patch] = in_patch(trajectory[time], list_of_patches[i_patch])
             if is_in_patch[i_patch] == True:
                 patch_where_it_is = i_patch
         if patch_where_it_is==-1: # Worm currently out
@@ -105,30 +106,34 @@ def patch_visits_multiple_traj(list_of_trajectories, list_of_patches):
         list_of_durations.append(patch_visits_single_traj(traj, list_of_patches))
     return list_of_durations
 
-def deNaN_trajectories():
-    trajectories = []
-    for i_traj in range(len(trajectories_with_nans)):
-        cleaned_trajectory = []
-        for time in range(len(trajectories_with_nans[i_traj])):
-            if np.isnan(trajectories_with_nans[i_traj][0][time]) and np.isnan(trajectories_with_nans[i_traj][1][time]) == False:
-                cleaned_trajectory.append([trajectories_with_nans[i_traj][0][time],trajectories_with_nans[i_traj][1][time]])
-        if len(cleaned_trajectory)>0:
-            trajectories.append(cleaned_trajectory)
-    return trajectories
+def reformat_trajectories(bad_trajectory):
+    """
+    Very specific to our file format. Removes NaN lines, and reformats the trajectory file
+    From [x0 x1 ... xN] [y0 ... yN]
+    To [x0 y0] [x1 y1] ... [xN yN]
+    """
+    cleaned_trajectories = []
+    for i_traj in range(len(bad_trajectory)):
+        current_trajectory = bad_trajectory[i_traj]
+        reformatted_trajectory = list(zip(current_trajectory[0],current_trajectory[1]))
+        cleaned_trajectory = [tuple for tuple in reformatted_trajectory if not np.isnan(tuple[0]) and not np.isnan(tuple[1])]
+        cleaned_trajectories.append(cleaned_trajectory)
+    return cleaned_trajectories
 
 # Parameters
 radial_tolerance = 0.1
 fake_patch1 = [[1400, 1200], 100]  # [[x,y], radius] with x y = position of the center
 fake_patch2 = [[500, 1000], 30]  # [[x,y], radius] with x y = position of the center
+patch_list = [fake_patch1, fake_patch2]
 
 # Function tests
 trajectories_with_nans = trajmat_to_pandas(path_finding())
 # Initial format of the trajectories:
 # List of trajectories, and each trajectory:
 # [x0 x1 ... xN] [y0 y1 ... yN]
+# New format:
+# No NaNs and [x0 y0] [x1 y1] ... [xN yN]
+trajectories = reformat_trajectories(trajectories_with_nans)
 
-
-
-# draw(trajectories)
-patch_list = [fake_patch1, fake_patch2]
-patch_visits_multiple_traj(trajectories_with_nans, patch_list)
+draw(trajectories)
+patch_visits_multiple_traj(trajectories, patch_list)
