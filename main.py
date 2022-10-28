@@ -4,20 +4,17 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
 import numpy as np
-from scipy.io import loadmat  # this is the SciPy module that loads mat-files
 from datetime import datetime, date, time
 import pandas as pd
-import os
 import matplotlib.pyplot as plt
 
-# my files
+#My code
 import find_data
-
 
 def in_patch(position, patch):
     """
-    returns true if position = [x,y] is inside the patch
-    tolerance is that the worm is still considered inside the patch when its center is sticking out but only a bit
+    returns True if position = [x,y] is inside the patch
+    uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
     """
     center = patch[0]
     radius = patch[1]
@@ -28,32 +25,38 @@ def patch_visits_single_traj(trajectory, list_of_patches):
     """
     returns a list [[d0,d1,...], [d0,d1,...],...] with one list per patch
     each sublist contains the durations of visits to each patch
+    so len(output[0]) is the number of visits to the first patch
     """
-    is_in_patch = np.ones(len(list_of_patches)) # Bool list to store where the worm is currently
+
+    #Variables for the loop and the output
+    is_in_patch = np.ones(len(list_of_patches)) # Bool list to store where the worm is currently (1 where it currently is)
     list_of_durations = [list(i) for i in np.zeros((10,1), dtype='int')] # List with the right format [[0],[0],...,[0]]
     # In list_of_durations, zero means "the worm was not in the patch in the previous timestep"
     # As soon as the worm enters the patch, this zero starts being incremented
     # As soon as the worm leaves the patch, a new zero is added to this patch's list
+    # These 0 are added for computational ease and will be removed in the end
+    patch_where_it_is = -1 #initializing variable with index of patch where the worm currently is
 
-    patch_where_it_is = -1 #initialization
     # We go through the whole trajectory
     for time in range(len(trajectory)):
-        was_in_patch = is_in_patch # Keeping in memory where the worm was [0 0 1 0] = in patch 2
-        patch_where_it_was = patch_where_it_is #Index of the patch where it is
-        patch_where_it_is = -1 # By default the worm is not in a patch
-        for i_patch in range(len(list_of_patches)):
-            is_in_patch[i_patch] = in_patch(trajectory[time], list_of_patches[i_patch])
-            if is_in_patch[i_patch] == True:
+        was_in_patch = is_in_patch # keeping in memory where the worm was, [0, 0, 1, 0] = in patch 2
+        patch_where_it_was = patch_where_it_is # index of the patch where it is
+        patch_where_it_is = -1 # resetting the variable
+        for i_patch in range(len(list_of_patches)): #for every patch
+            is_in_patch[i_patch] = in_patch(trajectory[time], list_of_patches[i_patch]) #check if the worm is in
+            if is_in_patch[i_patch] == True: #remember where it is
                 patch_where_it_is = i_patch
         if patch_where_it_is==-1: # Worm currently out
             if patch_where_it_was != patch_where_it_is:  # Worm exited a patch
                 list_of_durations[patch_where_it_was].append(0) # Add a zero because previous visit was interrupted
         if patch_where_it_is!=-1: # Worm currently inside, no matter whether it just entered or stayed inside
             list_of_durations[patch_where_it_is][-1]+=1 #add one to the last element of the patch list
+
     # Remove the zeros because they're just here for the duration algorithm
     for i_patch in range(len(list_of_durations)):
         list_of_durations[i_patch] = [nonzero for nonzero in list_of_durations[i_patch] if nonzero != 0]
-    return [nonzero for nonzero in list_of_durations[list_of_durations!=0]]
+
+    return list_of_durations
 
 def patch_visits_multiple_traj(list_of_trajectories, list_of_patches):
     """
@@ -77,8 +80,6 @@ def draw(trajectories):
     plt.show()
 
 
-
-
 # Parameters
 radial_tolerance = 0.1
 fake_patch1 = [[1400, 1200], 100]  # [[x,y], radius] with x y = position of the center
@@ -87,7 +88,7 @@ patch_list = [fake_patch1, fake_patch2]
 
 # Function tests
 
-trajectories_with_nans = find_data.trajmat_to_pandas(find_data.path_finding())
+trajectories_with_nans = find_data.trajmat_to_pandas(find_data.path_finding_traj())
 # Initial format of the trajectories:
 # List of trajectories, and each trajectory:
 # [x0 x1 ... xN] [y0 y1 ... yN]
@@ -95,5 +96,5 @@ trajectories_with_nans = find_data.trajmat_to_pandas(find_data.path_finding())
 # No NaNs and [x0 y0] [x1 y1] ... [xN yN]
 trajectories = find_data.reformat_trajectories(trajectories_with_nans)
 
-# draw(trajectories)
+draw(trajectories)
 print(patch_visits_multiple_traj(trajectories, patch_list))
