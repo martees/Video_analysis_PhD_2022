@@ -87,13 +87,13 @@ patch_list = [fake_patch1, fake_patch2]
 
 # Function tests
 
-trajectories_with_nans = trajmat_to_pandas(path_finding())
+trajectories_with_nans = find_data.trajmat_to_pandas(find_data.path_finding())
 # Initial format of the trajectories:
 # List of trajectories, and each trajectory:
 # [x0 x1 ... xN] [y0 y1 ... yN]
 # New format:
 # No NaNs and [x0 y0] [x1 y1] ... [xN yN]
-trajectories = reformat_trajectories(trajectories_with_nans)
+trajectories = find_data.reformat_trajectories(trajectories_with_nans)
 
 # draw(trajectories)
 print(patch_visits_multiple_traj(trajectories, patch_list))
