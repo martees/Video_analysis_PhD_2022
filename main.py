@@ -91,9 +91,11 @@ patch_list = [fake_patch1, fake_patch2]
 #Extracting data, the function looks for all "traj.mat" files in the indicated path (will look into subfolders)
 #I have two lines, one for Windows and the other for Linux:
 # dataframe = fd.trajmat_to_pandas(fd.path_finding_traj("C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/20220721T163616_StandardizedConditions_C5_CAM1_Tracking_Video"))
-dataframe = fd.matfiles_to_pandas_dataframe(fd.path_finding_traj("/home/admin/Desktop/Camera_setup_analysis/"))
+dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("/home/admin/Desktop/Camera_setup_analysis/"))
 
-trajectories = fd.reformat_trajectories(dataframe["trajectories"])
+
+
+# trajectories = fd.reformat_trajectories(dataframe["trajectories"])
 
 draw(trajectories)
 print(patch_visits_multiple_traj(trajectories, patch_list))
