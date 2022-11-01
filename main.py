@@ -21,9 +21,11 @@ def in_patch(position, patch):
     distance = np.sqrt((position[0]-center[0])**2 + (position[1]-center[1])**2)
     return distance < radius + radial_tolerance
 
-def patch_visits_single_traj(trajectory, list_of_patches):
+def patch_visits_single_traj(list_x, list_y, list_of_patches):
     """
-    returns a list [[d0,d1,...], [d0,d1,...],...] with one list per patch
+    Takes a trajectory under the format: [x0 x1 ... xN] [y0 y1 ... yN] and a list of patch centers
+    For now, uses the unique patch_radius defined as a global parameter.
+    Returns a list [[d0,d1,...], [d0,d1,...],...] with one list per patch
     each sublist contains the durations of visits to each patch
     so len(output[0]) is the number of visits to the first patch
     """
@@ -38,12 +40,12 @@ def patch_visits_single_traj(trajectory, list_of_patches):
     patch_where_it_is = -1 #initializing variable with index of patch where the worm currently is
 
     # We go through the whole trajectory
-    for time in range(len(trajectory)):
+    for time in range(len(list_x)):
         was_in_patch = is_in_patch # keeping in memory where the worm was, [0, 0, 1, 0] = in patch 2
         patch_where_it_was = patch_where_it_is # index of the patch where it is
         patch_where_it_is = -1 # resetting the variable
         for i_patch in range(len(list_of_patches)): #for every patch
-            is_in_patch[i_patch] = in_patch(trajectory[time], list_of_patches[i_patch]) #check if the worm is in
+            is_in_patch[i_patch] = in_patch([list_x[time],list_y[time]], list_of_patches[i_patch]) #check if the worm is in
             if is_in_patch[i_patch] == True: #remember where it is
                 patch_where_it_is = i_patch
         if patch_where_it_is==-1: # Worm currently out
@@ -58,26 +60,39 @@ def patch_visits_single_traj(trajectory, list_of_patches):
 
     return list_of_durations
 
-def patch_visits_multiple_traj(list_of_trajectories, list_of_patches):
+def patch_visits_multiple_traj(data):
     """
-    returns a list of outputs from the single_traj function, one output per trajectory
+    (tldr: returns a list of outputs from the single_traj function, one list item per trajectory)
+    Takes our data table and returns a series of analysis regarding patch visits durations
     """
+    worm_list = np.unique(data["id_conservative"])
+    nb_of_worms = len(worm_list)
+
+    list_of_trajectories =
+    list_of_patches
     list_of_durations = []
-    for traj in list_of_trajectories:
-        list_of_durations.append(patch_visits_single_traj(traj, list_of_patches))
-    return list_of_durations
+
+    for i_worm in range(nb_of_worms):
+        raw_durations = patch_visits_single_traj(traj, list_of_patches)
+        list_of_durations.append()
+    return list_of_durations, avg_duration_worm,
 
 
-def traj_draw(list_x, list_y, list_id):
+def traj_draw(data):
     """
-    Function that takes in a list of series of positions and draws them, with one color per id
+    Function that takes in our dataframe, using columns: "x", "y", "id_conservative"
+    Extracts list of series of positions and draws them, with one color per id
     :param trajectory: list of series of (x,y) positions ([[x0,x1,x2...] [y0,y1,y2...])
     :return: trajectory plot
     """
-    nb_of_worms = np.unique
-    colors = plt.cm.jet(np.linspace(0, 1, n_worms))
-
-
+    worm_list = np.unique(data["id_conservative"])
+    nb_of_worms = len(worm_list)
+    colors = plt.cm.jet(np.linspace(0, 1, nb_of_worms))
+    for i_worm in range(nb_of_worms):
+        current_worm = worm_list[i_worm]
+        current_list_x = data[data["id_conservative"]==current_worm]["x"]
+        current_list_y = data[data["id_conservative"]==current_worm]["y"]
+        plt.plot(current_list_x,current_list_y,color=colors[i_worm])
     # for i_traj in range(len(trajectories)):
     #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
     #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
@@ -85,7 +100,7 @@ def traj_draw(list_x, list_y, list_id):
 
 def landscape_draw(patch_centers):
     """
-    Function that t
+    Function that draws the patches
     """
 
     return 0
@@ -107,8 +122,7 @@ dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("C:/Users/Asmar/Desktop
 # dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("/home/admin/Desktop/Camera_setup_analysis/"))
 
 
-
 # trajectories = fd.reformat_trajectories(dataframe["trajectories"])
 
-traj_draw(dataframe["x"])
-print(patch_visits_multiple_traj(trajectories, patch_list))
+traj_draw(dataframe)
+print(patch_visits_multiple_traj(dataframe, patch_list))

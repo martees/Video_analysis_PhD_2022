@@ -5,24 +5,29 @@ import pandas as pd
 import glob
 
 
-# def is_linux():  # returns true if you're using linux, otherwise false
-#     try:
-#         test = os.uname()
-#         if test[0] == "Linux":
-#             return True
-#     except AttributeError:
-#         return False
+def is_linux():  # returns true if you're using linux, otherwise false
+     try:
+         test = os.uname()
+         if test[0] == "Linux":
+             return True
+     except AttributeError:
+         return False
 
 def path_finding_traj(path_prefix):
     """
     Function that takes a folder prefix and returns a list of paths of the traj.csv files present in that folder
-    It will look through subfolders if necessary
+    WARNING: it will look through subfolders if necessary, so it might take a while if your folder is very big!
     """
     #These are now arguments of the function to avoid unnecessary hard coded mess
     #path_prefix_windows = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/20220721T163616_StandardizedConditions_C5_CAM1_Tracking_Video"
     #path_prefix_linux = "/home/admin/Desktop/Camera_setup_analysis/Tracking_Video"
 
-    return glob.glob(path_prefix + "*/traj.csv")
+    listofpaths = glob.glob(path_prefix + "/**/traj.csv", recursive=True)
+
+    if not is_linux(): #on windows the glob output uses \\ as separators so remove that
+        listofpaths = [name.replace("\\",'/') for name in listofpaths]
+
+    return listofpaths
 
 
 def trajmat_to_dataframe(paths_of_mat):
@@ -34,20 +39,21 @@ def trajmat_to_dataframe(paths_of_mat):
         folder: path of where the data was extracted from (to keep computer - camera - date info)
     NOTE: it's with the value in folder that you can call other info such as patch positions, using folder_to_metadata()
     """
-    dataframe = pd.DataFrame() #dataframe where we'll put everything
-    dataframe = dataframe.reindex(columns = dataframe.columns.tolist() + ['folders']) #creating column for folder names
-
     for i_file in range(len(paths_of_mat)): #for every file
         current_path = paths_of_mat[i_file]
         current_data = pd.read_csv(current_path) #dataframe with all the info
         # We add the file number to the worm identifyers, for them to become unique accross all folders
         current_data["id_conservative"] = pd.DataFrame([id + i_file for id in current_data["id_conservative"]])
 
-        dataframe.append(current_data) #add it to the main dataframe
+        if i_file == 0:
+            dataframe = current_data
+            dataframe = dataframe.reindex(columns=dataframe.columns.tolist() + ['folder'])  # creating column for folder names
+        else:
+            dataframe.append(current_data) #add it to the main dataframe
 
         #In the folder column, add the folder as many times as necessary:
         nb_of_timesteps = len(current_data.get('time'))  # get the length of that
-        dataframe["folder"].append([current_path for i in range(nb_of_timesteps)])
+        dataframe["folder"].append(pd.DataFrame([current_path for i in range(nb_of_timesteps)]))
 
         #### outdated comments but might be useful?? about the old structure of traj.mat
         # Structure of traj.mat: traj.mat[0] = one line per worm, with their x,y positions at t_0
