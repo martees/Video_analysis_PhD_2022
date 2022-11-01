@@ -68,20 +68,33 @@ def patch_visits_multiple_traj(list_of_trajectories, list_of_patches):
     return list_of_durations
 
 
-def draw(trajectories):
+def traj_draw(list_x, list_y, list_id):
     """
-    Function that takes in a list of series of positions and draws them.
+    Function that takes in a list of series of positions and draws them, with one color per id
     :param trajectory: list of series of (x,y) positions ([[x0,x1,x2...] [y0,y1,y2...])
     :return: trajectory plot
     """
-    for i_traj in range(len(trajectories)):
-        reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
-        plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
+    nb_of_worms = np.unique
+    colors = plt.cm.jet(np.linspace(0, 1, n_worms))
+
+
+    # for i_traj in range(len(trajectories)):
+    #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
+    #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
     plt.show()
 
+def landscape_draw(patch_centers):
+    """
+    Function that t
+    """
+
+    return 0
 
 # Parameters
 radial_tolerance = 0.1
+patch_radius = 20
+
+# Stuff for tests
 fake_patch1 = [[1400, 1200], 100]  # [[x,y], radius] with x y = position of the center
 fake_patch2 = [[500, 1000], 30]  # [[x,y], radius] with x y = position of the center
 patch_list = [fake_patch1, fake_patch2]
@@ -90,12 +103,12 @@ patch_list = [fake_patch1, fake_patch2]
 
 #Extracting data, the function looks for all "traj.mat" files in the indicated path (will look into subfolders)
 #I have two lines, one for Windows and the other for Linux:
-# dataframe = fd.trajmat_to_pandas(fd.path_finding_traj("C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/20220721T163616_StandardizedConditions_C5_CAM1_Tracking_Video"))
-dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("/home/admin/Desktop/Camera_setup_analysis/"))
+dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("C:/Users/Asmar/Desktop/Thèse/2022_summer_videos"))
+# dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("/home/admin/Desktop/Camera_setup_analysis/"))
 
 
 
 # trajectories = fd.reformat_trajectories(dataframe["trajectories"])
 
-draw(trajectories)
+traj_draw(dataframe["x"])
 print(patch_visits_multiple_traj(trajectories, patch_list))
