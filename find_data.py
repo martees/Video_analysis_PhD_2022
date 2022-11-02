@@ -47,13 +47,13 @@ def trajmat_to_dataframe(paths_of_mat):
 
         if i_file == 0:
             dataframe = current_data
-            dataframe = dataframe.reindex(columns=dataframe.columns.tolist() + ['folder'])  # creating column for folder names
+            nb_of_timesteps = len(current_data.get('time'))  # get the length of that
+            dataframe["folder"] = pd.DataFrame([current_path for i in range(nb_of_timesteps)])
         else:
             dataframe.append(current_data) #add it to the main dataframe
-
-        #In the folder column, add the folder as many times as necessary:
-        nb_of_timesteps = len(current_data.get('time'))  # get the length of that
-        dataframe["folder"].append(pd.DataFrame([current_path for i in range(nb_of_timesteps)]))
+            #In the folder column, add the folder as many times as necessary:
+            nb_of_timesteps = len(current_data.get('time'))  # get the length of that
+            dataframe["folder"].append(pd.DataFrame([current_path for i in range(nb_of_timesteps)]))
 
         #### outdated comments but might be useful?? about the old structure of traj.mat
         # Structure of traj.mat: traj.mat[0] = one line per worm, with their x,y positions at t_0
@@ -74,8 +74,8 @@ def folder_to_metadata(path):
 
     # Finding the path of the other files
     lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
-    path_for_holes = current_path[:-lentoremove] + "holes.mat"
-    path_for_patches = current_path[:-lentoremove] + "foodpatches.mat"
+    path_for_holes = path[:-lentoremove] + "holes.mat"
+    path_for_patches = path[:-lentoremove] + "foodpatches.mat"
 
     # Loadmat function loads .mat file into a dictionnary with meta info
     # the data is stored as a value for the key with the original table name ('traj' for traj.mat)

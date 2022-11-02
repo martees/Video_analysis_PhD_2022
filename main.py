@@ -54,11 +54,16 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
         if patch_where_it_is!=-1: # Worm currently inside, no matter whether it just entered or stayed inside
             list_of_durations[patch_where_it_is][-1]+=1 #add one to the last element of the patch list
 
+    duration_sum = 0  # this is to compute the avg duration of visits
+    nb_of_visits = 0
     # Remove the zeros because they're just here for the duration algorithm
     for i_patch in range(len(list_of_durations)):
         list_of_durations[i_patch] = [nonzero for nonzero in list_of_durations[i_patch] if nonzero != 0]
+        duration_sum += sum(list_of_durations[i_patch])
+        nb_of_visits += len(list_of_durations[i_patch])
+    avg_duration =  duration_sum/nb_of_visits
 
-    return list_of_durations
+    return list_of_durations, avg_duration
 
 def patch_visits_multiple_traj(data):
     """
@@ -69,38 +74,32 @@ def patch_visits_multiple_traj(data):
     nb_of_worms = len(worm_list)
 
     results_table = pd.DataFrame()
-    results_table["condition"] = pd.DataFrame([-1 for i in range(nb_of_worms)])
-    results_table["worm_id"] = pd.DataFrame([-1 for i in range(nb_of_worms)])
-    results_table["raw_visits"] = pd.DataFrame([-1 for i in range(nb_of_worms)])
-    results_table["avg_visit_duration"] = pd.DataFrame([-1 for i in range(nb_of_worms)])
+    results_table["condition"] = [-1 for i in range(nb_of_worms)]
+    results_table["worm_id"] = [-1 for i in range(nb_of_worms)]
+    results_table["raw_visits"] = [-1 for i in range(nb_of_worms)]
+    results_table["avg_visit_duration"] = [-1 for i in range(nb_of_worms)]
 
     for i_worm in range(nb_of_worms):
         # Data from the dataframe
         current_worm = worm_list[i_worm]
-        current_data = data["id_conservative" == current_worm]
+        current_data = data[data["id_conservative"] == current_worm]
         current_list_x = current_data["x"]
         current_list_y = current_data["y"]
         current_folder = current_data["folder"][0]
+        print(current_data)
 
         # Getting to the metadata through the folder name in the data
         current_metadata = fd.folder_to_metadata(current_folder)
         list_of_densities = current_metadata["patch_densities"]
 
         # Computing the visit durations
-        raw_durations = patch_visits_single_traj(current_list_x, current_list_y, current_metadata["patch_centers"])
-
-        # Computing the avg visit duration for the current worm
-        duration_sum = 0
-        nb_of_visits = 0
-        for i_patch in range(len(raw_durations)):
-            duration_sum += sum(raw_durations[i_patch])
-            nb_of_visits += len(raw_durations[i_patch])
-        avg_visit_duration_per_worm.append(duration_sum/nb_of_visits)
+        raw_durations, avg_duration = patch_visits_single_traj(current_list_x, current_list_y, current_metadata["patch_centers"])
 
         # Fill up results table
         results_table["condition"][i_worm] = current_metadata["condition"]
         results_table["worm_id"][i_worm] = current_worm
         results_table["raw_visits"][i_worm] = pd.DataFrame(raw_durations)  # all visits of all patches
+        results_table["avg_visit_duration"][i_worm] = pd.DataFrame(avg_duration)  # all visits of all patches
 
     return results_table
 
@@ -151,5 +150,5 @@ dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("C:/Users/Asmar/Desktop
 
 # trajectories = fd.reformat_trajectories(dataframe["trajectories"])
 
-traj_draw(dataframe)
-print(patch_visits_multiple_traj(dataframe, patch_list))
+# traj_draw(dataframe)
+results = patch_visits_multiple_traj(dataframe)
