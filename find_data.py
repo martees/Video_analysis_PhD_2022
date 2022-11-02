@@ -39,21 +39,23 @@ def trajmat_to_dataframe(paths_of_mat):
         folder: path of where the data was extracted from (to keep computer - camera - date info)
     NOTE: it's with the value in folder that you can call other info such as patch positions, using folder_to_metadata()
     """
+    folder_list = []
     for i_file in range(len(paths_of_mat)): #for every file
         current_path = paths_of_mat[i_file]
         current_data = pd.read_csv(current_path) #dataframe with all the info
         # We add the file number to the worm identifyers, for them to become unique accross all folders
-        current_data["id_conservative"] = pd.DataFrame([id + i_file for id in current_data["id_conservative"]])
+        current_data["id_conservative"] = pd.DataFrame([id + 100*i_file for id in current_data["id_conservative"]])
 
         if i_file == 0:
             dataframe = current_data
-            nb_of_timesteps = len(current_data.get('time'))  # get the length of that
-            dataframe["folder"] = pd.DataFrame([current_path for i in range(nb_of_timesteps)])
         else:
-            dataframe.append(current_data) #add it to the main dataframe
-            #In the folder column, add the folder as many times as necessary:
-            nb_of_timesteps = len(current_data.get('time'))  # get the length of that
-            dataframe["folder"].append(pd.DataFrame([current_path for i in range(nb_of_timesteps)]))
+            dataframe = pd.concat([dataframe,current_data]) #add it to the main dataframe
+
+        #In the folder list, add the folder as many times as necessary:
+        nb_of_timesteps = len(current_data.get('time'))  # get the length of that
+        folder_list += [current_path for i in range(nb_of_timesteps)]
+
+    dataframe["folder"] = folder_list
 
         #### outdated comments but might be useful?? about the old structure of traj.mat
         # Structure of traj.mat: traj.mat[0] = one line per worm, with their x,y positions at t_0
@@ -134,7 +136,7 @@ def readcode(holepositions):
 
     code_matrix = np.zeros((3, 3))
 
-    for i in range(len(holepositions)):
+    for i in range(len(codepositions)):
         curr_x = codepositions[i][0]
         curr_y = codepositions[i][1]
         if curr_x <= vboundary1:
