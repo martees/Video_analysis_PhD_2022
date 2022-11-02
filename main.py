@@ -21,7 +21,7 @@ def in_patch(position, patch):
     distance = np.sqrt((position[0]-center[0])**2 + (position[1]-center[1])**2)
     return distance < radius + radial_tolerance
 
-def patch_visits_single_traj(list_x, list_y, list_of_patches):
+def patch_visits_single_traj(list_x, list_y, patch_centers):
     """
     Takes a trajectory under the format: [x0 x1 ... xN] [y0 y1 ... yN] and a list of patch centers
     For now, uses the unique patch_radius defined as a global parameter.
@@ -31,7 +31,7 @@ def patch_visits_single_traj(list_x, list_y, list_of_patches):
     """
 
     #Variables for the loop and the output
-    is_in_patch = np.ones(len(list_of_patches)) # Bool list to store where the worm is currently (1 where it currently is)
+    is_in_patch = np.ones(len(patch_centers)) # Bool list to store where the worm is currently (1 where it currently is)
     list_of_durations = [list(i) for i in np.zeros((10,1), dtype='int')] # List with the right format [[0],[0],...,[0]]
     # In list_of_durations, zero means "the worm was not in the patch in the previous timestep"
     # As soon as the worm enters the patch, this zero starts being incremented
@@ -44,8 +44,8 @@ def patch_visits_single_traj(list_x, list_y, list_of_patches):
         was_in_patch = is_in_patch # keeping in memory where the worm was, [0, 0, 1, 0] = in patch 2
         patch_where_it_was = patch_where_it_is # index of the patch where it is
         patch_where_it_is = -1 # resetting the variable
-        for i_patch in range(len(list_of_patches)): #for every patch
-            is_in_patch[i_patch] = in_patch([list_x[time],list_y[time]], list_of_patches[i_patch]) #check if the worm is in
+        for i_patch in range(len(patch_centers)): #for every patch
+            is_in_patch[i_patch] = in_patch([list_x[time],list_y[time]], patch_centers[i_patch]) #check if the worm is in
             if is_in_patch[i_patch] == True: #remember where it is
                 patch_where_it_is = i_patch
         if patch_where_it_is==-1: # Worm currently out
@@ -68,14 +68,41 @@ def patch_visits_multiple_traj(data):
     worm_list = np.unique(data["id_conservative"])
     nb_of_worms = len(worm_list)
 
-    list_of_trajectories =
-    list_of_patches
-    list_of_durations = []
+    results_table = pd.DataFrame()
+    results_table["condition"] = pd.DataFrame([-1 for i in range(nb_of_worms)])
+    results_table["worm_id"] = pd.DataFrame([-1 for i in range(nb_of_worms)])
+    results_table["raw_visits"] = pd.DataFrame([-1 for i in range(nb_of_worms)])
+    results_table["avg_visit_duration"] = pd.DataFrame([-1 for i in range(nb_of_worms)])
 
     for i_worm in range(nb_of_worms):
-        raw_durations = patch_visits_single_traj(traj, list_of_patches)
-        list_of_durations.append()
-    return list_of_durations, avg_duration_worm,
+        # Data from the dataframe
+        current_worm = worm_list[i_worm]
+        current_data = data["id_conservative" == current_worm]
+        current_list_x = current_data["x"]
+        current_list_y = current_data["y"]
+        current_folder = current_data["folder"][0]
+
+        # Getting to the metadata through the folder name in the data
+        current_metadata = fd.folder_to_metadata(current_folder)
+        list_of_densities = current_metadata["patch_densities"]
+
+        # Computing the visit durations
+        raw_durations = patch_visits_single_traj(current_list_x, current_list_y, current_metadata["patch_centers"])
+
+        # Computing the avg visit duration for the current worm
+        duration_sum = 0
+        nb_of_visits = 0
+        for i_patch in range(len(raw_durations)):
+            duration_sum += sum(raw_durations[i_patch])
+            nb_of_visits += len(raw_durations[i_patch])
+        avg_visit_duration_per_worm.append(duration_sum/nb_of_visits)
+
+        # Fill up results table
+        results_table["condition"][i_worm] = current_metadata["condition"]
+        results_table["worm_id"][i_worm] = current_worm
+        results_table["raw_visits"][i_worm] = pd.DataFrame(raw_durations)  # all visits of all patches
+
+    return results_table
 
 
 def traj_draw(data):
