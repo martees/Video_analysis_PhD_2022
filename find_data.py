@@ -85,13 +85,13 @@ def folder_to_metadata(path):
     patchesmat = loadmat(path_for_patches)  # load patches info
 
     # Extract the data into the dataframe
-    holepositions = pd.DataFrame(holesmat.get('pointList')) # gets the holes positions
-    condition_number = readcode(holepositions) #get the condition from that
+    # holepositions = pd.DataFrame(holesmat.get('pointList')) # gets the holes positions
+    # condition_number = readcode(holepositions) #get the condition from that
     # TODO reference_scale, reference_xyshift, reference_rotation = read_reference_holes(holepositions)
 
     metadata["patch_centers"] = list(patchesmat.get("centers_patches"))
     metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
-    metadata["condition"] = condition_number
+    metadata["condition"] = list(patchesmat.get("num_condition"))
 
     return metadata
 

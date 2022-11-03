@@ -173,7 +173,7 @@ patch_list = [fake_patch1, fake_patch2]
 #Extracting data, the function looks for all "traj.mat" files in the indicated path (will look into subfolders)
 #I have two lines, one for Windows and the other for Linux:
 # dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("C:/Users/Asmar/Desktop/Thèse/2022_summer_videos"))
-dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("/home/admin/Desktop/Camera_setup_analysis/"))
+dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_Nov2022_clean/"))
 
 
 # trajectories = fd.reformat_trajectories(dataframe["trajectories"])
@@ -183,4 +183,5 @@ results = patch_visits_multiple_traj(dataframe)
 print(avg_duration_per_condition(results))
 
 plt.bar(results["worm_id"], results["avg_visit_duration"])
+# bootstrap_ci = bootstrap(data, np.mean, confidence_level=0.95, random_state=1, method='percentile')
 plt.show()
