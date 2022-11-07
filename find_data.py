@@ -44,7 +44,7 @@ def trajmat_to_dataframe(paths_of_mat):
         current_path = paths_of_mat[i_file]
         current_data = pd.read_csv(current_path) #dataframe with all the info
         # We add the file number to the worm identifyers, for them to become unique accross all folders
-        current_data["id_conservative"] = pd.DataFrame([id + 100*i_file for id in current_data["id_conservative"]])
+        current_data["id_conservative"] = [id + 100*i_file for id in current_data["id_conservative"]]
 
         if i_file == 0:
             dataframe = current_data
@@ -91,10 +91,12 @@ def folder_to_metadata(path):
 
     metadata["patch_centers"] = list(patchesmat.get("centers_patches"))
     metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
-    metadata["condition"] = list(patchesmat.get("num_condition"))
+    metadata["condition"] = list(patchesmat.get("num_condition"))[0][0]
 
     return metadata
 
+
+#useless functions
 def reformat_trajectories(bad_trajectory):
     """
     Very specific to our file format. Removes NaN lines, and reformats the trajectory file
