@@ -3,10 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import distance
 import pandas as pd
-
-# Parameters
-radial_tolerance = 0.1
-patch_radius = 20
+from param import *
 
 
 def in_patch(position, patch):
@@ -60,6 +57,7 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
     nb_of_visits = 0
     first_recorded_worm_position = [list_x[0], list_y[0]]
     furthest_patch_distance = 0
+
     # Remove the zeros because they're just here for the duration algorithm
     # in the same loop we compute the average visit duration, and the furthest visited patch
     for i_patch in range(len(list_of_durations)):
@@ -71,12 +69,8 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
 
         duration_sum += sum(list_of_durations[i_patch])
         nb_of_visits += len(list_of_durations[i_patch])
-    if nb_of_visits != 0:
-        avg_duration = duration_sum / nb_of_visits
-    else:
-        avg_duration = 0
 
-    return list_of_durations, avg_duration, furthest_patch_distance
+    return list_of_durations, duration_sum, nb_of_visits, furthest_patch_distance
 
 
 def patch_visits_multiple_traj(data):
@@ -88,10 +82,12 @@ def patch_visits_multiple_traj(data):
     nb_of_worms = len(worm_list)
 
     results_table = pd.DataFrame()
+    results_table["folder"] = [-1 for i in range(nb_of_worms)]
     results_table["condition"] = [-1 for i in range(nb_of_worms)]
     results_table["worm_id"] = [-1 for i in range(nb_of_worms)]
     results_table["raw_visits"] = [-1 for i in range(nb_of_worms)]
-    results_table["avg_visit_duration"] = [-1 for i in range(nb_of_worms)]
+    results_table["duration_sum"] = [-1 for i in range(nb_of_worms)]
+    results_table["nb_of_visits"] = [-1 for i in range(nb_of_worms)]
     results_table["furthest_patch_distance"] = [-1 for i in range(nb_of_worms)]
 
     for i_worm in range(nb_of_worms):
@@ -109,70 +105,25 @@ def patch_visits_multiple_traj(data):
         list_of_densities = current_metadata["patch_densities"]
 
         # Computing the visit durations
-        raw_durations, avg_duration, furthest_patch_distance = patch_visits_single_traj(list(current_list_x),
-                                                                                        list(current_list_y),
-                                                                                        current_metadata[
-                                                                                            "patch_centers"])
+        raw_durations, duration_sum, nb_of_visits, furthest_patch_distance = patch_visits_single_traj(
+                                                                                                list(current_list_x),
+                                                                                                list(current_list_y),
+                                                                                                current_metadata[
+                                                                                                    "patch_centers"])
 
         # Fill up results table
+        results_table.loc[i_worm, "folder"] = current_folder
         results_table.loc[i_worm, "condition"] = current_metadata["condition"][0]
         results_table.loc[i_worm, "worm_id"] = current_worm
         results_table.loc[i_worm, "raw_visits"] = pd.DataFrame(raw_durations)  # all visits of all patches
-        results_table.loc[i_worm, "avg_visit_duration"] = avg_duration  # all visits of all patches
+        results_table.loc[i_worm, "duration_sum"] = duration_sum  # all visits of all patches
+        results_table.loc[i_worm, "nb_of_visits"] = nb_of_visits  # all visits of all patches
         results_table.loc[i_worm, "furthest_patch_distance"] = furthest_patch_distance  # all visits of all patches
 
     return results_table
 
 
-def traj_draw(data):
-    """
-    Function that takes in our dataframe, using columns: "x", "y", "id_conservative"
-    Extracts list of series of positions and draws them, with one color per id
-    :param data: dataframe containing the series of (x,y) positions ([[x0,x1,x2...] [y0,y1,y2...])
-    :return: trajectory plot
-    """
-    worm_list = np.unique(data["id_conservative"])
-    nb_of_worms = len(worm_list)
-    colors = plt.cm.jet(np.linspace(0, 1, nb_of_worms))
-    for i_worm in range(nb_of_worms):
-        current_worm = worm_list[i_worm]
-        current_list_x = data[data["id_conservative"] == current_worm]["x"]
-        current_list_y = data[data["id_conservative"] == current_worm]["y"]
-        plt.plot(current_list_x, current_list_y, color=colors[i_worm])
-    # for i_traj in range(len(trajectories)):
-    #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
-    #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
-    plt.show()
-
-
-def extract_and_save(path, draw=False):
-    dataframe = fd.trajmat_to_dataframe(fd.path_finding_traj(path))
-    if draw:
-        traj_draw(dataframe)
+def generate_and_save(dataframe, path):
     results = patch_visits_multiple_traj(dataframe)
     results.to_csv(path + "results.csv")
     return 0
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

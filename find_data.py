@@ -3,6 +3,7 @@ from scipy.io import loadmat  # this is the SciPy module that loads mat-files
 import numpy as np
 import pandas as pd
 import glob
+from param import *
 
 
 def is_linux():  # returns true if you're using linux, otherwise false
