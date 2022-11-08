@@ -23,9 +23,12 @@ def avg_duration_per_condition(result_table):
     # Initializing some listssss
     list_of_conditions = np.unique(result_table["condition"])
     list_of_plates = np.unique(result_table["folder"])
-    list_of_avg = np.zeros(len(list_of_conditions))
-    bootstrap_errors_inf = np.zeros(len(list_of_conditions))
-    bootstrap_errors_sup = np.zeros(len(list_of_conditions))
+    list_of_avg_duration = np.zeros(len(list_of_conditions))
+    list_of_avg_nb_of_visits = np.zeros(len(list_of_conditions))
+    errors_inf_dur = np.zeros(len(list_of_conditions))
+    errors_sup_dur = np.zeros(len(list_of_conditions))
+    errors_inf_nb = np.zeros(len(list_of_conditions))
+    errors_sup_nb = np.zeros(len(list_of_conditions))
 
     for i_condition in range(len(list_of_conditions)):
         # Extracting and slicing
@@ -33,23 +36,34 @@ def avg_duration_per_condition(result_table):
         current = result_table[result_table["condition"] == condition]
         list_of_plates = np.unique(current["folder"])
 
-        # Compute average for each plate of the current condition
+        # Compute average for each plate of the current condition, save it in a list
         list_of_plate_averages = np.zeros(len(list_of_plates))
+        list_of_visits = np.zeros(len(list_of_plates))
         for i_plate in range(len(list_of_plates)):
             current_plate = current[current["folder"] == list_of_plates[i_plate]]
             sum_of_distances = np.sum(current["duration_sum"])
             nb_of_visits = np.sum(current["nb_of_visits"])
+            list_of_visits[i_plate] = nb_of_visits
             list_of_plate_averages[i_plate] = sum_of_distances/nb_of_visits
 
         # Average for the current condition
-        list_of_avg[i_condition] = np.sum(list_of_plate_averages) / len(list_of_plate_averages)
+        list_of_avg_duration[i_condition] = np.sum(list_of_plate_averages) / len(list_of_plate_averages)
+        list_of_avg_nb_of_visits[i_condition] = np.sum(list_of_visits) / len(list_of_visits)
 
-        # Bootstrapping
-        bootstrap_ci = bootstrap((current,), np.mean, confidence_level=0.95,
+        # Bootstrapping on the plate avg duration
+        bootstrap_ci = bootstrap((list_of_plate_averages,), np.mean, confidence_level=0.95,
                              random_state=1, method='percentile').confidence_interval
-        bootstrap_errors_inf[i_condition] = bootstrap_ci[0]
-        bootstrap_errors_sup[i_condition] = bootstrap_ci[1]
-    return list_of_conditions, list_of_avg, [bootstrap_errors_inf,bootstrap_errors_sup]
+        errors_inf_dur[i_condition] = bootstrap_ci[0]
+        errors_sup_dur[i_condition] = bootstrap_ci[1]
+
+        # Bootstrapping on the plate nb of visits
+        bootstrap_ci = bootstrap((list_of_visits,), np.mean, confidence_level=0.95,
+                             random_state=1, method='percentile').confidence_interval
+        errors_inf_nb[i_condition] = bootstrap_ci[0]
+        errors_sup_nb[i_condition] = bootstrap_ci[1]
+
+    return list_of_conditions, list_of_avg_duration, [errors_inf_dur, errors_sup_dur], list_of_avg_nb_of_visits, [errors_inf_nb, errors_sup_nb]
+
 
 def furthest_patch_per_condition(result_table):
     """
@@ -93,19 +107,26 @@ def traj_draw(data, i_condition):
         metadata = fd.folder_to_metadata(current_folder)
         current_condition = metadata["condition"][0]
         if current_condition == i_condition:
-            if previous_folder == 0:
+            if previous_folder != current_folder or previous_folder == 0: #if we just changed plate or if it's the 1st
+                if previous_folder != 0: #if its not the first (if its the first theres nothing to show)
+                    plt.show()
+                # Show background and patches
                 previous_folder = current_folder
-            elif previous_folder != current_folder:
-                plt.show()
-                previous_folder = current_folder
-            plt.plot(current_list_x, current_list_y, color=colors[i_worm])
-            patches = metadata["patch_centers"]
-            patch_densities = metadata["patch_densities"]
-            for i_patch in range(len(patches)):
-                circle = plt.Circle((patches[i_patch][0],patches[i_patch][1]),patch_radius)
+                patches = metadata["patch_centers"]
+                patch_densities = metadata["patch_densities"]
+                composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
                 fig = plt.gcf()
                 ax = fig.gca()
-                ax.add_patch(circle)
+                ax.imshow(composite)
+                for i_patch in range(len(patches)):
+                    circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), patch_radius, color="white",
+                                        alpha=min(1, patch_densities[i_patch][0]))
+                    fig = plt.gcf()
+                    ax = fig.gca()
+                    #ax.add_patch(circle)
+            # Plot worm trajectory
+            plt.plot(current_list_x, current_list_y, color=colors[i_worm])
+
     # for i_traj in range(len(trajectories)):
     #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
     #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
@@ -143,12 +164,20 @@ def check_patch(folder_list):
         plt.show()
 
 def plot_avg_visits():
-    condition_nb, average_per_condition, errorbars = avg_duration_per_condition(results)
-    plt.bar(condition_nb, average_per_condition)
-    plt.errorbar(condition_nb, average_per_condition, errorbars, fmt='.k', capsize = 5)
-    plt.ylabel("Average duration of visits")
-    plt.xlabel("Condition number")
+    condition_nb, average_per_condition, errorbars, average_nb_of_visits, errorbars_nb = avg_duration_per_condition(results)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+
+    ax1.bar(condition_nb, average_per_condition)
+    ax1.errorbar(condition_nb, average_per_condition, errorbars, fmt='.k', capsize = 5)
+    ax1.set(ylabel = "Average duration of visits", xlabel = "Condition number")
+
+    ax2.bar(condition_nb, average_nb_of_visits, color = "orange")
+    ax2.errorbar(condition_nb, average_nb_of_visits, errorbars_nb, fmt='.k', capsize = 5)
+    ax2.set(ylabel = "Average number of visits", xlabel = "Condition number")
+
     plt.show()
+
 def plot_avg_furthest_patch():
     condition_nb, average_per_condition, errorbars = furthest_patch_per_condition(results)
     plt.bar(condition_nb, average_per_condition)
@@ -181,7 +210,9 @@ if regenerate_data:
 results = pd.read_csv(path+"results.csv") #run this to retrieve results from those trajectories
 
 #check_patches(fd.path_finding_traj(path))
-plot_avg_visits()
+#plot_avg_visits()
 #plot_avg_furthest_patch()
-#traj_draw(trajectories,1)
+traj_draw(trajectories,4)
 
+#TODO radial_tolerance in a useful way
+#TODO marginal value theorem visits

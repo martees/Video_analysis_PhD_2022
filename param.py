@@ -1,3 +1,3 @@
 # Parameters
-radial_tolerance = 0.1
+radial_tolerance = 10
 patch_radius = 60
