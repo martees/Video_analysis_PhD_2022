@@ -56,6 +56,7 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
     duration_sum = 0  # this is to compute the avg duration of visits
     nb_of_visits = 0
     first_recorded_worm_position = [list_x[0], list_y[0]]
+    nb_of_visited_patches = 0
     furthest_patch_distance = 0
 
     # Remove the zeros because they're just here for the duration algorithm
@@ -66,11 +67,12 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
         if len(list_of_durations[i_patch]) > 0:  # if the patch was visited at least once
             patch_distance_to_center = distance.euclidean(first_recorded_worm_position, patch_centers[i_patch])
             furthest_patch_distance = max(patch_distance_to_center, furthest_patch_distance)
+            nb_of_visited_patches += 1
 
         duration_sum += sum(list_of_durations[i_patch])
         nb_of_visits += len(list_of_durations[i_patch])
 
-    return list_of_durations, duration_sum, nb_of_visits, furthest_patch_distance
+    return list_of_durations, duration_sum, nb_of_visits, nb_of_visited_patches, furthest_patch_distance
 
 
 def patch_visits_multiple_traj(data):
@@ -88,6 +90,7 @@ def patch_visits_multiple_traj(data):
     results_table["raw_visits"] = [-1 for i in range(nb_of_worms)]
     results_table["duration_sum"] = [-1 for i in range(nb_of_worms)]
     results_table["nb_of_visits"] = [-1 for i in range(nb_of_worms)]
+    results_table["nb_of_visited_patches"] = [-1 for i in range(nb_of_worms)]
     results_table["furthest_patch_distance"] = [-1 for i in range(nb_of_worms)]
 
     for i_worm in range(nb_of_worms):
@@ -105,7 +108,7 @@ def patch_visits_multiple_traj(data):
         list_of_densities = current_metadata["patch_densities"]
 
         # Computing the visit durations
-        raw_durations, duration_sum, nb_of_visits, furthest_patch_distance = patch_visits_single_traj(
+        raw_durations, duration_sum, nb_of_visits, nb_of_visited_patches, furthest_patch_distance = patch_visits_single_traj(
                                                                                                 list(current_list_x),
                                                                                                 list(current_list_y),
                                                                                                 current_metadata[
@@ -116,9 +119,10 @@ def patch_visits_multiple_traj(data):
         results_table.loc[i_worm, "condition"] = current_metadata["condition"][0]
         results_table.loc[i_worm, "worm_id"] = current_worm
         results_table.loc[i_worm, "raw_visits"] = pd.DataFrame(raw_durations)  # all visits of all patches
-        results_table.loc[i_worm, "duration_sum"] = duration_sum  # all visits of all patches
-        results_table.loc[i_worm, "nb_of_visits"] = nb_of_visits  # all visits of all patches
-        results_table.loc[i_worm, "furthest_patch_distance"] = furthest_patch_distance  # all visits of all patches
+        results_table.loc[i_worm, "duration_sum"] = duration_sum  # total duration of visits
+        results_table.loc[i_worm, "nb_of_visits"] = nb_of_visits  # total nb of visits
+        results_table.loc[i_worm, "nb_of_visited_patches"] = nb_of_visited_patches  # total nb of patches visited
+        results_table.loc[i_worm, "furthest_patch_distance"] = furthest_patch_distance  # distance
 
     return results_table
 
