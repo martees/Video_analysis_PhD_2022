@@ -94,7 +94,7 @@ def patch_visits_multiple_traj(data):
     results_table["furthest_patch_distance"] = [-1 for i in range(nb_of_worms)]
 
     for i_worm in range(nb_of_worms):
-        print(i_worm)
+        print(i_worm, "/", nb_of_worms)
 
         # Data from the dataframe
         current_worm = worm_list[i_worm]

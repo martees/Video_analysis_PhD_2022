@@ -182,23 +182,33 @@ def plot_data():
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
 
     ax1.bar(condition_nb, average_per_condition)
+    ax1.set_xticks(range(len(condition_nb)))
     ax1.set_xticklabels(["close 0.2","medium 0.2","far 0.2","cluster 0.2","close 0.5","medium 0.5","far 0.5",
                          "cluster 0.5","medium 1.25", "medium 0.2+0.5","medium 0.5+1.25","control"])
-    ax1.tick_params(axis="x", labelrotation = 45, labelsize = 10)
+    #ax1.tick_params(axis="x", labelrotation = 45, labelsize = 10)
     ax1.errorbar(condition_nb, average_per_condition, errorbars, fmt='.k', capsize = 5)
     ax1.set(ylabel = "Average duration of visits", xlabel = "Condition number")
 
     ax2.bar(condition_nb, average_nb_of_visits, color = "orange")
+    ax2.set_xticks(range(len(condition_nb)))
     ax2.set_xticklabels(["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5",
                          "cluster 0.5", "medium 1.25", "medium 0.2+0.5", "medium 0.5+1.25", "control"])
     ax2.errorbar(condition_nb, average_nb_of_visits, errorbars_nb, fmt='.k', capsize = 5)
     ax2.set(ylabel = "Average number of visits", xlabel = "Condition number")
 
     ax3.bar(condition_nb, average_nb_of_visited_patches, color = "green")
+    ax3.set_xticks(range(len(condition_nb)))
     ax3.set_xticklabels(["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5",
                          "cluster 0.5", "medium 1.25", "medium 0.2+0.5", "medium 0.5+1.25", "control"])
     ax3.errorbar(condition_nb, average_nb_of_visited_patches, errorbars_patches, fmt='.k', capsize = 5)
     ax3.set(ylabel = "Average number of visited patches", xlabel = "Condition number")
+
+    for tick in ax1.get_xticklabels():
+        tick.set_rotation(90)
+    for tick in ax2.get_xticklabels():
+        tick.set_rotation(90)
+    for tick in ax3.get_xticklabels():
+        tick.set_rotation(90)
 
     plt.show()
 
