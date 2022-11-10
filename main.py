@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import bootstrap
+import random
 
 #My code
 import generate_results as gr
@@ -24,6 +25,10 @@ def results_per_condition(result_table):
     list_of_conditions = np.unique(result_table["condition"])
     list_of_plates = np.unique(result_table["folder"])
     # Results
+    full_list_of_duration_per_plate = [list(i) for i in np.zeros((len(list_of_conditions), 1), dtype='int')]
+    full_list_of_nb_of_visits_per_plate = [list(i) for i in np.zeros((len(list_of_conditions), 1), dtype='int')]
+    full_list_of_nb_of_patches_per_plate = [list(i) for i in np.zeros((len(list_of_conditions), 1), dtype='int')]
+    #Averages
     list_of_avg_duration = np.zeros(len(list_of_conditions))
     list_of_avg_nb_of_visits = np.zeros(len(list_of_conditions))
     list_of_avg_nb_of_patches = np.zeros(len(list_of_conditions))
@@ -38,45 +43,56 @@ def results_per_condition(result_table):
     for i_condition in range(len(list_of_conditions)):
         # Extracting and slicing
         condition = list_of_conditions[i_condition]
-        current = result_table[result_table["condition"] == condition]
-        list_of_plates = np.unique(current["folder"])
+        current_condition = result_table[result_table["condition"] == condition]
+        list_of_plates = np.unique(current_condition["folder"])
 
         # Compute average for each plate of the current condition, save it in a list
-        list_of_average_durations = np.zeros(len(list_of_plates)) #
+        list_of_durations = np.zeros(len(list_of_plates)) #
         list_of_nb_of_visits = np.zeros(len(list_of_plates))
         list_of_nb_of_visited_patches = np.zeros(len(list_of_plates))
+
         for i_plate in range(len(list_of_plates)):
-            current_plate = current[current["folder"] == list_of_plates[i_plate]] #take only one plate
-            list_of_nb_of_visited_patches[i_plate] = np.sum(current["nb_of_visited_patches"]) #total nb of visited patches
-            list_of_nb_of_visits[i_plate] = np.sum(current["nb_of_visits"]) #total nb of visits for this plate
-            sum_of_durations = np.sum(current["duration_sum"]) #total duration of visits for this plate
-            list_of_average_durations[i_plate] = sum_of_durations/list_of_nb_of_visits[i_plate] #average duration of visits
+            current_plate = current_condition[current_condition["folder"] == list_of_plates[i_plate]] #take only one plate
+            list_of_nb_of_visited_patches[i_plate] = np.sum(current_plate["nb_of_visited_patches"]) #total nb of visited patches
+            list_of_nb_of_visits[i_plate] = np.sum(current_plate["nb_of_visits"]) #total nb of visits for this plate
+            sum_of_durations = np.sum(current_plate["duration_sum"]) #total duration of visits for this plate
+            list_of_durations[i_plate] = sum_of_durations/list_of_nb_of_visits[i_plate] #average duration of visits
+
+        # Keep in memory the full list of averages
+        full_list_of_nb_of_patches_per_plate[i_condition] = list_of_nb_of_visited_patches
+        full_list_of_duration_per_plate[i_condition] = list_of_durations
+        full_list_of_nb_of_visits_per_plate[i_condition] = list_of_nb_of_visits
 
         # Average for the current condition
         list_of_avg_nb_of_patches[i_condition] = np.mean(list_of_nb_of_visited_patches)
-        list_of_avg_duration[i_condition] = np.mean(list_of_average_durations)
+        list_of_avg_duration[i_condition] = np.mean(list_of_durations)
         list_of_avg_nb_of_visits[i_condition] = np.mean(list_of_nb_of_visits)
 
         # Bootstrapping on the plate avg duration
-        bootstrap_ci = bootstrap((list_of_average_durations,), np.mean, confidence_level=0.95,
-                             random_state=1, method='percentile').confidence_interval
-        errors_inf_dur[i_condition] = bootstrap_ci[0]
-        errors_sup_dur[i_condition] = bootstrap_ci[1]
+        bootstrap_ci = bottestrop_ci(list_of_durations, 1000)
+        errors_inf_dur[i_condition] = list_of_avg_duration[i_condition] - bootstrap_ci[0]
+        errors_sup_dur[i_condition] = bootstrap_ci[1] - list_of_avg_duration[i_condition]
 
         # Bootstrapping on the plate nb of visits
-        bootstrap_ci = bootstrap((list_of_nb_of_visits,), np.mean, confidence_level=0.95,
-                             random_state=1, method='percentile').confidence_interval
-        errors_inf_visits[i_condition] = bootstrap_ci[0]
-        errors_sup_visits[i_condition] = bootstrap_ci[1]
+        bootstrap_ci = bottestrop_ci(list_of_nb_of_visits,1000)
+        errors_inf_visits[i_condition] = list_of_avg_nb_of_visits[i_condition] - bootstrap_ci[0]
+        errors_sup_visits[i_condition] = bootstrap_ci[1] - list_of_avg_nb_of_visits[i_condition]
 
         # Bootstrapping on the plate nb of visited patches
-        bootstrap_ci = bootstrap((list_of_nb_of_visited_patches,), np.mean, confidence_level=0.95,
-                             random_state=1, method='percentile').confidence_interval
-        errors_inf_nb[i_condition] = bootstrap_ci[0]
-        errors_sup_nb[i_condition] = bootstrap_ci[1]
+        bootstrap_ci = bottestrop_ci(list_of_nb_of_visited_patches,1000)
+        errors_inf_nb[i_condition] = list_of_avg_nb_of_patches[i_condition] - bootstrap_ci[0]
+        errors_sup_nb[i_condition] = bootstrap_ci[1] - list_of_avg_nb_of_patches[i_condition]
 
-    return list_of_conditions, list_of_avg_duration, [errors_inf_dur, errors_sup_dur], list_of_avg_nb_of_visits, [errors_inf_visits, errors_sup_visits], list_of_avg_nb_of_patches, [errors_inf_nb, errors_sup_nb]
+    return list_of_conditions, full_list_of_duration_per_plate, list_of_avg_duration, [errors_inf_dur, errors_sup_dur], full_list_of_nb_of_visits_per_plate, list_of_avg_nb_of_visits, [errors_inf_visits, errors_sup_visits], full_list_of_nb_of_patches_per_plate, list_of_avg_nb_of_patches, [errors_inf_nb, errors_sup_nb]
 
+def bottestrop_ci(data, nb_resample):
+    bootstrapped_means= []
+    for i in range(nb_resample):
+        y = random.sample(data.tolist(), 4)
+        avg = np.mean(y)
+        bootstrapped_means.append(avg)
+    bootstrapped_means.sort()
+    return [np.percentile(bootstrapped_means,5), np.percentile(bootstrapped_means,95)]
 
 def furthest_patch_per_condition(result_table):
     """
@@ -112,6 +128,7 @@ def traj_draw(data, i_condition):
     nb_of_worms = len(worm_list)
     colors = plt.cm.jet(np.linspace(0, 1, nb_of_worms))
     previous_folder = 0
+    n_plate = 1
     for i_worm in range(nb_of_worms):
         current_worm = worm_list[i_worm]
         current_list_x = data[data["id_conservative"] == current_worm]["x"]
@@ -119,10 +136,13 @@ def traj_draw(data, i_condition):
         current_folder = list(data["folder"][data["id_conservative"] == worm_list[i_worm]])[0]
         metadata = fd.folder_to_metadata(current_folder)
         current_condition = metadata["condition"][0]
+        plt.suptitle("Trajectories for condition "+str(i_condition))
         if current_condition == i_condition:
             if previous_folder != current_folder or previous_folder == 0: #if we just changed plate or if it's the 1st
-                if previous_folder != 0: #if its not the first (if its the first theres nothing to show)
-                    plt.show()
+                plt.subplot(3, 4, n_plate)
+                n_plate+=1
+                #if previous_folder != 0: #if its not the first (if its the first theres nothing to show)
+                    #plt.show()
                 # Show background and patches
                 previous_folder = current_folder
                 patches = metadata["patch_centers"]
@@ -139,11 +159,10 @@ def traj_draw(data, i_condition):
                     #ax.add_patch(circle)
             # Plot worm trajectory
             plt.plot(current_list_x, current_list_y, color=colors[i_worm])
-
+    plt.show()
     # for i_traj in range(len(trajectories)):
     #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
     #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
-    plt.show()
 
 def check_patches(folder_list):
     """
@@ -177,7 +196,7 @@ def check_patches(folder_list):
         plt.show()
 
 def plot_data():
-    condition_nb, average_per_condition, errorbars, average_nb_of_visits, errorbars_nb, average_nb_of_visited_patches, errorbars_patches  = results_per_condition(results)
+    condition_nb, full_list_duration, average_per_condition, errorbars, full_list_visits, average_nb_of_visits, errorbars_nb, full_list_patchnb, average_nb_of_visited_patches, errorbars_patches  = results_per_condition(results)
 
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
 
@@ -188,6 +207,8 @@ def plot_data():
     #ax1.tick_params(axis="x", labelrotation = 45, labelsize = 10)
     ax1.errorbar(condition_nb, average_per_condition, errorbars, fmt='.k', capsize = 5)
     ax1.set(ylabel = "Average duration of visits", xlabel = "Condition number")
+    for i in range(len(condition_nb)):
+        ax1.scatter([condition_nb[i] for j in range(len(full_list_duration[i]))], full_list_duration[i], color = "red")
 
     ax2.bar(condition_nb, average_nb_of_visits, color = "orange")
     ax2.set_xticks(range(len(condition_nb)))
@@ -195,6 +216,9 @@ def plot_data():
                          "cluster 0.5", "medium 1.25", "medium 0.2+0.5", "medium 0.5+1.25", "control"])
     ax2.errorbar(condition_nb, average_nb_of_visits, errorbars_nb, fmt='.k', capsize = 5)
     ax2.set(ylabel = "Average number of visits", xlabel = "Condition number")
+    for i in range(len(condition_nb)):
+        ax2.scatter([condition_nb[i] for j in range(len(full_list_visits[i]))], full_list_visits[i], color = "red")
+
 
     ax3.bar(condition_nb, average_nb_of_visited_patches, color = "green")
     ax3.set_xticks(range(len(condition_nb)))
@@ -202,6 +226,9 @@ def plot_data():
                          "cluster 0.5", "medium 1.25", "medium 0.2+0.5", "medium 0.5+1.25", "control"])
     ax3.errorbar(condition_nb, average_nb_of_visited_patches, errorbars_patches, fmt='.k', capsize = 5)
     ax3.set(ylabel = "Average number of visited patches", xlabel = "Condition number")
+    for i in range(len(condition_nb)):
+        ax3.scatter([condition_nb[i] for j in range(len(full_list_patchnb[i]))], full_list_patchnb[i], color = "red")
+
 
     for tick in ax1.get_xticklabels():
         tick.set_rotation(90)
@@ -244,9 +271,9 @@ if regenerate_data:
 results = pd.read_csv(path+"results.csv") #run this to retrieve results from those trajectories
 
 #check_patches(fd.path_finding_traj(path))
-plot_data()
+#plot_data()
 #plot_avg_furthest_patch()
-#traj_draw(trajectories,4)
+traj_draw(trajectories,3)
 
 #TODO marginal value theorem visits
 #TODO movement stuff between patches: speed, turning rate, MSD over time
