@@ -97,7 +97,7 @@ def bottestrop_ci(data, nb_resample):
 def furthest_patch_per_condition(result_table):
     """
     Function that takes our result table with a ["condition"] and a ["avg_duration"] column
-    Will return the average of avg_duration for each condition, with a bootstrap confidence interval
+    Will return the average furthest patch reached for each condition, with a bootstrap confidence interval
     """
     list_of_conditions = np.unique(result_table["condition"])
     list_of_avg = np.zeros(len(list_of_conditions))
@@ -115,6 +115,8 @@ def furthest_patch_per_condition(result_table):
         bootstrap_errors_sup[i_condition] = bootstrap_ci[1]
     return list_of_conditions, list_of_avg, [bootstrap_errors_inf,bootstrap_errors_sup]
 
+
+### Plotting stuff
 
 def traj_draw(data, i_condition):
     """
@@ -139,7 +141,7 @@ def traj_draw(data, i_condition):
         plt.suptitle("Trajectories for condition "+str(i_condition))
         if current_condition == i_condition:
             if previous_folder != current_folder or previous_folder == 0: #if we just changed plate or if it's the 1st
-                plt.subplot(3, 4, n_plate)
+                plt.subplot(3, 10, n_plate)
                 n_plate+=1
                 #if previous_folder != 0: #if its not the first (if its the first theres nothing to show)
                     #plt.show()
@@ -150,13 +152,14 @@ def traj_draw(data, i_condition):
                 composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
                 fig = plt.gcf()
                 ax = fig.gca()
+                fig.set_tight_layout(True)
                 ax.imshow(composite)
                 for i_patch in range(len(patches)):
                     circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), patch_radius, color="white",
                                         alpha=min(1, patch_densities[i_patch][0]))
                     fig = plt.gcf()
                     ax = fig.gca()
-                    #ax.add_patch(circle)
+                    ax.add_patch(circle)
             # Plot worm trajectory
             plt.plot(current_list_x, current_list_y, color=colors[i_worm])
     plt.show()
@@ -229,7 +232,6 @@ def plot_data():
     for i in range(len(condition_nb)):
         ax3.scatter([condition_nb[i] for j in range(len(full_list_patchnb[i]))], full_list_patchnb[i], color = "red")
 
-
     for tick in ax1.get_xticklabels():
         tick.set_rotation(90)
     for tick in ax2.get_xticklabels():
@@ -249,7 +251,7 @@ def plot_avg_furthest_patch():
 
 #I have two lines, one for Windows and the other for Linux:
 if fd.is_linux():
-    path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_Nov2022_clean/"
+    path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/"
 else:
     path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_Nov2022_clean/"
 
@@ -259,22 +261,34 @@ else:
 #         results_table["folder"] = folder from which the worm comes (so plate identifier)
 #         results_table["condition"] = condition written on the plate of the worm
 #         results_table["worm_id"] = number of the worm (100 times the file number + id attributed by tracking algorithm)
+#         results_table["total_time"] = total number of frames for this worm
 #         results_table["raw_visits"] = list outputed by patch_visits_single_traj (see its description)
-#         results_table["avg_visit_duration"] = average visit duration of that worm
+#         results_table["order_of_visits"] = list of order of visits [2 3 0 1] = first patch 2, then patch 3, etc
+#         results_table["duration_sum"] = total duration of visits for each worm
+#         results_table["nb_of_visits"] = nb of visits to patches this worm did
+#         results_table["nb_of_visited_patches"] = nb of different patches it visited
 #         results_table["furthest_patch_distance"] = furthest patch visited
-# Saves these results in a "results.csv" file in path, so no need to run this line every time!
+#         results_table["total_transit_time"] = total time spent outside of patches
+#         results_table["adjusted_raw_visits"] =
+#         results_table["adjusted_duration_sum"] =
+#         results_table["adjusted_nb_of_visits"] =
+
+### Saves these results in a "results.csv" file in path, so no need to run this line every time!
+
 trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path)) #run this to retrieve trajectories
 regenerate_data = False
 if regenerate_data:
     gr.generate_and_save(trajectories, path) #run this once, will save results under path+"results.csv"
 
-results = pd.read_csv(path+"results.csv") #run this to retrieve results from those trajectories
+# Retrieve results from what generate_and_save has saved
+results = pd.read_csv(path+"results.csv")
 
 #check_patches(fd.path_finding_traj(path))
 #plot_data()
 #plot_avg_furthest_patch()
-traj_draw(trajectories,3)
+traj_draw(trajectories,7)
 
 #TODO marginal value theorem visits
 #TODO movement stuff between patches: speed, turning rate, MSD over time
 #TODO radial_tolerance in a useful way
+#TODO for now furthest patch is useless because should be computed depending on ORIGIN and not first recorded position
