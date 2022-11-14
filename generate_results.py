@@ -6,6 +6,7 @@ import pandas as pd
 from param import *
 from numba import njit
 
+
 def in_patch(position, patch):
     """
     returns True if position = [x,y] is inside the patch
@@ -17,7 +18,7 @@ def in_patch(position, patch):
     return distance_from_center < radius + radial_tolerance
 
 
-@njit(parallel=True)
+#@njit(parallel=True)
 def patch_visits_single_traj(list_x, list_y, patch_centers):
     """
     Takes a trajectory under the format: [x0 x1 ... xN] [y0 y1 ... yN] and a list of patch centers
@@ -31,7 +32,8 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
     is_in_patch = np.zeros(
         len(patch_centers))  # Bool list to store where the worm is currently (1 where it currently is)
 
-    # In list_of_durations, zero means "the worm was not in that patch in the previous timestep"
+    # In list_of_durations, we will have one list per patch, containing the duration of successive visits to that patch
+    # Zero means "the worm was not in that patch in the previous timestep"
     # As soon as the worm enters the patch, this zero starts being incremented
     # As soon as the worm leaves the patch, a new zero is added to this patch's list
     # These 0 are added for computational ease and will be removed in the end
@@ -77,7 +79,7 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
                 order_of_visits[-1] = patch_where_it_is  # add this patch to the visit order
                 list_of_transit_durations.append(0)  # start a new transit
                 if len(order_of_visits) > 2 and order_of_visits[-1] != order_of_visits[
-                        -2]:  # if it's not the same patch as the previous visit
+                    -2]:  # if it's not the same patch as the previous visit
                     adjusted_list_of_durations[order_of_visits[-2]].append(0)  # start a new visit in the previous patch
             list_of_durations[patch_where_it_is][-1] += 1  # add one to the last element of the current patch sublist
             adjusted_list_of_durations[patch_where_it_is][-1] += 1  # same for adjusted
@@ -87,7 +89,7 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
     adjusted_duration_sum = 0
     adjusted_nb_of_visits = 0
     first_recorded_worm_position = [list_x[0], list_y[0]]
-    nb_of_visited_patches = 0
+    list_of_visited_patches = []
     furthest_patch_distance = 0
 
     # Run through each patch to compute global variables
@@ -99,7 +101,7 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
         if len(list_of_durations[i_patch]) > 0:  # if the patch was visited at least once
             patch_distance_to_center = distance.euclidean(first_recorded_worm_position, patch_centers[i_patch])
             furthest_patch_distance = max(patch_distance_to_center, furthest_patch_distance)
-            nb_of_visited_patches += 1
+            list_of_visited_patches.append(i_patch)
 
         # Visits info for average visit duration
         duration_sum += sum(list_of_durations[i_patch])
@@ -111,7 +113,7 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
 
     total_transit_time = np.sum(list_of_transit_durations)
 
-    return list_of_durations, order_of_visits, duration_sum, nb_of_visits, nb_of_visited_patches, furthest_patch_distance, total_transit_time, adjusted_list_of_durations, adjusted_duration_sum, adjusted_nb_of_visits
+    return list_of_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_distance, total_transit_time, adjusted_list_of_durations, adjusted_duration_sum, adjusted_nb_of_visits
 
 
 def patch_visits_multiple_traj(data):
@@ -154,9 +156,9 @@ def patch_visits_multiple_traj(data):
         list_of_densities = current_metadata["patch_densities"]
 
         # Computing the visit durations
-        raw_durations, order_of_visits, duration_sum, nb_of_visits, nb_of_visited_patches, furthest_patch_distance, \
-        total_transit_time, adjusted_raw_visits, adjusted_duration_sum, adjusted_nb_of_visits = patch_visits_single_traj(
-            list(current_list_x), list(current_list_y), current_metadata["patch_centers"])
+        raw_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_distance, \
+            total_transit_time, adjusted_raw_visits, adjusted_duration_sum, adjusted_nb_of_visits = patch_visits_single_traj(
+                list(current_list_x), list(current_list_y), current_metadata["patch_centers"])
 
         # Fill up results table
         results_table.loc[i_worm, "folder"] = current_folder
@@ -167,7 +169,7 @@ def patch_visits_multiple_traj(data):
         results_table.loc[i_worm, "order_of_visits"] = pd.DataFrame(order_of_visits)  # patch order of visits
         results_table.loc[i_worm, "duration_sum"] = duration_sum  # total duration of visits
         results_table.loc[i_worm, "nb_of_visits"] = nb_of_visits  # total nb of visits
-        results_table.loc[i_worm, "nb_of_visited_patches"] = nb_of_visited_patches  # total nb of patches visited
+        results_table.loc[i_worm, "list_of_visited_patches"] = pd.DataFrame(list_of_visited_patches)  # index of patches visited
         results_table.loc[i_worm, "furthest_patch_distance"] = furthest_patch_distance  # distance
         results_table.loc[i_worm, "total_transit_time"] = total_transit_time
         results_table.loc[i_worm, "adjusted_raw_visits"] = pd.DataFrame(adjusted_raw_visits)
@@ -177,7 +179,9 @@ def patch_visits_multiple_traj(data):
     return results_table
 
 
-def generate_and_save(dataframe, path):
-    results = patch_visits_multiple_traj(dataframe)
+def generate_and_save(path):
+    trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))  # run this to retrieve trajectories
+    trajectories.to_csv(path + "trajectories.csv")
+    results = patch_visits_multiple_traj(trajectories)
     results.to_csv(path + "results.csv")
     return 0
