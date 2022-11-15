@@ -13,7 +13,7 @@ import random
 import generate_results as gr
 import find_data as fd
 from param import *
-
+import json
 
 def results_per_condition(result_table, column_name, divided_by = ""):
     """
@@ -56,9 +56,15 @@ def results_per_condition(result_table, column_name, divided_by = ""):
                 else:
                     print("Trying to divide by 0... what a shame")
             else:
-                if column_name == "list_of_visited_patches":
-                    list_of_values[i_plate] = len(np.unique(current_plate[column_name]))
-                list_of_values[i_plate] = np.sum(current_plate[column_name])
+                if column_name == "nb_of_visited_patches":
+                    list_total_patch = [52, 24, 7, 25, 52, 24, 7, 25, 24, 24, 24, 24]
+                    current_plate = current_plate.reset_index()
+                    list_of_visited_patches = [json.loads(current_plate["list_of_visited_patches"][i]) for i in range(len(current_plate["list_of_visited_patches"]))]
+                    list_of_visited_patches = [i for liste in list_of_visited_patches for i in liste]
+                    list_of_values[i_plate] = len(np.unique(list_of_visited_patches))\
+                                              #/list_total_patch[i_condition]
+                else:
+                    list_of_values[i_plate] = np.sum(current_plate[column_name])
 
         # Keep in memory the full list of averages
         full_list_of_values[i_condition] = list_of_values
@@ -218,14 +224,14 @@ def traj_draw(data, i_condition, n_max = 4, plot_patches = False):
                 patches = metadata["patch_centers"]
                 patch_densities = metadata["patch_densities"]
                 # composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
-                background = plt.imread(folder + "background.tif")
+                background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
                 fig = plt.gcf()
                 ax = fig.gca()
                 fig.set_tight_layout(True)
                 # ax.imshow(composite)
                 ax.imshow(background, cmap='gray')
                 for i_patch in range(len(patches)):
-                    circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), patch_radius, color="white",
+                    circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), 40, color="grey",
                                         alpha=min(1, patch_densities[i_patch][0]))
                     fig = plt.gcf()
                     ax = fig.gca()
@@ -345,7 +351,7 @@ def plot_selected_data(condition_low, condition_high, column_name, condition_nam
     ax.errorbar(list_of_conditions, average_per_condition, errorbars, fmt='.k', capsize=5)
     ax.set(xlabel="Condition number")
     for i in range(len(list_of_conditions)):
-        ax.scatter([list_of_conditions[i] for j in range(len(list_of_avg_visits_each_plate[i]))], list_of_avg_visits_each_plate[i], color="grey")
+        ax.scatter([list_of_conditions[i] for j in range(len(list_of_avg_visits_each_plate[i]))], list_of_avg_visits_each_plate[i], color="red")
 
     plt.show()
 
@@ -358,6 +364,7 @@ else:
 # Only run this once in the beginning of your analysis!
 # Extracting data, the function looks for all "traj.csv" files in the indicated path (will look into subfolders)
 # It will then generate a "results" table, with one line per worm, and these info:
+# NOTE: lists are stored as strings in the csv so we retrieve the values with json loads function
 #         results_table["folder"] = folder from which the worm comes (so plate identifier)
 #         results_table["condition"] = condition written on the plate of the worm
 #         results_table["worm_id"] = number of the worm (100 times the file number + id attributed by tracking algorithm)
@@ -376,7 +383,7 @@ else:
 ### Saves these results in a "results.csv" file in path, so no need to run this line every time!
 
 
-regenerate_data = True
+regenerate_data = False
 if regenerate_data:
     gr.generate_and_save(path)  # run this once, will save results under path+"results.csv"
 
@@ -389,7 +396,7 @@ print("finished retrieving stuff")
 # check_patches(fd.path_finding_traj(path))
 # plot_data()
 # plot_avg_furthest_patch()
-# traj_draw(trajectories,0)
+# traj_draw(trajectories, 7, plot_patches = True)
 
 # Low density plots
 #plot_selected_data(0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average duration of visits in low densities", divided_by= "nb_of_visits", mycolor = "orangered")
@@ -397,7 +404,7 @@ print("finished retrieving stuff")
 #plot_selected_data(0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average visit rate in low densities", divided_by= "total_time", mycolor = "orangered")
 #plot_selected_data(0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average number of visits in low densities", divided_by= "", mycolor = "orangered")
 #plot_selected_data(0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average number of MVT visits in low densities", divided_by= "adjusted_nb_of_visits", mycolor = "orangered")
-plot_selected_data(0, 3, "nb_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average number of visited patches in low densities", divided_by= "", mycolor = "orangered")
+#plot_selected_data(0, 3, "nb_of_visited_patches", [], "Average proportion of visited patches in low densities", divided_by= "", mycolor = "orangered")
 
 
 # Medium density plots
@@ -405,6 +412,13 @@ plot_selected_data(0, 3, "nb_of_visited_patches", ["close 0.2", "medium 0.2", "f
 #plot_selected_data(4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average proportion of time spent in patches in mediun densities", divided_by= "total_time", mycolor = "orange")
 #plot_selected_data(4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average visit rate in medium densities", divided_by= "total_time", mycolor = "orange")
 #plot_selected_data(4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average number of visits in medium densities", divided_by= "", mycolor = "orange")
+#plot_selected_data(4, 7, "nb_of_visited_patches", [], "Average proportion of visited patches in medium densities", divided_by= "", mycolor = "orange")
+
+# Full plots
+plot_selected_data(0, 11, "adjusted_duration_sum", [], "Average nb of visited patches", divided_by= "nb_of_visits", mycolor = "green")
+#plot_selected_data(0, 11, "nb_of_visited_patches", [], "Average proportion of visited patches", divided_by= "", mycolor = "green")
+#plot_selected_data(0, 11, "total_time", [], "Total measured time", divided_by= "", mycolor = "green")
+#plot_selected_data(0, 11, "duration_sum", [], "Average duration of visits", divided_by= "nb_of_visits", mycolor = "green")
 
 
 # TODO marginal value theorem visits

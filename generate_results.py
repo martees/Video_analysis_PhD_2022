@@ -133,7 +133,7 @@ def patch_visits_multiple_traj(data):
     results_table["order_of_visits"] = [-1 for i in range(nb_of_worms)]
     results_table["duration_sum"] = [-1 for i in range(nb_of_worms)]
     results_table["nb_of_visits"] = [-1 for i in range(nb_of_worms)]
-    results_table["nb_of_visited_patches"] = [-1 for i in range(nb_of_worms)]
+    results_table["list_of_visited_patches"] = [-1 for i in range(nb_of_worms)]
     results_table["furthest_patch_distance"] = [-1 for i in range(nb_of_worms)]
     results_table["total_transit_time"] = [-1 for i in range(nb_of_worms)]
     results_table["adjusted_raw_visits"] = [-1 for i in range(nb_of_worms)]  # consecutive visits to same patch= 1 visit
@@ -165,14 +165,14 @@ def patch_visits_multiple_traj(data):
         results_table.loc[i_worm, "condition"] = current_metadata["condition"][0]
         results_table.loc[i_worm, "worm_id"] = current_worm
         results_table.loc[i_worm, "total_time"] = len(current_list_x)
-        results_table.loc[i_worm, "raw_visits"] = pd.DataFrame(raw_durations)  # all visits of all patches
-        results_table.loc[i_worm, "order_of_visits"] = pd.DataFrame(order_of_visits)  # patch order of visits
+        results_table.loc[i_worm, "raw_visits"] = str(raw_durations)  # all visits of all patches
+        results_table.loc[i_worm, "order_of_visits"] = str(order_of_visits)  # patch order of visits
         results_table.loc[i_worm, "duration_sum"] = duration_sum  # total duration of visits
         results_table.loc[i_worm, "nb_of_visits"] = nb_of_visits  # total nb of visits
-        results_table.loc[i_worm, "list_of_visited_patches"] = pd.DataFrame(list_of_visited_patches)  # index of patches visited
+        results_table.loc[i_worm, "list_of_visited_patches"] = str(list_of_visited_patches)  # index of patches visited
         results_table.loc[i_worm, "furthest_patch_distance"] = furthest_patch_distance  # distance
         results_table.loc[i_worm, "total_transit_time"] = total_transit_time
-        results_table.loc[i_worm, "adjusted_raw_visits"] = pd.DataFrame(adjusted_raw_visits)
+        results_table.loc[i_worm, "adjusted_raw_visits"] = str(adjusted_raw_visits)
         results_table.loc[i_worm, "adjusted_duration_sum"] = adjusted_duration_sum
         results_table.loc[i_worm, "adjusted_nb_of_visits"] = adjusted_nb_of_visits
 
