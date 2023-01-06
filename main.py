@@ -1,7 +1,4 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+# STANDARDIZED CONDITIONS SCRIPT
 
 import numpy as np
 import pandas as pd
@@ -254,20 +251,20 @@ def check_patches(folder_list):
         metadata = fd.folder_to_metadata(folder)
         patches = metadata["patch_centers"]
 
-        lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
-        folder = folder[:-lentoremove]
+        folder = folder[:-len('traj.csv')]# removes traj from the current path, to get to the parent folder
 
-        background = plt.imread(folder + "background.tif")
-        composite = plt.imread(folder + "composite_patches.tif")
+        #background = plt.imread(folder + "background.tif")
+        #composite = plt.imread(folder + "composite_patches.tif")
 
         fig, ax = plt.subplots()
-        background = ax.imshow(background, cmap = 'gray')
+        # background = ax.imshow(background, cmap = 'gray')
         # composite = ax.imshow(composite)
 
         patches = metadata["patch_centers"]
         patch_densities = metadata["patch_densities"]
         for i_patch in range(len(patches)):
-            circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), 50, color="white", alpha=0.5)
+            plt.plot(0,0)
+            circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), 50, color="grey", alpha = 0.5)
             fig = plt.gcf()
             ax = fig.gca()
             ax.add_patch(circle)
@@ -357,7 +354,7 @@ def plot_selected_data(condition_low, condition_high, column_name, condition_nam
 
 # I have two lines, one for Windows and the other for Linux:
 if fd.is_linux():
-    path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/"
+    path = "/home/admin/Desktop/Camera_setup_analysis/Results_StandardizedConditions_20220721_clean/"
 else:
     path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_Nov2022_clean/"
 
@@ -383,9 +380,9 @@ else:
 ### Saves these results in a "results.csv" file in path, so no need to run this line every time!
 
 
-regenerate_data = False
+regenerate_data = True
 if regenerate_data:
-    gr.generate_and_save(path)  # run this once, will save results under path+"results.csv"
+    gr.generate_and_save(path)  # run this once, will save results under path+"results.csv" and full trajectories under path+"trajectories"
 
 # Retrieve results from what generate_and_save has saved
 trajectories = pd.read_csv(path + "trajectories.csv")
@@ -394,9 +391,10 @@ results = pd.read_csv(path + "results.csv")
 print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
+
 # plot_data()
 # plot_avg_furthest_patch()
-# traj_draw(trajectories, 7, plot_patches = True)
+traj_draw(trajectories, 0, plot_patches = True)
 
 # Low density plots
 #plot_selected_data(0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average duration of visits in low densities", divided_by= "nb_of_visits", mycolor = "orangered")
@@ -415,7 +413,7 @@ print("finished retrieving stuff")
 #plot_selected_data(4, 7, "nb_of_visited_patches", [], "Average proportion of visited patches in medium densities", divided_by= "", mycolor = "orange")
 
 # Full plots
-plot_selected_data(0, 11, "adjusted_duration_sum", [], "Average nb of visited patches", divided_by= "nb_of_visits", mycolor = "green")
+#plot_selected_data(0, 11, "adjusted_duration_sum", [], "Average nb of visited patches", divided_by= "nb_of_visits", mycolor = "green")
 #plot_selected_data(0, 11, "nb_of_visited_patches", [], "Average proportion of visited patches", divided_by= "", mycolor = "green")
 #plot_selected_data(0, 11, "total_time", [], "Total measured time", divided_by= "", mycolor = "green")
 #plot_selected_data(0, 11, "duration_sum", [], "Average duration of visits", divided_by= "nb_of_visits", mycolor = "green")
