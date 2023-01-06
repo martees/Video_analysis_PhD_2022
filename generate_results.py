@@ -153,7 +153,15 @@ def patch_visits_multiple_traj(data):
 
         # Getting to the metadata through the folder name in the data
         current_metadata = fd.folder_to_metadata(current_folder)
-        list_of_densities = current_metadata["patch_densities"]
+
+        # Converting condition number to list of patches
+        current_condition = current_metadata["condition"][0]
+        if current_condition == 0 or current_condition == 7:
+            break
+        if current_condition == 1 or current_condition == 3 or current_condition == 5:
+            current_metadata["patch_centers"] = [[-10, 0]]
+        if current_condition == 2 or current_condition == 4 or current_condition == 6:
+            current_metadata["patch_centers"] = [[10, 0]]
 
         # Computing the visit durations
         raw_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_distance, \

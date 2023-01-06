@@ -12,6 +12,11 @@ import find_data as fd
 from param import *
 import json
 
+
+#TODO find real patch positions on videos
+#TODO condition to patch converter
+#TODO look at trajectory parameters for salt and explo
+
 def results_per_condition(result_table, column_name, divided_by = ""):
     """
     Function that takes our result table and a column name (as a string)
@@ -249,19 +254,25 @@ def check_patches(folder_list):
     """
     for folder in folder_list:
         metadata = fd.folder_to_metadata(folder)
-        patches = metadata["patch_centers"]
 
-        folder = folder[:-len('traj.csv')]# removes traj from the current path, to get to the parent folder
+        # Converting condition number to list of patches
+        condition = metadata["condition"][0]
+        if condition == 0 or condition == 7:
+            patches = []
+        if condition == 1 or condition == 3 or condition == 5:
+            patches = [[-10, 0]]
+        if condition == 2 or condition == 4 or condition == 6:
+            patches = [[10, 0]]
+
+        folder = folder[:-len('traj_mm.csv')]# removes traj from the current path, to get to the parent folder
 
         #background = plt.imread(folder + "background.tif")
-        #composite = plt.imread(folder + "composite_patches.tif")
+        composite = plt.imread(folder + "composite_patches.tif")
 
         fig, ax = plt.subplots()
-        # background = ax.imshow(background, cmap = 'gray')
-        # composite = ax.imshow(composite)
+        #background = ax.imshow(background, cmap = 'gray')
+        composite = ax.imshow(composite)
 
-        patches = metadata["patch_centers"]
-        patch_densities = metadata["patch_densities"]
         for i_patch in range(len(patches)):
             plt.plot(0,0)
             circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), 50, color="grey", alpha = 0.5)
@@ -390,7 +401,7 @@ results = pd.read_csv(path + "results.csv")
 
 print("finished retrieving stuff")
 
-# check_patches(fd.path_finding_traj(path))
+check_patches(fd.path_finding_traj(path))
 
 # plot_data()
 # plot_avg_furthest_patch()
@@ -418,8 +429,3 @@ traj_draw(trajectories, 0, plot_patches = True)
 #plot_selected_data(0, 11, "total_time", [], "Total measured time", divided_by= "", mycolor = "green")
 #plot_selected_data(0, 11, "duration_sum", [], "Average duration of visits", divided_by= "nb_of_visits", mycolor = "green")
 
-
-# TODO marginal value theorem visits
-# TODO movement stuff between patches: speed, turning rate, MSD over time
-# TODO radial_tolerance in a useful way
-# TODO for now furthest patch is useless because should be computed depending on ORIGIN and not first recorded position
