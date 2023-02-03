@@ -80,7 +80,17 @@ def folder_to_metadata(path):
     # the data is stored as a value for the key with the original table name ('traj' for traj.mat)
     conditionsmat = loadmat(path_for_condition)  # load holes in a dictionary using loadmat
 
+    # Getting it to the right format
     metadata["condition"] = list(conditionsmat.get("num_condition"))[0]
+
+    # Converting condition number to list of patches
+    current_condition = metadata["condition"][0]
+    if current_condition == 0 or current_condition == 7:
+        metadata["patch_centers"] = [[-100, -100]]  # fake patch because there are none
+    if current_condition == 1 or current_condition == 3 or current_condition == 5:
+        metadata["patch_centers"] = [[670, 1000]]
+    if current_condition == 2 or current_condition == 4 or current_condition == 6:
+        metadata["patch_centers"] = [[1330, 1000]]
 
     return metadata
 

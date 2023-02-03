@@ -4,6 +4,7 @@ import numpy as np
 from scipy.spatial import distance
 import pandas as pd
 from param import *
+import math as math
 from numba import njit
 
 
@@ -18,7 +19,7 @@ def in_patch(position, patch):
     return distance_from_center < radius + radial_tolerance
 
 
-#@njit(parallel=True)
+# @njit(parallel=True)
 def patch_visits_single_traj(list_x, list_y, patch_centers):
     """
     Takes a trajectory under the format: [x0 x1 ... xN] [y0 y1 ... yN] and a list of patch centers
@@ -88,7 +89,13 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
     nb_of_visits = 0
     adjusted_duration_sum = 0
     adjusted_nb_of_visits = 0
-    first_recorded_worm_position = [list_x[0], list_y[0]]
+
+    # Checking if there's any trajectory to analyse
+    nonan_x = [item for item in list_x if not (math.isnan(item)) == True]
+    nonan_y = [item for item in list_y if not (math.isnan(item)) == True]
+    if len(nonan_y) == 0 or len(nonan_x) == 0: # In case there's nothing just return empty stuff
+        return [], [], 0, 0, [], 0, 0, [], 0, 0
+    first_recorded_worm_position = [nonan_x[0], nonan_y[0]]
     list_of_visited_patches = []
     furthest_patch_distance = 0
 
@@ -154,19 +161,10 @@ def patch_visits_multiple_traj(data):
         # Getting to the metadata through the folder name in the data
         current_metadata = fd.folder_to_metadata(current_folder)
 
-        # Converting condition number to list of patches
-        current_condition = current_metadata["condition"][0]
-        if current_condition == 0 or current_condition == 7:
-            break
-        if current_condition == 1 or current_condition == 3 or current_condition == 5:
-            current_metadata["patch_centers"] = [[-10, 0]]
-        if current_condition == 2 or current_condition == 4 or current_condition == 6:
-            current_metadata["patch_centers"] = [[10, 0]]
-
         # Computing the visit durations
         raw_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_distance, \
             total_transit_time, adjusted_raw_visits, adjusted_duration_sum, adjusted_nb_of_visits = patch_visits_single_traj(
-                list(current_list_x), list(current_list_y), current_metadata["patch_centers"])
+            list(current_list_x), list(current_list_y), current_metadata["patch_centers"])
 
         # Fill up results table
         results_table.loc[i_worm, "folder"] = current_folder

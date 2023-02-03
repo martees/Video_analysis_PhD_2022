@@ -14,7 +14,7 @@ import json
 
 
 #TODO find real patch positions on videos
-#TODO condition to patch converter
+#TODO condition to patch converter function??
 #TODO look at trajectory parameters for salt and explo
 
 def results_per_condition(result_table, column_name, divided_by = ""):
@@ -253,26 +253,22 @@ def check_patches(folder_list):
     plot the patch positions on the composite patch image, to check if our metadata matches our actual data
     """
     for folder in folder_list:
+
+        # Retrieving patch information
         metadata = fd.folder_to_metadata(folder)
+        patches = metadata["patch_centers"]
 
-        # Converting condition number to list of patches
-        condition = metadata["condition"][0]
-        if condition == 0 or condition == 7:
-            patches = []
-        if condition == 1 or condition == 3 or condition == 5:
-            patches = [[-10, 0]]
-        if condition == 2 or condition == 4 or condition == 6:
-            patches = [[10, 0]]
-
+        # Showing background
         folder = folder[:-len('traj_mm.csv')]# removes traj from the current path, to get to the parent folder
 
-        #background = plt.imread(folder + "background.tif")
-        composite = plt.imread(folder + "composite_patches.tif")
+        #background = plt.imread(folder + "background.tif") # showing video extract of the background
+        composite = plt.imread(folder + "composite_patches.tif") # showing reconstitution of patch using lateral illumination
 
         fig, ax = plt.subplots()
         #background = ax.imshow(background, cmap = 'gray')
         composite = ax.imshow(composite)
 
+        # Showing patches
         for i_patch in range(len(patches)):
             plt.plot(0,0)
             circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), 50, color="grey", alpha = 0.5)
