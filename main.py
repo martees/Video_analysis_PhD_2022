@@ -275,6 +275,7 @@ results = pd.read_csv(path+"results.csv") #run this to retrieve results from tho
 #plot_avg_furthest_patch()
 traj_draw(trajectories,3)
 
+#TODO errorbar medium 0.5
 #TODO marginal value theorem visits
 #TODO movement stuff between patches: speed, turning rate, MSD over time
 #TODO radial_tolerance in a useful way
