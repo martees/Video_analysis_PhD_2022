@@ -87,23 +87,28 @@ def bottestrop_ci(data, nb_resample):
     #data = [x for x in data if str(x) != 'nan']
     for i in range(nb_resample):
         datalist = data.tolist()
-        y = random.sample(datalist, len(datalist) - 1)
+        y = random.sample(datalist, len(datalist) -1)
         avg = np.mean(y)
         bootstrapped_means.append(avg)
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
 
+#TODO correct this, furthest patch distance for now is recorded as a max for each trajectory when it should be for each plate, see gen_res line 100
+#TODO probably delete this function as it can be extracted with results_per_condition ?
 def furthest_patch_per_condition(result_table):
     """
     Function that takes our result table with a ["condition"] and a ["avg_duration"] column
     Will return the average furthest patch reached for each condition, with a bootstrap confidence interval
     """
+    #Define lists
     list_of_conditions = np.unique(result_table["condition"])
     list_of_avg = np.zeros(len(list_of_conditions))
     bootstrap_errors_inf = np.zeros(len(list_of_conditions))
     bootstrap_errors_sup = np.zeros(len(list_of_conditions))
+    #For each condition
     for i_condition in range(len(list_of_conditions)):
+        #Define current data
         condition = list_of_conditions[i_condition]
         current = result_table[result_table["condition"] == condition]["furthest_patch_distance"]
         sum_of_distances = np.sum(current)
@@ -211,6 +216,11 @@ def plot_avg_furthest_patch():
     plt.show()
 
 def plot_selected_data(condition_low, condition_high, column_name, condition_names, plot_title, divided_by = "", mycolor = "blue"):
+    """
+    This function will plot a selected part of the data. Selection is described as follows:
+    - condition_low, condition_high: bounds on the conditions (0,3 => function will plot conditions 0, 1, 2, 3)
+    - column_name:
+    """
     # Getting results
     list_of_conditions, list_of_avg_visits_each_plate, average_per_condition, errorbars = results_per_condition(results, column_name, divided_by)
 
@@ -261,7 +271,7 @@ else:
 
 # Only run this once in the beginning of your analysis!
 ### Saves these results in a "results.csv" file in path, so no need to run this line every time!
-regenerate_data = True # Set to True to regenerate the dataset, otherwise use the saved one
+regenerate_data = False # Set to True to regenerate the dataset, otherwise use the saved one
 if regenerate_data:
     gr.generate_and_save(path)  # run this once, will save results under path+"results.csv"
 
@@ -290,10 +300,10 @@ print("finished retrieving stuff")
 #plot_selected_data(4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average proportion of time spent in patches in mediun densities", divided_by= "total_time", mycolor = "orange")
 #plot_selected_data(4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average visit rate in medium densities", divided_by= "total_time", mycolor = "orange")
 #plot_selected_data(4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average number of visits in medium densities", divided_by= "", mycolor = "orange")
-#plot_selected_data(4, 7, "nb_of_visited_patches", [], "Average proportion of visited patches in medium densities", divided_by= "", mycolor = "orange")
+#plot_selected_data(4, 7, "nb_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average proportion of visited patches in medium densities", divided_by= "", mycolor = "orange")
 
 # Full plots
-plot_selected_data(0, 11, "adjusted_duration_sum", [], "Average nb of visited patches", divided_by= "nb_of_visits", mycolor = "green")
+#plot_selected_data(0, 11, "adjusted_duration_sum", [], "Average duration of visits", divided_by= "nb_of_visits", mycolor = "green")
 #plot_selected_data(0, 11, "nb_of_visited_patches", [], "Average proportion of visited patches", divided_by= "", mycolor = "green")
 #plot_selected_data(0, 11, "total_time", [], "Total measured time", divided_by= "", mycolor = "green")
 #plot_selected_data(0, 11, "duration_sum", [], "Average duration of visits", divided_by= "nb_of_visits", mycolor = "green")
