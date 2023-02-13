@@ -20,6 +20,12 @@ table, which would make it uselessly large.
 This contains trajectory analysis functions (compute number of visited patches, stuff like that), will run them and 
 save them in a table in the original path inputted by the user, named "results.csv".
 
+### param.py
+Contains global parameters, for easier editing.
+
 ### main.py 
-Contains global parameters, analysis
+Contains functions to:
+- derive statistics from the results returned by generate_results.py
+- plot these statistics using mostly badly written functions
+
 
