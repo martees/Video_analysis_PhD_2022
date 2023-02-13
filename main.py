@@ -51,18 +51,18 @@ def results_per_condition(result_table, column_name, divided_by = ""):
             # take only one plate
             current_plate = current_data[current_data["folder"] == list_of_plates[i_plate]]
             if divided_by != "": # In this case, we want to divide column name by another one
-                if np.sum(current_plate[divided_by]) != 0:
+                if np.sum(current_plate[divided_by]) != 0: # Non zero check for division
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
                 else:
                     print("Trying to divide by 0... what a shame")
-            else:
-                if column_name == "nb_of_visited_patches":
+            else: # No division has to be made
+                if column_name == "nb_of_visited_patches": # Special case: divide by total nb of patches in plate
                     list_total_patch = [52, 24, 7, 25, 52, 24, 7, 25, 24, 24, 24, 24]
                     current_plate = current_plate.reset_index()
                     list_of_visited_patches = [json.loads(current_plate["list_of_visited_patches"][i]) for i in range(len(current_plate["list_of_visited_patches"]))]
                     list_of_visited_patches = [i for liste in list_of_visited_patches for i in liste]
                     list_of_values[i_plate] = len(np.unique(list_of_visited_patches))\
-                                              #/list_total_patch[i_condition]
+                                              /list_total_patch[i_condition]
                 else:
                     list_of_values[i_plate] = np.sum(current_plate[column_name])
 
@@ -300,7 +300,7 @@ print("finished retrieving stuff")
 #plot_selected_data(4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average proportion of time spent in patches in mediun densities", divided_by= "total_time", mycolor = "orange")
 #plot_selected_data(4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average visit rate in medium densities", divided_by= "total_time", mycolor = "orange")
 #plot_selected_data(4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average number of visits in medium densities", divided_by= "", mycolor = "orange")
-#plot_selected_data(4, 7, "nb_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average proportion of visited patches in medium densities", divided_by= "", mycolor = "orange")
+plot_selected_data(4, 7, "nb_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average proportion of visited patches in medium densities", divided_by= "", mycolor = "orange")
 
 # Full plots
 #plot_selected_data(0, 11, "adjusted_duration_sum", [], "Average duration of visits", divided_by= "nb_of_visits", mycolor = "green")
