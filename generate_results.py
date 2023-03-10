@@ -19,7 +19,7 @@ def in_patch(position, patch):
 
 
 #@njit(parallel=True)
-def patch_visits_single_traj(list_x, list_y, patch_centers):
+def patch_visits_single_traj(list_x, list_y, first_pos, patch_centers):
     """
     Takes a trajectory under the format: [x0 x1 ... xN] [y0 y1 ... yN] and a list of patch centers
     For now, uses the unique patch_radius defined as a global parameter.
@@ -88,7 +88,6 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
     nb_of_visits = 0
     adjusted_duration_sum = 0
     adjusted_nb_of_visits = 0
-    first_recorded_worm_position = [list_x[0], list_y[0]]
     list_of_visited_patches = []
     furthest_patch_distance = 0
 
@@ -97,9 +96,9 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
         # Remove the zeros because they're just here for the duration algorithm
         list_of_durations[i_patch] = [nonzero for nonzero in list_of_durations[i_patch] if nonzero != 0]
 
-        # Find the furthest patch visited
-        if len(list_of_durations[i_patch]) > 0:  # if the patch was visited at least once
-            patch_distance_to_center = distance.euclidean(first_recorded_worm_position, patch_centers[i_patch])
+        # Update list of visited patches and the furthest patch visited
+        if len(list_of_durations[i_patch]) > 0:  # if the patch was visited at least once in this trajectory
+            patch_distance_to_center = distance.euclidean(first_pos, patch_centers[i_patch])
             furthest_patch_distance = max(patch_distance_to_center, furthest_patch_distance)
             list_of_visited_patches.append(i_patch)
 
@@ -118,8 +117,7 @@ def patch_visits_single_traj(list_x, list_y, patch_centers):
 
 def patch_visits_multiple_traj(data):
     """
-    (tldr: returns a list of outputs from the single_traj function, one list item per trajectory)
-    Takes our data table and returns a series of analysis regarding patch visits durations
+    Takes our data table and returns a series of analysis regarding patch visits, one line per worm
     """
     worm_list = np.unique(data["id_conservative"])
     nb_of_worms = len(worm_list)
@@ -140,6 +138,7 @@ def patch_visits_multiple_traj(data):
     results_table["adjusted_duration_sum"] = [-1 for i in range(nb_of_worms)]  # THIS SHOULD BE THE SAME AS DURATION SUM
     results_table["adjusted_nb_of_visits"] = [-1 for i in range(nb_of_worms)]
 
+    old_folder = "caca"
     for i_worm in range(nb_of_worms):
         # Handmade progress bar
         print(i_worm, "/", nb_of_worms)
@@ -151,6 +150,12 @@ def patch_visits_multiple_traj(data):
         current_list_y = current_data["y"]
         current_folder = list(current_data["folder"])[0]
 
+        # First recorded position of each plate is first position of the first worm of the plate
+        if current_folder != old_folder:
+            first_pos = [current_data["x"][0], current_data["y"][0]]
+        old_folder = current_folder
+
+
         # Getting to the metadata through the folder name in the data
         current_metadata = fd.folder_to_metadata(current_folder)
         list_of_densities = current_metadata["patch_densities"]
@@ -158,7 +163,7 @@ def patch_visits_multiple_traj(data):
         # Computing the visit durations
         raw_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_distance, \
             total_transit_time, adjusted_raw_visits, adjusted_duration_sum, adjusted_nb_of_visits = patch_visits_single_traj(
-                list(current_list_x), list(current_list_y), current_metadata["patch_centers"])
+                list(current_list_x), list(current_list_y), first_pos, current_metadata["patch_centers"])
 
         # Fill up results table
         results_table.loc[i_worm, "folder"] = current_folder
