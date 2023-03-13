@@ -95,6 +95,7 @@ def patch_visits_single_traj(list_x, list_y, first_pos, patch_centers):
     for i_patch in range(len(list_of_durations)):
         # Remove the zeros because they're just here for the duration algorithm
         list_of_durations[i_patch] = [nonzero for nonzero in list_of_durations[i_patch] if nonzero != 0]
+        adjusted_list_of_durations[i_patch] = [nonzero for nonzero in adjusted_list_of_durations[i_patch] if nonzero != 0]
 
         # Update list of visited patches and the furthest patch visited
         if len(list_of_durations[i_patch]) > 0:  # if the patch was visited at least once in this trajectory
@@ -154,7 +155,6 @@ def patch_visits_multiple_traj(data):
         if current_folder != old_folder:
             first_pos = [current_data["x"][0], current_data["y"][0]]
         old_folder = current_folder
-
 
         # Getting to the metadata through the folder name in the data
         current_metadata = fd.folder_to_metadata(current_folder)

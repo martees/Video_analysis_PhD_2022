@@ -48,7 +48,7 @@ def results_per_condition(result_table, column_name, divided_by = ""):
         list_of_values = np.zeros(len(list_of_plates))
 
         for i_plate in range(len(list_of_plates)):
-            # take only one plate
+            # Take only one plate
             current_plate = current_data[current_data["folder"] == list_of_plates[i_plate]]
             if divided_by != "": # In this case, we want to divide column name by another one
                 if np.sum(current_plate[divided_by]) != 0: # Non zero check for division
@@ -56,7 +56,7 @@ def results_per_condition(result_table, column_name, divided_by = ""):
                 else:
                     print("Trying to divide by 0... what a shame")
             else: # No division has to be made
-                if column_name == "proportion_of_visited_patches" or "nb_of_visited_patches": # Special case: divide by total nb of patches in plate
+                if column_name == "proportion_of_visited_patches" or column_name == "nb_of_visited_patches": # Special case: divide by total nb of patches in plate
                     current_plate = current_plate.reset_index()
                     list_of_visited_patches = [json.loads(current_plate["list_of_visited_patches"][i]) for i in range(len(current_plate["list_of_visited_patches"]))]
                     list_of_visited_patches = [i for liste in list_of_visited_patches for i in liste]
@@ -66,6 +66,8 @@ def results_per_condition(result_table, column_name, divided_by = ""):
                         list_total_patch = [52, 24, 7, 25, 52, 24, 7, 25, 24, 24, 24, 24]
                         list_of_values[i_plate] = len(np.unique(list_of_visited_patches))\
                                               /list_total_patch[i_condition]
+                if column_name == "furthest_patch_distance":
+                    list_of_values[i_plate] = np.max(current_plate[column_name])
                 else:
                     list_of_values[i_plate] = np.sum(current_plate[column_name])
 
@@ -76,7 +78,7 @@ def results_per_condition(result_table, column_name, divided_by = ""):
         list_of_avg_values[i_condition] = np.mean(list_of_values)
 
         # Bootstrapping on the plate avg duration
-        bootstrap_ci = bottestrop_ci(list_of_values, 1000)
+        bootstrap_ci = bottestrop_ci(list_of_values, 100)
         errors_inf[i_condition] = list_of_avg_values[i_condition] - bootstrap_ci[0]
         errors_sup[i_condition] = bootstrap_ci[1] - list_of_avg_values[i_condition]
 
@@ -89,41 +91,14 @@ def bottestrop_ci(data, nb_resample):
     bootstrapped_means = []
     #data = [x for x in data if str(x) != 'nan']
     for i in range(nb_resample):
-        datalist = data.tolist()
-        y = random.sample(datalist, len(datalist) -1)
+        y = []
+        for k in range(len(data)):
+            y.append(random.choice(data))
         avg = np.mean(y)
         bootstrapped_means.append(avg)
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
-
-#TODO correct this, furthest patch distance for now is recorded as a max for each trajectory when it should be for each plate, see gen_res line 100
-#TODO probably delete this function as it can be extracted with results_per_condition ?
-def furthest_patch_per_condition(result_table):
-    """
-    Function that takes our result table with a ["condition"] and a ["avg_duration"] column
-    Will return the average furthest patch reached for each condition, with a bootstrap confidence interval
-    """
-    #Define lists
-    list_of_conditions = np.unique(result_table["condition"])
-    list_of_avg = np.zeros(len(list_of_conditions))
-    bootstrap_errors_inf = np.zeros(len(list_of_conditions))
-    bootstrap_errors_sup = np.zeros(len(list_of_conditions))
-    #For each condition
-    for i_condition in range(len(list_of_conditions)):
-        #Define current data
-        condition = list_of_conditions[i_condition]
-        current = result_table[result_table["condition"] == condition]["furthest_patch_distance"]
-        sum_of_distances = np.sum(current)
-        nb = len(current)
-        list_of_avg[i_condition] = sum_of_distances / nb
-        bootstrap_ci = bootstrap((current,), np.mean, confidence_level=0.95,
-                                 random_state=1, method='percentile').confidence_interval
-        bootstrap_errors_inf[i_condition] = bootstrap_ci[0]
-        bootstrap_errors_sup[i_condition] = bootstrap_ci[1]
-    return list_of_conditions, list_of_avg, [bootstrap_errors_inf, bootstrap_errors_sup]
-
-# Plotting stuff
 def traj_draw(data, i_condition, n_max = 4, plot_patches = False):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
@@ -210,26 +185,18 @@ def check_patches(folder_list):
 
         plt.show()
 
-def plot_avg_furthest_patch():
-    condition_nb, average_per_condition, errorbars = furthest_patch_per_condition(results)
-    plt.bar(condition_nb, average_per_condition)
-    plt.errorbar(condition_nb, average_per_condition, errorbars, fmt='.k', capsize=5)
-    plt.ylabel("Average furthest patch reached")
-    plt.xlabel("Condition number")
-    plt.show()
-
-def plot_selected_data(condition_low, condition_high, column_name, condition_names, plot_title, divided_by = "", mycolor = "blue"):
+def plot_selected_data(plot_title, condition_low, condition_high, column_name, condition_names, divided_by = "", mycolor = "blue"):
     """
     This function will plot a selected part of the data. Selection is described as follows:
     - condition_low, condition_high: bounds on the conditions (0,3 => function will plot conditions 0, 1, 2, 3)
     - column_name:
     """
     # Getting results
-    list_of_conditions, list_of_avg_visits_each_plate, average_per_condition, errorbars = results_per_condition(results, column_name, divided_by)
+    list_of_conditions, list_of_avg_each_plate, average_per_condition, errorbars = results_per_condition(results, column_name, divided_by)
 
     # Slicing to get condition we're interested in
     list_of_conditions = list_of_conditions[condition_low:condition_high+1]
-    list_of_avg_visits_each_plate = list_of_avg_visits_each_plate[condition_low:condition_high+1]
+    list_of_avg_each_plate = list_of_avg_each_plate[condition_low:condition_high+1]
     average_per_condition = average_per_condition[condition_low:condition_high+1]
     errorbars[0] = errorbars[0][condition_low:condition_high+1]
     errorbars[1] = errorbars[1][condition_low:condition_high+1]
@@ -238,14 +205,15 @@ def plot_selected_data(condition_low, condition_high, column_name, condition_nam
     plt.title(plot_title)
     fig = plt.gcf()
     ax = fig.gca()
+    # Plot condition averages as a bar plot
     ax.bar(list_of_conditions, average_per_condition, color = mycolor)
     ax.set_xticks(range(len(list_of_conditions)))
     ax.set_xticklabels(condition_names)
     ax.errorbar(list_of_conditions, average_per_condition, errorbars, fmt='.k', capsize=5)
     ax.set(xlabel="Condition number")
+    # Plot plate averages as scatter on top
     for i in range(len(list_of_conditions)):
-        ax.scatter([list_of_conditions[i] for j in range(len(list_of_avg_visits_each_plate[i]))], list_of_avg_visits_each_plate[i], color="red")
-
+        ax.scatter([list_of_conditions[i] for j in range(len(list_of_avg_each_plate[i]))], list_of_avg_each_plate[i], color="red")
     plt.show()
 
 # I have two lines, one for Windows and the other for Linux:
@@ -274,7 +242,7 @@ else:
 
 # Only run this once in the beginning of your analysis!
 ### Saves these results in a "results.csv" file in path, so no need to run this line every time!
-regenerate_data = True # Set to True to regenerate the dataset, otherwise use the saved one
+regenerate_data = False # Set to True to regenerate the dataset, otherwise use the saved one
 if regenerate_data:
     gr.generate_and_save(path)  # run this once, will save results under path+"results.csv"
 
@@ -290,22 +258,27 @@ print("finished retrieving stuff")
 # traj_draw(trajectories, 7, plot_patches = True)
 
 # Low density plots
-#plot_selected_data(0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average duration of visits in low densities", divided_by= "nb_of_visits", mycolor = "orangered")
-#plot_selected_data(0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average proportion of time spent in patches in low densities", divided_by= "total_time", mycolor = "orangered")
-#plot_selected_data(0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average visit rate in low densities", divided_by= "total_time", mycolor = "orangered")
-#plot_selected_data(0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average number of visits in low densities", divided_by= "", mycolor = "orangered")
-#plot_selected_data(0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average number of MVT visits in low densities", divided_by= "adjusted_nb_of_visits", mycolor = "orangered")
-#plot_selected_data(0, 3, "proportion_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average proportion of visited patches in low densities", divided_by= "", mycolor = "orangered")
-#plot_selected_data(0, 3, "nb_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], "Average number of visited patches in low densities", divided_by= "", mycolor = "orangered")
+plot_selected_data("Average duration of visits in low densities", 0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "nb_of_visits", mycolor = "brown")
+plot_selected_data("Average proportion of time spent in patches in low densities", 0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
+plot_selected_data("Average visit rate in low densities", 0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
+#plot_selected_data("Average number of visits in low densities", 0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+#plot_selected_data("Average furthest visited patch distance in low densities", 0, 3, "furthest_patch_distance", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+plot_selected_data("Average duration of MVT visits in low densities", 0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "adjusted_nb_of_visits", mycolor = "brown")
+plot_selected_data("Average visit rate MVT in low densities", 0, 3, "adjusted_nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
+#plot_selected_data("Average proportion of visited patches in low densities", 0, 3, "proportion_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+#plot_selected_data("Average number of visited patches in low densities", 0, 3, "nb_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
 
 
 # Medium density plots
-#plot_selected_data(4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average duration of visits in medium densities", divided_by= "nb_of_visits", mycolor = "orange")
-#plot_selected_data(4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average proportion of time spent in patches in mediun densities", divided_by= "total_time", mycolor = "orange")
-#plot_selected_data(4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average visit rate in medium densities", divided_by= "total_time", mycolor = "orange")
-#plot_selected_data(4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average number of visits in medium densities", divided_by= "", mycolor = "orange")
-#plot_selected_data(4, 7, "proportion_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average proportion of visited patches in medium densities", divided_by= "", mycolor = "orange")
-#plot_selected_data(4, 7, "nb_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], "Average number of visited patches in medium densities", divided_by= "", mycolor = "orange")
+plot_selected_data("Average duration of visits in medium densities", 4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "nb_of_visits", mycolor = "orange")
+plot_selected_data("Average proportion of time spent in patches in mediun densities", 4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_time", mycolor = "orange")
+plot_selected_data("Average visit rate in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_time", mycolor = "orange")
+#plot_selected_data("Average number of visits in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+#plot_selected_data("Average furthest visited patch distance in medium densities", 4, 7, "furthest_patch_distance", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+plot_selected_data("Average duration of MVT visits in medium densities", 4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "adjusted_nb_of_visits", mycolor = "orange")
+plot_selected_data("Average visit rate MVT in medium densities", 4, 7, "adjusted_nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_time", mycolor = "orange")
+#plot_selected_data("Average proportion of visited patches in medium densities", 4, 7, "proportion_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+#plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
 
 
 # Full plots
