@@ -308,7 +308,7 @@ else:
 
 # Only run this once in the beginning of your analysis!
 ### Saves these results in a "results.csv" file in path, so no need to run this line every time!
-regenerate_data = False # Set to True to regenerate the dataset, otherwise use the saved one
+regenerate_data = True # Set to True to regenerate the dataset, otherwise use the saved one
 if regenerate_data:
     gr.generate_and_save(path)  # run this once, will save results under path+"results.csv"
 

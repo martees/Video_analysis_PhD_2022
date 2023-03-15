@@ -90,6 +90,7 @@ def patch_visits_single_traj(list_x, list_y, first_pos, patch_centers):
     adjusted_nb_of_visits = 0
     list_of_visited_patches = []
     furthest_patch_distance = 0
+    furthest_patch_position = [0,0]
 
     # Run through each patch to compute global variables
     for i_patch in range(len(list_of_durations)):
@@ -100,7 +101,9 @@ def patch_visits_single_traj(list_x, list_y, first_pos, patch_centers):
         # Update list of visited patches and the furthest patch visited
         if len(list_of_durations[i_patch]) > 0:  # if the patch was visited at least once in this trajectory
             patch_distance_to_center = distance.euclidean(first_pos, patch_centers[i_patch])
-            furthest_patch_distance = max(patch_distance_to_center, furthest_patch_distance)
+            if patch_distance_to_center > furthest_patch_distance:
+                furthest_patch_position = patch_centers[i_patch]
+                furthest_patch_distance = distance.euclidean(first_pos, furthest_patch_position)
             list_of_visited_patches.append(i_patch)
 
         # Visits info for average visit duration
@@ -113,7 +116,7 @@ def patch_visits_single_traj(list_x, list_y, first_pos, patch_centers):
 
     total_transit_time = np.sum(list_of_transit_durations)
 
-    return list_of_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_distance, total_transit_time, adjusted_list_of_durations, adjusted_duration_sum, adjusted_nb_of_visits
+    return list_of_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, total_transit_time, adjusted_list_of_durations, adjusted_duration_sum, adjusted_nb_of_visits
 
 
 def patch_visits_multiple_traj(data):
@@ -133,7 +136,8 @@ def patch_visits_multiple_traj(data):
     results_table["duration_sum"] = [-1 for i in range(nb_of_worms)]
     results_table["nb_of_visits"] = [-1 for i in range(nb_of_worms)]
     results_table["list_of_visited_patches"] = [-1 for i in range(nb_of_worms)]
-    results_table["furthest_patch_distance"] = [-1 for i in range(nb_of_worms)]
+    results_table["first_recorded_position"] = [-1 for i in range(nb_of_worms)]
+    results_table["furthest_patch_position"] = [-1 for i in range(nb_of_worms)]
     results_table["total_transit_time"] = [-1 for i in range(nb_of_worms)]
     results_table["adjusted_raw_visits"] = [-1 for i in range(nb_of_worms)]  # consecutive visits to same patch= 1 visit
     results_table["adjusted_duration_sum"] = [-1 for i in range(nb_of_worms)]  # THIS SHOULD BE THE SAME AS DURATION SUM
@@ -161,7 +165,7 @@ def patch_visits_multiple_traj(data):
         list_of_densities = current_metadata["patch_densities"]
 
         # Computing the visit durations
-        raw_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_distance, \
+        raw_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, \
             total_transit_time, adjusted_raw_visits, adjusted_duration_sum, adjusted_nb_of_visits = patch_visits_single_traj(
                 list(current_list_x), list(current_list_y), first_pos, current_metadata["patch_centers"])
 
@@ -175,7 +179,8 @@ def patch_visits_multiple_traj(data):
         results_table.loc[i_worm, "duration_sum"] = duration_sum  # total duration of visits
         results_table.loc[i_worm, "nb_of_visits"] = nb_of_visits  # total nb of visits
         results_table.loc[i_worm, "list_of_visited_patches"] = str(list_of_visited_patches)  # index of patches visited
-        results_table.loc[i_worm, "furthest_patch_distance"] = furthest_patch_distance  # distance
+        results_table.loc[i_worm, "first_recorded_position"] = str(first_pos)
+        results_table.loc[i_worm, "furthest_patch_position"] = str(furthest_patch_position)  # distance
         results_table.loc[i_worm, "total_transit_time"] = total_transit_time
         results_table.loc[i_worm, "adjusted_raw_visits"] = str(adjusted_raw_visits)
         results_table.loc[i_worm, "adjusted_duration_sum"] = adjusted_duration_sum
@@ -183,6 +188,11 @@ def patch_visits_multiple_traj(data):
 
     return results_table
 
+def speed_analysis(traj):
+    """
+    Function that takes in our trajectories dataframe, and adds a column with the distance covered by the worm since
+    last timestep, in order to compute speed
+    """
 
 def generate_and_save(path):
     trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))  # run this to retrieve trajectories
