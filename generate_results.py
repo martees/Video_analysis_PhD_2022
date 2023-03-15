@@ -18,7 +18,7 @@ def in_patch(position, patch):
     return distance_from_center < radius + radial_tolerance
 
 
-#@njit(parallel=True)
+# @njit(parallel=True)
 def patch_visits_single_traj(list_x, list_y, first_pos, patch_centers):
     """
     Takes a trajectory under the format: [x0 x1 ... xN] [y0 y1 ... yN] and a list of patch centers
@@ -90,13 +90,14 @@ def patch_visits_single_traj(list_x, list_y, first_pos, patch_centers):
     adjusted_nb_of_visits = 0
     list_of_visited_patches = []
     furthest_patch_distance = 0
-    furthest_patch_position = [0,0]
+    furthest_patch_position = [0, 0]
 
     # Run through each patch to compute global variables
     for i_patch in range(len(list_of_durations)):
         # Remove the zeros because they're just here for the duration algorithm
         list_of_durations[i_patch] = [nonzero for nonzero in list_of_durations[i_patch] if nonzero != 0]
-        adjusted_list_of_durations[i_patch] = [nonzero for nonzero in adjusted_list_of_durations[i_patch] if nonzero != 0]
+        adjusted_list_of_durations[i_patch] = [nonzero for nonzero in adjusted_list_of_durations[i_patch] if
+                                               nonzero != 0]
 
         # Update list of visited patches and the furthest patch visited
         if len(list_of_durations[i_patch]) > 0:  # if the patch was visited at least once in this trajectory
@@ -167,7 +168,7 @@ def patch_visits_multiple_traj(data):
         # Computing the visit durations
         raw_durations, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, \
             total_transit_time, adjusted_raw_visits, adjusted_duration_sum, adjusted_nb_of_visits = patch_visits_single_traj(
-                list(current_list_x), list(current_list_y), first_pos, current_metadata["patch_centers"])
+            list(current_list_x), list(current_list_y), first_pos, current_metadata["patch_centers"])
 
         # Fill up results table
         results_table.loc[i_worm, "folder"] = current_folder
@@ -188,14 +189,21 @@ def patch_visits_multiple_traj(data):
 
     return results_table
 
+
 def speed_analysis(traj):
     """
     Function that takes in our trajectories dataframe, and adds a column with the distance covered by the worm since
     last timestep, in order to compute speed
     """
+    list_of_positions = pd.DataFrame(zip(traj["x"], traj["y"]))
+    list_of_distances = list(list_of_positions.apply(lambda x, y: distance.euclidean(x, y)))
+    traj["distances"] = list_of_distances
+    return traj
+
 
 def generate_and_save(path):
     trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))  # run this to retrieve trajectories
+    trajectories = speed_analysis(trajectories)
     trajectories.to_csv(path + "trajectories.csv")
     results = patch_visits_multiple_traj(trajectories)
     results.to_csv(path + "results.csv")
