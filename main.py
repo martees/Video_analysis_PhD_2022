@@ -103,7 +103,7 @@ def bottestrop_ci(data, nb_resample):
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
-def traj_draw(data, i_condition, n_max = 4, plot_patches = False):
+def plot_traj(data, i_condition, n_max = 4, plot_patches = False):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
