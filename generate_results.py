@@ -24,8 +24,13 @@ def speed_analysis(traj):
     Function that takes in our trajectories dataframe, and returns a column with the distance covered by the worm since
     last timestep, in order to compute speed
     """
-    list_of_positions = pd.DataFrame(zip(traj["x"], traj["y"]))
-    list_of_distances = list(list_of_positions.apply(lambda x, y: distance.euclidean(x, y)))
+    array_x_r = np.array(traj["x"][1:])
+    array_y_r = np.array(traj["y"][1:])
+    array_x_l = np.array(traj["x"][:-1])
+    array_y_l = np.array(traj["y"][:-1])
+
+    list_of_distances = np.sqrt((array_x_l - array_x_r) ** 2 + (array_y_l - array_y_r) ** 2)
+
     return list_of_distances
 
 
@@ -41,6 +46,9 @@ def in_patch_list(traj):
     i = 0  # global counter
 
     for i_plate in range(nb_of_plates):  # for every plate
+        # Handmade progress bar
+        print(i_plate, "/", nb_of_plates)
+
         # Extract patch information
         current_plate = list_of_plates[i_plate]
         current_metadata = fd.folder_to_metadata(current_plate)
@@ -242,9 +250,16 @@ def make_results_table(data):
 
 def generate_and_save(path):
     trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))  # run this to retrieve trajectories
+    print("Finished retrieving trajectories")
+    print("Computing distances...")
     trajectories["distances"] = speed_analysis(trajectories)
+    print("Finished computing distance covered by the worm at each time step")
+    print("Computing where the worm is...")
     trajectories["patch"] = in_patch_list(trajectories)
+    print("Finished computing in which patch the worm is at each time step")
     trajectories.to_csv(path + "trajectories.csv")
+    print("Starting to build results from trajectories...")
     results = make_results_table(trajectories)
+    print("Finished!")
     results.to_csv(path + "results.csv")
     return 0

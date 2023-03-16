@@ -320,10 +320,10 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-#traj_draw(trajectories, 2, plot_patches = True)
-#plot_graphs()
+# traj_draw(trajectories, 2, plot_patches = True)
+# plot_graphs()
 
-plot_data_coverage(trajectories)
+# plot_data_coverage(trajectories)
 
 # TODO movement stuff between patches: speed, turning rate, MSD over time
 # TODO radial_tolerance in a useful way

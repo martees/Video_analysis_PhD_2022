@@ -28,6 +28,7 @@ def path_finding_traj(path_prefix):
     if not is_linux(): #on windows the glob output uses \\ as separators so remove that
         listofpaths = [name.replace("\\",'/') for name in listofpaths]
 
+    print("Finished path finding")
     return listofpaths
 
 
@@ -61,7 +62,6 @@ def trajmat_to_dataframe(paths_of_mat):
         #### outdated comments but might be useful?? about the old structure of traj.mat
         # Structure of traj.mat: traj.mat[0] = one line per worm, with their x,y positions at t_0
         # So if you call traj.mat[:,0] you get all the positions of the first worm.
-
     return dataframe
 
 def folder_to_metadata(path):
