@@ -118,9 +118,10 @@ def plot_traj(data, i_condition, n_max = 4, plot_patches = False):
     n_plate = 1
     for i_worm in range(nb_of_worms):
         current_worm = worm_list[i_worm]
-        current_list_x = data[data["id_conservative"] == current_worm]["x"]
-        current_list_y = data[data["id_conservative"] == current_worm]["y"]
-        current_folder = list(data["folder"][data["id_conservative"] == worm_list[i_worm]])[0]
+        current_data = data[data["id_conservative"] == current_worm]
+        current_list_x = current_data.reset_index()["x"]
+        current_list_y = current_data.reset_index()["y"]
+        current_folder = list(current_data["folder"])[0]
         metadata = fd.folder_to_metadata(current_folder)
         current_condition = metadata["condition"][0]
         plt.suptitle("Trajectories for condition " + str(i_condition))
@@ -137,13 +138,13 @@ def plot_traj(data, i_condition, n_max = 4, plot_patches = False):
                 previous_folder = current_folder
                 patches = metadata["patch_centers"]
                 patch_densities = metadata["patch_densities"]
-                # composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
-                background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
+                composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
+                #background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
                 fig = plt.gcf()
                 ax = fig.gca()
                 fig.set_tight_layout(True)
-                # ax.imshow(composite)
-                ax.imshow(background, cmap='gray')
+                ax.imshow(composite)
+                #ax.imshow(background, cmap='gray')
                 ax.set_title(str(current_folder[-48:-9]))
                 for i_patch in range(len(patches)):
                     circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), patch_radius, color="grey",
@@ -152,8 +153,12 @@ def plot_traj(data, i_condition, n_max = 4, plot_patches = False):
                     ax = fig.gca()
                     if plot_patches:
                         ax.add_patch(circle)
+
             # Plot worm trajectory
-            plt.plot(current_list_x, current_list_y, color=colors[i_worm])
+            indexes_in_patch = np.where(current_data["patch"]!=-1)
+            plt.scatter(current_list_x, current_list_y, color=colors[i_worm])
+            plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black')
+
     plt.show()
     # for i_traj in range(len(trajectories)):
     #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
@@ -308,9 +313,10 @@ else:
 
 # Only run this once in the beginning of your analysis!
 ### Saves these results in a "results.csv" file in path, so no need to run this line every time!
-regenerate_data = True # Set to True to regenerate the dataset, otherwise use the saved one
+regenerate_data = False # Set to True to regenerate the dataset, otherwise use the saved one
 if regenerate_data:
-    #gr.generate_trajectories(path)  # run this once, will save results under path+"results.csv"
+    #gr.generate_trajectories("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T115434_SmallPatches_C5-CAM4/")
+    gr.generate_trajectories(path)  # run this once, will save results under path+"results.csv"
     gr.generate_results(path)
 
 # Retrieve results from what generate_and_save has saved
@@ -321,7 +327,7 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-# traj_draw(trajectories, 2, plot_patches = True)
+plot_traj(trajectories, 4, plot_patches = True)
 # plot_graphs()
 
 # plot_data_coverage(trajectories)

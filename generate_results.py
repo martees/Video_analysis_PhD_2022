@@ -40,7 +40,7 @@ def in_patch_list(traj):
     Function that takes in our trajectories dataframe, and returns a column with the patch where the worm is at
     each time step.
     """
-    list_of_plates = np.unique(traj["folder"])
+    list_of_plates = pd.unique(traj["folder"])
     nb_of_plates = len(list_of_plates)
 
     # List where we'll put the patch where the worm is at each timestep
@@ -80,9 +80,10 @@ def in_patch_list(traj):
                 for i_patch in range(len(patch_centers)):  # for every patch
                     if in_patch([list_x[time], list_y[time]], patch_centers[i_patch]):  # check if the worm is in it:
                         patch_where_it_is = i_patch  # if it's in it, keep that in mind
+
+            # Update list accordingly
             list_of_patches[i] = patch_where_it_is  # still -1 if patch wasn't found
             i = i+1
-
     return list_of_patches
 
 
@@ -123,28 +124,35 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
     which_patch_array = np.array(which_patch_list)
     event_indexes = np.where(which_patch_array[:-1] != which_patch_array[1:])[0]
     # (this formula works by looking at differences between the list shifted by one to the left or to the right)
-    # (for [1,1,2,2,3,3] it will return [1,3])
+    # (for [1,1,2,2,6,6,6,6] it will return [1,3])
+
+    # Reset index of frame table, otherwise
+    list_of_frames = list_of_frames.reset_index()
 
     # We go through every event
     patch_where_it_is = which_patch_array[0]  # initializing variable with index of patch where the worm currently is
     for time in event_indexes:
         patch_where_it_was = patch_where_it_is  # index of the patch where it is
-        patch_where_it_is = which_patch_array[time]
+        patch_where_it_is = which_patch_array[time+1]
+        current_frame = int(list_of_frames["frame"][time])
 
         # Worm just exited a patch
         if patch_where_it_is == -1:  # worm currently out
             if patch_where_it_was != patch_where_it_is:  # was inside before
-                list_of_timestamps[patch_where_it_was][-1][1] = list_of_frames[time]  # end the previous visit
+                list_of_timestamps[patch_where_it_was][-1][1] = current_frame  # end the previous visit
                 list_of_timestamps[patch_where_it_was].append([0, 0])  # add new visit to the previous patch
 
         # Worm just entered a patch
         if patch_where_it_is != -1:  # worm currently in
-            if order_of_visits[-1] == -1:  # was outside before
-                order_of_visits[-1] = patch_where_it_is  # add this patch to the visit order
-                list_of_timestamps[patch_where_it_is][-1][0] = list_of_frames[time]  # begin visit in current patch sublist
+            if patch_where_it_was == -1:  # was outside before
+                list_of_timestamps[patch_where_it_is][-1][0] = current_frame  # begin visit in current patch sublist
                 if len(order_of_visits) >= 2 and order_of_visits[-1] != order_of_visits[-2]:  # if it's not the same patch as the previous visit
-                    adjusted_list_of_timestamps[patch_where_it_is][-1][1] = list_of_frames[time]  # end the old visit in the previous patch
+                    adjusted_list_of_timestamps[patch_where_it_is][-1][0] = current_frame  # end the old visit in the previous patch
                     adjusted_list_of_timestamps[order_of_visits[-2]].append([0, 0])  # start a new visit in the previous patch
+
+    #Close the last visit
+    list_of_timestamps[patch_where_it_is][-1][1] = int(list_of_frames["frame"].iloc[-1])
+    adjusted_list_of_timestamps[patch_where_it_is][-1][1] = int(list_of_frames["frame"].iloc[-1])
 
     duration_sum = 0  # this is to compute the avg duration of visits
     nb_of_visits = 0
@@ -164,13 +172,15 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
         # Visits info for average visit duration
         current_list_of_timestamps = pd.DataFrame(list_of_timestamps[i_patch])
         current_nb_of_visits = len(current_list_of_timestamps)
-        duration_sum += np.sum(current_list_of_timestamps.apply(lambda t: t[0] - t[1], axis=1))
-        nb_of_visits += current_nb_of_visits
+        if not current_list_of_timestamps.empty:
+            duration_sum += np.sum(current_list_of_timestamps.apply(lambda t: t[1] - t[0], axis=1))
+            nb_of_visits += current_nb_of_visits
 
         # Same but adjusted for multiple consecutive visits to same patch
         current_adjusted_list_of_timestamps = pd.DataFrame(adjusted_list_of_timestamps[i_patch])
-        adjusted_duration_sum += np.sum(current_adjusted_list_of_timestamps.apply(lambda t: t[0] - t[1], axis=1))
-        adjusted_nb_of_visits += len(current_adjusted_list_of_timestamps)
+        if not current_adjusted_list_of_timestamps.empty:
+            adjusted_duration_sum += np.sum(current_adjusted_list_of_timestamps.apply(lambda t: t[1] - t[0], axis=1))
+            adjusted_nb_of_visits += len(current_adjusted_list_of_timestamps)
 
         # Update list of visited patches and the furthest patch visited
         if current_nb_of_visits > 0:  # if the patch was visited at least once in this trajectory
@@ -213,13 +223,14 @@ def make_results_table(data):
     old_folder = "caca"
     for i_worm in range(nb_of_worms):
         # Handmade progress bar
-        print(i_worm, "/", nb_of_worms)
+        if i_worm % 100 == 0 or i_worm == nb_of_worms - 1:
+            print(i_worm, "/", nb_of_worms - 1)
 
         # Data from the dataframe
         current_worm = worm_list[i_worm]
         current_data = data[data["id_conservative"] == current_worm]
-        current_list_x = current_data["x"]
-        current_list_y = current_data["y"]
+        current_list_x = current_data.reset_index()["x"]
+        current_list_y = current_data.reset_index()["y"]
         current_folder = list(current_data["folder"])[0]
 
         # First recorded position of each plate is first position of the first worm of the plate
