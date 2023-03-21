@@ -6,7 +6,7 @@ import pandas as pd
 from param import *
 from numba import njit
 from itertools import groupby
-
+import copy
 
 def in_patch(position, patch):
     """
@@ -109,14 +109,9 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
     # => each [0,0] is an empty visit that begins and ends in 0
     # in the end we want
 
-    # This is the list of timestamps we will use to test the Marginal Value Theorem
-    # In order to do so, if the worm visits the same patch multiple times in a row, we count that as one visit
-    # The encoding is the same as list_of_timestamps, 0 = worm was not in that patch in its previous visit
-    adjusted_list_of_timestamps = [[list(i)] for i in np.zeros((len(patch_centers), 2), dtype='int')]
-    # List with the right format [[[0,0]],[[0,0]],...,[[0,0]]]
-
     # Order in which the patches were visited (should have as many elements as list_of_timestamps)
     # (function that removes consecutive duplicates, [1,2,2,3] => [1,2,3]
+    # !!! contains -1 whenever the worm went outside !!!
     order_of_visits = [i[0] for i in groupby(which_patch_list)]
 
     # In order to compute when visits to patches start, end, and how long they last, we avoid looking at every line by
@@ -125,15 +120,16 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
     event_indexes = np.where(which_patch_array[:-1] != which_patch_array[1:])[0]
     # (this formula works by looking at differences between the list shifted by one to the left or to the right)
     # (for [1,1,2,2,6,6,6,6] it will return [1,3])
+    event_indexes = np.insert(event_indexes, 0, 0)  # add zero to the events to start the first visit
 
     # Reset index of frame table, otherwise
     list_of_frames = list_of_frames.reset_index()
 
     # We go through every event
-    patch_where_it_is = which_patch_array[0]  # initializing variable with index of patch where the worm currently is
+    patch_where_it_is = -1  # initializing variable to -1 so that if the worm starts inside it's counted as a new visit
     for time in event_indexes:
-        patch_where_it_was = patch_where_it_is  # index of the patch where it is
-        patch_where_it_is = which_patch_array[time+1]
+        patch_where_it_was = patch_where_it_is  # memorize the patch where it was
+        patch_where_it_is = which_patch_array[min(len(which_patch_array)-1, time+1)]  # update patch, max to not exceed size
         current_frame = int(list_of_frames["frame"][time])
 
         # Worm just exited a patch
@@ -143,16 +139,40 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
                 list_of_timestamps[patch_where_it_was].append([0, 0])  # add new visit to the previous patch
 
         # Worm just entered a patch
-        if patch_where_it_is != -1:  # worm currently in
-            if patch_where_it_was == -1:  # was outside before
+        if patch_where_it_is != -1:  # worm currently inside
+            if patch_where_it_was == -1:  # it's a new visit (first patch or was outside before)
                 list_of_timestamps[patch_where_it_is][-1][0] = current_frame  # begin visit in current patch sublist
-                if len(order_of_visits) >= 2 and order_of_visits[-1] != order_of_visits[-2]:  # if it's not the same patch as the previous visit
-                    adjusted_list_of_timestamps[patch_where_it_is][-1][0] = current_frame  # end the old visit in the previous patch
-                    adjusted_list_of_timestamps[order_of_visits[-2]].append([0, 0])  # start a new visit in the previous patch
 
-    #Close the last visit
-    list_of_timestamps[patch_where_it_is][-1][1] = int(list_of_frames["frame"].iloc[-1])
-    adjusted_list_of_timestamps[patch_where_it_is][-1][1] = int(list_of_frames["frame"].iloc[-1])
+    # Close the last visit
+    if which_patch_array[-1] != -1:  # if the worm is inside, last visit hasn't been closed (no exit event)
+        list_of_timestamps[patch_where_it_is][-1][1] = int(list_of_frames["frame"].iloc[-1])  # = last frame
+
+    # Clean the table (remove the zeros because they're just here for the duration algorithm)
+    for i_patch in range(len(list_of_timestamps)):
+        list_of_timestamps[i_patch] = [nonzero for nonzero in list_of_timestamps[i_patch] if nonzero != [0, 0]]
+
+    # Build the adjusted durations
+    # This is the list of durations we will use to test the Marginal Value Theorem
+    # In order to do so, if the worm visits the same patch multiple times in a row, we count that as one visit
+    adjusted_list_of_durations = [list(i) for i in np.zeros((len(patch_centers), 1), dtype='int')]
+    # List with the right format [[0],[0],...,[0]], one list of durations per patch
+    # The strategy to compute it:
+    # We copy the list_of_timestamps
+    # We go through the order of visit table, and for every patch on that:
+    # - We sum one duration from the list_of_time_stamp, and add it to current visit duration
+    # - If the patch changes we close the previous one and start a new one
+    timestamps_copy = copy.deepcopy(list_of_timestamps)
+    for i_visit in range(len(order_of_visits)):
+        current_patch = order_of_visits[i_visit]
+        if timestamps_copy[current_patch]:  # if it's not empty
+            current_visit = timestamps_copy[current_patch].pop(-1)  # removes the visit from the list and returns it
+            current_duration = current_visit[1] - current_visit[0]
+            if current_patch != -1:
+                if i_visit > 1:  # if it's not the first visit
+                    previous_patch = order_of_visits[i_visit-2]
+                    if current_patch != previous_patch:  # if the worm changed career patch
+                        adjusted_list_of_durations[previous_patch].append(0)  # close previous visit
+                adjusted_list_of_durations[current_patch][-1] += current_duration  # in any case add duration to relevant patch
 
     duration_sum = 0  # this is to compute the avg duration of visits
     nb_of_visits = 0
@@ -165,9 +185,6 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
 
     # Run through each patch to compute global variables
     for i_patch in range(len(list_of_timestamps)):
-        # Remove the zeros because they're just here for the duration algorithm
-        list_of_timestamps[i_patch] = [nonzero for nonzero in list_of_timestamps[i_patch] if nonzero != [0, 0]]
-        adjusted_list_of_timestamps[i_patch] = [nonzero for nonzero in adjusted_list_of_timestamps[i_patch] if nonzero != [0, 0]]
 
         # Visits info for average visit duration
         current_list_of_timestamps = pd.DataFrame(list_of_timestamps[i_patch])
@@ -177,10 +194,10 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
             nb_of_visits += current_nb_of_visits
 
         # Same but adjusted for multiple consecutive visits to same patch
-        current_adjusted_list_of_timestamps = pd.DataFrame(adjusted_list_of_timestamps[i_patch])
-        if not current_adjusted_list_of_timestamps.empty:
-            adjusted_duration_sum += np.sum(current_adjusted_list_of_timestamps.apply(lambda t: t[1] - t[0], axis=1))
-            adjusted_nb_of_visits += len(current_adjusted_list_of_timestamps)
+        current_adjusted_list_of_durations = pd.DataFrame(adjusted_list_of_durations[i_patch])
+        if not current_adjusted_list_of_durations.empty:
+            adjusted_duration_sum += np.sum(current_adjusted_list_of_durations)
+            adjusted_nb_of_visits += len(current_adjusted_list_of_durations)
 
         # Update list of visited patches and the furthest patch visited
         if current_nb_of_visits > 0:  # if the patch was visited at least once in this trajectory
@@ -192,7 +209,7 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
 
     total_transit_time = np.sum(list_of_transit_durations)
 
-    return list_of_timestamps, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, total_transit_time, adjusted_list_of_timestamps, adjusted_duration_sum, adjusted_nb_of_visits
+    return list_of_timestamps, order_of_visits, duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, total_transit_time, adjusted_list_of_durations, adjusted_duration_sum, adjusted_nb_of_visits
 
 
 def make_results_table(data):

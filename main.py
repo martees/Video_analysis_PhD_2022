@@ -313,11 +313,12 @@ else:
 
 # Only run this once in the beginning of your analysis!
 ### Saves these results in a "results.csv" file in path, so no need to run this line every time!
-regenerate_data = False # Set to True to regenerate the dataset, otherwise use the saved one
+regenerate_data = True # Set to True to regenerate the dataset, otherwise use the saved one
 if regenerate_data:
-    #gr.generate_trajectories("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T115434_SmallPatches_C5-CAM4/")
-    gr.generate_trajectories(path)  # run this once, will save results under path+"results.csv"
+    #gr.generate_trajectories(path)
     gr.generate_results(path)
+    #gr.generate_trajectories("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T200144_SmallPatches_C6-CAM3/")  # run this once, will save results under path+"results.csv"
+    #gr.generate_results("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T200144_SmallPatches_C6-CAM3/")
 
 # Retrieve results from what generate_and_save has saved
 trajectories = pd.read_csv(path + "trajectories.csv")
@@ -327,8 +328,8 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-plot_traj(trajectories, 4, plot_patches = True)
-# plot_graphs()
+# plot_traj(trajectories, 4, plot_patches = True)
+plot_graphs()
 
 # plot_data_coverage(trajectories)
 
