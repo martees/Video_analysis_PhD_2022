@@ -103,25 +103,25 @@ def bottestrop_ci(data, nb_resample):
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
-def plot_traj(data, i_condition, n_max = 4, plot_patches = False):
+def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite = True):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
     Extracts list of series of positions from indicated condition and draws them, with one color per id
-    :param data: dataframe containing the series of (x,y) positions ([[x0,x1,x2...] [y0,y1,y2...])
+    :param traj: dataframe containing the series of (x,y) positions ([[x0,x1,x2...] [y0,y1,y2...])
     :return: trajectory plot
     """
-    worm_list = np.unique(data["id_conservative"])
+    worm_list = np.unique(traj["id_conservative"])
     nb_of_worms = len(worm_list)
     colors = plt.cm.jet(np.linspace(0, 1, nb_of_worms))
     previous_folder = 0
     n_plate = 1
     for i_worm in range(nb_of_worms):
         current_worm = worm_list[i_worm]
-        current_data = data[data["id_conservative"] == current_worm]
-        current_list_x = current_data.reset_index()["x"]
-        current_list_y = current_data.reset_index()["y"]
-        current_folder = list(current_data["folder"])[0]
+        current_traj = traj[traj["id_conservative"] == current_worm]
+        current_list_x = current_traj.reset_index()["x"]
+        current_list_y = current_traj.reset_index()["y"]
+        current_folder = list(current_traj["folder"])[0]
         metadata = fd.folder_to_metadata(current_folder)
         current_condition = metadata["condition"][0]
         plt.suptitle("Trajectories for condition " + str(i_condition))
@@ -135,16 +135,17 @@ def plot_traj(data, i_condition, n_max = 4, plot_patches = False):
                 # if previous_folder != 0: #if its not the first (if its the first theres nothing to show)
                 # plt.show()
                 # Show background and patches
-                previous_folder = current_folder
                 patches = metadata["patch_centers"]
                 patch_densities = metadata["patch_densities"]
-                composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
-                #background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
                 fig = plt.gcf()
                 ax = fig.gca()
                 fig.set_tight_layout(True)
-                ax.imshow(composite)
-                #ax.imshow(background, cmap='gray')
+                if show_composite :
+                    composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
+                    ax.imshow(composite)
+                else :
+                    background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
+                    ax.imshow(background, cmap='gray')
                 ax.set_title(str(current_folder[-48:-9]))
                 for i_patch in range(len(patches)):
                     circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), patch_radius, color="grey",
@@ -154,13 +155,29 @@ def plot_traj(data, i_condition, n_max = 4, plot_patches = False):
                     if plot_patches:
                         ax.add_patch(circle)
 
+            #     # Plot first and last position of the worm
+            # first_pos = json.loads(current_traj["first_recorded_position"])
+            # last_pos = json.loads(current_traj["last_tracked_position"])
+            # plt.scatter(first_pos[0], first_pos[1], marker = '*')
+            # plt.scatter(last_pos[0], last_pos[1], marker = 'X')
+
             # Plot worm trajectory
-            indexes_in_patch = np.where(current_data["patch"]!=-1)
-            plt.scatter(current_list_x, current_list_y, color=colors[i_worm])
-            plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black')
+            indexes_in_patch = np.where(current_traj["patch"]!=-1)
+            plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s = .5)
+            plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black', s = .5)
+            plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color = "red")
+
+            if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
+                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "white")
+                previous_folder = current_folder
+            else:
+                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "green")
 
     plt.show()
-    # for i_traj in range(len(trajectories)):
+
+
+
+# for i_traj in range(len(trajectories)):
     #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
     #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
 
@@ -257,6 +274,8 @@ def plot_data_coverage(trajectories):
 
 def plot_graphs():
     # Low density plots
+    plot_selected_data("Average speed in low densities (inside)", 0, 3, "average_speed_inside", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "", mycolor = "brown")
+    plot_selected_data("Average speed in low densities (outside)", 0, 3, "average_speed_outside", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "", mycolor = "brown")
     plot_selected_data("Average duration of visits in low densities", 0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "nb_of_visits", mycolor = "brown")
     plot_selected_data("Average proportion of time spent in patches in low densities", 0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
     plot_selected_data("Average visit rate in low densities", 0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
@@ -267,6 +286,7 @@ def plot_graphs():
     #plot_selected_data("Average proportion of visited patches in low densities", 0, 3, "proportion_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
     #plot_selected_data("Average number of visited patches in low densities", 0, 3, "nb_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
 
+#TODO remove zeros from speed averages!!!!!!!!!!
 
     # Medium density plots
     plot_selected_data("Average duration of visits in medium densities", 4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "nb_of_visits", mycolor = "orange")
@@ -312,13 +332,11 @@ else:
 #         results_table["adjusted_nb_of_visits"] = nb of adjusted visits
 
 # Only run this once in the beginning of your analysis!
-### Saves these results in a "results.csv" file in path, so no need to run this line every time!
-regenerate_data = True # Set to True to regenerate the dataset, otherwise use the saved one
+### Saves these results in a "trajectories.csv" and a "results.csv" file in path, so no need to run this line every time!
+regenerate_data = True # Set to True to regenerate the result dataset, otherwise use the saved one
 if regenerate_data:
     #gr.generate_trajectories(path)
     gr.generate_results(path)
-    #gr.generate_trajectories("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T200144_SmallPatches_C6-CAM3/")  # run this once, will save results under path+"results.csv"
-    #gr.generate_results("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T200144_SmallPatches_C6-CAM3/")
 
 # Retrieve results from what generate_and_save has saved
 trajectories = pd.read_csv(path + "trajectories.csv")
@@ -328,7 +346,7 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-# plot_traj(trajectories, 4, plot_patches = True)
+# plot_traj(trajectories, 1, plot_patches = True)
 plot_graphs()
 
 # plot_data_coverage(trajectories)

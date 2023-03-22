@@ -8,6 +8,7 @@ from numba import njit
 from itertools import groupby
 import copy
 
+
 def in_patch(position, patch):
     """
     returns True if position = [x,y] is inside the patch
@@ -17,22 +18,6 @@ def in_patch(position, patch):
     radius = patch_radius
     distance_from_center = np.sqrt((position[0] - center[0]) ** 2 + (position[1] - center[1]) ** 2)
     return distance_from_center < radius + radial_tolerance
-
-
-def speed_analysis(traj):
-    """
-    Function that takes in our trajectories dataframe, and returns a column with the distance covered by the worm since
-    last timestep, in order to compute speed
-    """
-    array_x_r = np.array(traj["x"].iloc[1:])
-    array_y_r = np.array(traj["y"].iloc[1:])
-    array_x_l = np.array(traj["x"].iloc[:-1])
-    array_y_l = np.array(traj["y"].iloc[:-1])
-
-    list_of_distances = np.sqrt((array_x_l - array_x_r) ** 2 + (array_y_l - array_y_r) ** 2)
-    list_of_distances = np.insert(list_of_distances, 0, 0)
-
-    return list_of_distances
 
 
 def in_patch_list(traj):
@@ -87,6 +72,50 @@ def in_patch_list(traj):
     return list_of_patches
 
 
+def trajectory_speed(traj):
+    """
+    Function that takes in our trajectories dataframe, and returns a column with the distance covered by the worm since
+    last timestep, in order to compute speed
+    """
+    array_x_r = np.array(traj["x"].iloc[1:])
+    array_y_r = np.array(traj["y"].iloc[1:])
+    array_x_l = np.array(traj["x"].iloc[:-1])
+    array_y_l = np.array(traj["y"].iloc[:-1])
+
+    list_of_distances = np.sqrt((array_x_l - array_x_r) ** 2 + (array_y_l - array_y_r) ** 2)
+    list_of_distances = np.insert(list_of_distances, 0, 0)
+
+    return list_of_distances
+
+
+def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
+    """
+    Parameters:
+        - the patch where a worm is at each timestep
+        - the speed at which it's runnin'
+    Returns:
+        - the average speed when inside a patch
+        - the average speed when outside a patch
+    """
+    which_patch_list = which_patch_list.reset_index()["patch"]
+    list_of_frames = list_of_frames.reset_index()["frame"]
+    distance_list = distance_list.reset_index()["distances"]
+    distance_inside_sum = 0
+    time_inside_sum = 0
+    distance_outside_sum = 0
+    time_outside_sum = 0
+    for i in range(1, len(which_patch_list)-1):
+        if which_patch_list[i] == -1:
+            time_outside_sum += list_of_frames[i] - list_of_frames[i-1]
+            distance_outside_sum += distance_list[i]
+        else:
+            time_inside_sum += list_of_frames[i] - list_of_frames[i-1]
+            distance_inside_sum += distance_list[i]
+    if (distance_inside_sum == 0 and time_inside_sum != 0) or (distance_inside_sum != 0 and time_inside_sum == 0) or (distance_outside_sum == 0 and time_outside_sum != 0) or (distance_outside_sum != 0 and time_outside_sum == 0):
+        print("There's an issue with the avg_speed_analysis function!")
+    return distance_inside_sum/max(1, time_inside_sum), distance_outside_sum/max(1, time_outside_sum)  # the max is to prevent division by zero
+
+
 # @njit(parallel=True)
 def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_xy):
     """
@@ -122,7 +151,7 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
     # (for [1,1,2,2,6,6,6,6] it will return [1,3])
     event_indexes = np.insert(event_indexes, 0, 0)  # add zero to the events to start the first visit
 
-    # Reset index of frame table, otherwise
+    # Reset index of frame table, otherwise frames are not found once it's not the first worm
     list_of_frames = list_of_frames.reset_index()
 
     # We go through every event
@@ -131,22 +160,18 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
         patch_where_it_was = patch_where_it_is  # memorize the patch where it was
         patch_where_it_is = which_patch_array[min(len(which_patch_array)-1, time+1)]  # update patch, max to not exceed size
         current_frame = int(list_of_frames["frame"][time])
-
         # Worm just exited a patch
         if patch_where_it_is == -1:  # worm currently out
             if patch_where_it_was != patch_where_it_is:  # was inside before
                 list_of_timestamps[patch_where_it_was][-1][1] = current_frame  # end the previous visit
                 list_of_timestamps[patch_where_it_was].append([0, 0])  # add new visit to the previous patch
-
         # Worm just entered a patch
         if patch_where_it_is != -1:  # worm currently inside
             if patch_where_it_was == -1:  # it's a new visit (first patch or was outside before)
                 list_of_timestamps[patch_where_it_is][-1][0] = current_frame  # begin visit in current patch sublist
-
     # Close the last visit
     if which_patch_array[-1] != -1:  # if the worm is inside, last visit hasn't been closed (no exit event)
         list_of_timestamps[patch_where_it_is][-1][1] = int(list_of_frames["frame"].iloc[-1])  # = last frame
-
     # Clean the table (remove the zeros because they're just here for the duration algorithm)
     for i_patch in range(len(list_of_timestamps)):
         list_of_timestamps[i_patch] = [nonzero for nonzero in list_of_timestamps[i_patch] if nonzero != [0, 0]]
@@ -173,6 +198,11 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
                     if current_patch != previous_patch:  # if the worm changed career patch
                         adjusted_list_of_durations[previous_patch].append(0)  # close previous visit
                 adjusted_list_of_durations[current_patch][-1] += current_duration  # in any case add duration to relevant patch
+    # Clean the adjusted durations
+    for i_patch in range(len(adjusted_list_of_durations)):
+        adjusted_list_of_durations[i_patch] = [nonzero for nonzero in adjusted_list_of_durations[i_patch] if nonzero != 0]
+
+    # Compute global variables
 
     duration_sum = 0  # this is to compute the avg duration of visits
     nb_of_visits = 0
@@ -183,9 +213,8 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
     furthest_patch_position = [0, 0]
     list_of_transit_durations = []
 
-    # Run through each patch to compute global variables
+    # Run through each patch
     for i_patch in range(len(list_of_timestamps)):
-
         # Visits info for average visit duration
         current_list_of_timestamps = pd.DataFrame(list_of_timestamps[i_patch])
         current_nb_of_visits = len(current_list_of_timestamps)
@@ -196,7 +225,7 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
         # Same but adjusted for multiple consecutive visits to same patch
         current_adjusted_list_of_durations = pd.DataFrame(adjusted_list_of_durations[i_patch])
         if not current_adjusted_list_of_durations.empty:
-            adjusted_duration_sum += np.sum(current_adjusted_list_of_durations)
+            adjusted_duration_sum += int(np.sum(current_adjusted_list_of_durations))
             adjusted_nb_of_visits += len(current_adjusted_list_of_durations)
 
         # Update list of visited patches and the furthest patch visited
@@ -214,29 +243,15 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers, first_
 
 def make_results_table(data):
     """
-    Takes our data table and returns a series of analysis regarding patch visits, one line per worm
+    Takes our data table and returns a series of analysis regarding patch visits, one line per "worm", which in fact
+    corresponds to one worm track, each worm/plate usually containing multiple tracks (the tracking is discontinuous
+    and when the worm gets lost it starts a new ID).
     """
     global first_pos
     worm_list = np.unique(data["id_conservative"])
     nb_of_worms = len(worm_list)
 
     results_table = pd.DataFrame()
-    results_table["folder"] = [-1 for i in range(nb_of_worms)]
-    results_table["condition"] = [-1 for i in range(nb_of_worms)]
-    results_table["worm_id"] = [-1 for i in range(nb_of_worms)]
-    results_table["total_time"] = [-1 for i in range(nb_of_worms)]
-    results_table["raw_visits"] = [-1 for i in range(nb_of_worms)]
-    results_table["order_of_visits"] = [-1 for i in range(nb_of_worms)]
-    results_table["duration_sum"] = [-1 for i in range(nb_of_worms)]
-    results_table["nb_of_visits"] = [-1 for i in range(nb_of_worms)]
-    results_table["list_of_visited_patches"] = [-1 for i in range(nb_of_worms)]
-    results_table["first_recorded_position"] = [-1 for i in range(nb_of_worms)]
-    results_table["furthest_patch_position"] = [-1 for i in range(nb_of_worms)]
-    results_table["total_transit_time"] = [-1 for i in range(nb_of_worms)]
-    results_table["adjusted_raw_visits"] = [-1 for i in range(nb_of_worms)]  # consecutive visits to same patch= 1 visit
-    results_table["adjusted_duration_sum"] = [-1 for i in range(nb_of_worms)]  # THIS SHOULD BE THE SAME AS DURATION SUM
-    results_table["adjusted_nb_of_visits"] = [-1 for i in range(nb_of_worms)]
-
     old_folder = "caca"
     for i_worm in range(nb_of_worms):
         # Handmade progress bar
@@ -264,22 +279,28 @@ def make_results_table(data):
             total_transit_time, adjusted_raw_visits, adjusted_duration_sum, adjusted_nb_of_visits = single_traj_analysis(
             current_data["patch"], current_data["frame"], current_metadata["patch_centers"], first_pos)
 
+        # Computing average speed
+        average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch"], current_data["frame"], current_data["distances"])
+
         # Fill up results table
         results_table.loc[i_worm, "folder"] = current_folder
         results_table.loc[i_worm, "condition"] = current_metadata["condition"][0]
         results_table.loc[i_worm, "worm_id"] = current_worm
-        results_table.loc[i_worm, "total_time"] = len(current_list_x)
+        results_table.loc[i_worm, "total_time"] = len(current_list_x)  # number of tracked time steps
         results_table.loc[i_worm, "raw_visits"] = str(raw_durations)  # all visits of all patches
         results_table.loc[i_worm, "order_of_visits"] = str(order_of_visits)  # patch order of visits
         results_table.loc[i_worm, "duration_sum"] = duration_sum  # total duration of visits
         results_table.loc[i_worm, "nb_of_visits"] = nb_of_visits  # total nb of visits
         results_table.loc[i_worm, "list_of_visited_patches"] = str(list_of_visited_patches)  # index of patches visited
-        results_table.loc[i_worm, "first_recorded_position"] = str(first_pos)
+        results_table.loc[i_worm, "first_recorded_position"] = str(first_pos)  # first position for the whole plate (used to check trajectories)
+        results_table.loc[i_worm, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[-1]])  # last position for the current worm (used to check tracking)
         results_table.loc[i_worm, "furthest_patch_position"] = str(furthest_patch_position)  # distance
         results_table.loc[i_worm, "total_transit_time"] = total_transit_time
         results_table.loc[i_worm, "adjusted_raw_visits"] = str(adjusted_raw_visits)
         results_table.loc[i_worm, "adjusted_duration_sum"] = adjusted_duration_sum
         results_table.loc[i_worm, "adjusted_nb_of_visits"] = adjusted_nb_of_visits
+        results_table.loc[i_worm, "average_speed_inside"] = average_speed_in
+        results_table.loc[i_worm, "average_speed_outside"] = average_speed_out
 
     return results_table
 
@@ -288,7 +309,7 @@ def generate_trajectories(path):
     trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))  # run this to retrieve trajectories
     print("Finished retrieving trajectories")
     print("Computing distances...")
-    trajectories["distances"] = speed_analysis(trajectories)
+    trajectories["distances"] = trajectory_speed(trajectories)
     print("Finished computing distance covered by the worm at each time step")
     print("Computing where the worm is...")
     trajectories["patch"] = in_patch_list(trajectories)
