@@ -60,7 +60,12 @@ def results_per_condition(result_table, column_name, divided_by = ""):
                 #        print(list_of_plates[i_plate])
                 #        print(list_of_values[i_plate])
             else: # No division has to be made
-                if column_name == "proportion_of_visited_patches" or column_name == "nb_of_visited_patches": # Special case: divide by total nb of patches in plate
+                if column_name == "average_speed_inside" or column_name == "average_speed_outside":
+                    # Exclude the 0's which are the cases were the worm didnt go to a patch / out of a patch for a full track
+                    list_speed_current_plate = [nonzero for nonzero in current_plate[column_name] if int(nonzero) != 0]
+                    if list_speed_current_plate:  # If any non-zero speed was recorded for that plate
+                        list_of_values[i_plate] = np.average(list_speed_current_plate)
+                elif column_name == "proportion_of_visited_patches" or column_name == "nb_of_visited_patches": # Special case: divide by total nb of patches in plate
                     current_plate = current_plate.reset_index()
                     list_of_visited_patches = [json.loads(current_plate["list_of_visited_patches"][i]) for i in range(len(current_plate["list_of_visited_patches"]))]
                     list_of_visited_patches = [i for liste in list_of_visited_patches for i in liste]
@@ -70,10 +75,15 @@ def results_per_condition(result_table, column_name, divided_by = ""):
                         list_total_patch = [52, 24, 7, 25, 52, 24, 7, 25, 24, 24, 24, 24]
                         list_of_values[i_plate] = len(np.unique(list_of_visited_patches))\
                                               /list_total_patch[i_condition]
-                if column_name == "furthest_patch_distance":
+                elif column_name == "furthest_patch_distance":  # in this case we want the maximal value and not the average
                     list_of_values[i_plate] = np.max(current_plate[column_name])
-                else:
+                else:  # in any other case
                     list_of_values[i_plate] = np.sum(current_plate[column_name])
+
+        # In the case of speed, 0 values are for plates where there was no speed inside/outside recorded so we remove their values
+        # (idk if this case happens but at least it's taken care of)
+        if column_name == "average_speed_inside" or column_name == "average_speed_outside":
+            list_of_values = [nonzero for nonzero in list_of_values if int(nonzero) != 0]
 
         # Keep in memory the full list of averages
         full_list_of_values[i_condition] = list_of_values
@@ -103,7 +113,7 @@ def bottestrop_ci(data, nb_resample):
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
-def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite = True):
+def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite = True, plot_in_patch = False, plot_continuity = False, plot_speed = False):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -163,16 +173,24 @@ def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite
 
             # Plot worm trajectory
             indexes_in_patch = np.where(current_traj["patch"]!=-1)
-            plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s = .5)
-            plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black', s = .5)
-            plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color = "red")
-
-            if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "white")
-                previous_folder = current_folder
+            if not plot_speed:
+                plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s = .5)
             else:
-                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "green")
+                distance_list = current_traj.reset_index()["distances"]
+                plt.scatter(current_list_x, current_list_y, c = distance_list, cmap = "viridis", s = .5)
+                if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
+                    plt.colorbar()
 
+            if plot_in_patch:
+                plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black', s = .5)
+
+            if plot_continuity:
+                plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color="red")
+                if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
+                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "white")
+                    previous_folder = current_folder
+                else:
+                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "green")
     plt.show()
 
 
@@ -273,9 +291,11 @@ def plot_data_coverage(trajectories):
     plt.show()
 
 def plot_graphs():
+    # Speed plots
+    plot_selected_data("Average speed in all densities (inside)", 0, 11, "average_speed_inside", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5", "cluster 0.5", "", "", "", ""], divided_by= "", mycolor = "green")
+    plot_selected_data("Average speed in all densities (outside)", 0, 11, "average_speed_outside", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5", "cluster 0.5", "", "", "", ""], divided_by= "", mycolor = "green")
+
     # Low density plots
-    plot_selected_data("Average speed in low densities (inside)", 0, 3, "average_speed_inside", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "", mycolor = "brown")
-    plot_selected_data("Average speed in low densities (outside)", 0, 3, "average_speed_outside", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "", mycolor = "brown")
     plot_selected_data("Average duration of visits in low densities", 0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "nb_of_visits", mycolor = "brown")
     plot_selected_data("Average proportion of time spent in patches in low densities", 0, 3, "duration_sum", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
     plot_selected_data("Average visit rate in low densities", 0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
@@ -285,8 +305,6 @@ def plot_graphs():
     plot_selected_data("Average visit rate MVT in low densities", 0, 3, "adjusted_nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
     #plot_selected_data("Average proportion of visited patches in low densities", 0, 3, "proportion_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
     #plot_selected_data("Average number of visited patches in low densities", 0, 3, "nb_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
-
-#TODO remove zeros from speed averages!!!!!!!!!!
 
     # Medium density plots
     plot_selected_data("Average duration of visits in medium densities", 4, 7, "duration_sum", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "nb_of_visits", mycolor = "orange")
@@ -333,7 +351,7 @@ else:
 
 # Only run this once in the beginning of your analysis!
 ### Saves these results in a "trajectories.csv" and a "results.csv" file in path, so no need to run this line every time!
-regenerate_data = True # Set to True to regenerate the result dataset, otherwise use the saved one
+regenerate_data = False # Set to True to regenerate the result dataset, otherwise use the saved one
 if regenerate_data:
     #gr.generate_trajectories(path)
     gr.generate_results(path)
@@ -346,7 +364,7 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-# plot_traj(trajectories, 1, plot_patches = True)
+# plot_traj(trajectories, 4,  plot_patches = True, show_composite = False, plot_in_patch = False, plot_continuity = True, plot_speed = True)
 plot_graphs()
 
 # plot_data_coverage(trajectories)
