@@ -6,6 +6,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mplcolors
 from scipy.stats import bootstrap
 import random
 
@@ -177,7 +178,8 @@ def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite
                 plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s = .5)
             else:
                 distance_list = current_traj.reset_index()["distances"]
-                plt.scatter(current_list_x, current_list_y, c = distance_list, cmap = "viridis", s = .5)
+                normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
+                plt.scatter(current_list_x, current_list_y, c = distance_list, cmap = "hot", norm = normalize, s = 1)
                 if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                     plt.colorbar()
 
@@ -351,9 +353,9 @@ else:  # Windows path
 # Only run this once in the beginning of your analysis!
 ### Saves these results in a "trajectories.csv" and a "results.csv" file in path, so no need to run this line every time!
 # Set to True to regenerate a dataset, otherwise use the saved one
-regenerate_trajectories = True
-regenerate_results_per_id = True
-regenerate_results_per_plate = True
+regenerate_trajectories = False
+regenerate_results_per_id = False
+regenerate_results_per_plate = False
 
 if regenerate_trajectories:
     gr.generate_trajectories(path)
@@ -370,8 +372,8 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-# plot_traj(trajectories, 4,  plot_patches = True, show_composite = False, plot_in_patch = False, plot_continuity = True, plot_speed = True)
-plot_graphs()
+# plot_traj(trajectories, 2,  plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True)
+# plot_graphs()
 
 # plot_data_coverage(trajectories)
 

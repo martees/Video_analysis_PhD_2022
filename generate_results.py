@@ -281,8 +281,9 @@ def make_results_per_id_table(data):
         # Data from the dataframe
         current_worm = worm_list[i_worm]
         current_data = data[data["id_conservative"] == current_worm]
-        current_list_x = current_data.reset_index()["x"]
-        current_list_y = current_data.reset_index()["y"]
+        current_data = current_data.reset_index()
+        current_list_x = current_data["x"]
+        current_list_y = current_data["y"]
         current_folder = list(current_data["folder"])[0]
 
         # First recorded position of each plate is first position of the first worm of the plate
@@ -302,7 +303,7 @@ def make_results_per_id_table(data):
         adjusted_raw_visits = mvt_patch_visits(raw_visit_timestamps, order_of_visits, patch_list)
         # Computing global variables
         duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, total_transit_time, \
-        adjusted_duration_sum, adjusted_nb_of_visits = analyse_patch_visits(raw_visit_timestamps, adjusted_raw_visits, \
+        adjusted_duration_sum, adjusted_nb_of_visits = analyse_patch_visits(raw_visit_timestamps, adjusted_raw_visits,\
                                                                             patch_list, first_pos)
 
         # Computing average speed
@@ -320,10 +321,12 @@ def make_results_per_id_table(data):
         results_table.loc[i_worm, "nb_of_visits"] = nb_of_visits  # total nb of visits
         results_table.loc[i_worm, "list_of_visited_patches"] = str(list_of_visited_patches)  # index of patches visited
         results_table.loc[i_worm, "first_recorded_position"] = str(first_pos)  # first position for the whole plate (used to check trajectories)
-        results_table.loc[i_worm, "first_frame"] = current_data.iloc["frame"][0]
+        results_table.loc[i_worm, "first_frame"] = current_data["frame"][0]
+        results_table.loc[i_worm, "first_tracked_position_patch"] = current_data["patch"].iloc[-1]  # patch where the worm is when tracking starts (-1 = outside): one value per id
+        results_table.loc[i_worm, "last_frame"] = current_data["frame"][0]
         results_table.loc[i_worm, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[-1]])  # last position for the current worm (used to check tracking)
-        results_table.loc[i_worm, "last_frame"] =  current_data.iloc["frame"][0]
-        results_table.loc[i_worm, "furthest_patch_position"] = str(furthest_patch_position)  # distance
+        results_table.loc[i_worm, "last_tracked_position_patch"] = current_data["patch"].iloc[-1]  # patch where the worm is when tracking stops (-1 = outside)
+        results_table.loc[i_worm, "furthest_patch_position"] = str(furthest_patch_position)
         results_table.loc[i_worm, "total_transit_time"] = total_transit_time
         results_table.loc[i_worm, "adjusted_raw_visits"] = str(adjusted_raw_visits)
         results_table.loc[i_worm, "adjusted_duration_sum"] = adjusted_duration_sum
@@ -334,7 +337,22 @@ def make_results_per_id_table(data):
     return results_table
 
 
-def make_clean_results(data_per_id):
+def nb_bad_events(data):
+    """
+    Takes one plate of our results_per_id table, and returns the number of times that the tracking stopped in one place
+    and restarted in a different place (stopped inside and restarted outside, etc.)
+    """
+    nb_of_holes = len(data) - 1
+    nb_of_bad_events = 0
+    for i_hole in range(nb_of_holes):
+        position_start_hole = data["first_tracked_position_patch"][i_hole]
+        position_end_hole = data["last_tracked_position_patch"][i_hole+1]
+        if position_start_hole != position_end_hole:
+            nb_of_bad_events += 1
+    return nb_of_bad_events
+
+
+def make_clean_results(data_per_id, trajectories):
     """
     Function that takes our results_per_id table as an input, and will output a table with info for each plate:
         - folder
@@ -342,10 +360,11 @@ def make_clean_results(data_per_id):
         - length of the video (last - first time step)
         - number of tracked time steps
         - number of holes in the tracking
-        - a list of places where the tracking was interrupted (-1 = outside of a patch, otherwise patch number)
-        - a list of places where the tracking restarted after a hole (-1 = outside of a patch, otherwise patch number)
+        - a list of tuples for each hole:
+            - first element = where the tracking was interrupted (-1 = outside of a patch, otherwise patch number)
+            - second element = where the tracking restarted (-1 = outside of a patch, otherwise patch number)
         - proportion of the frame numbers that have double tracking (if high, probably two worms)
-        - an invalid tracking event column, whose content is described below:
+        - an invalid tracking event column, whose content is described below
     AND THEN similar columns as in results table but aggregating visits as such:
         - if the tracking stops and restarts in the same situation (stops and restarts outside, or in the same patch),
         then the time for which the tracking stopped is counted as having been spent in the situation (so if the track
@@ -358,12 +377,35 @@ def make_clean_results(data_per_id):
     list_of_plates = np.unique(data_per_id["folder"])
     for i_plate in range(len(list_of_plates)):
         current_folder = list_of_plates[i_plate]
-        current_data = data_per_id[data_per_id["folder"]==current_folder]
+        current_data = data_per_id[data_per_id["folder"] == current_folder]
+        current_trajectory = trajectories[trajectories["folder"] == current_folder]
 
-        clean_results.iloc["folder"] = current_folder
-        clean_results.iloc["condition"] = current_data["condition"][0]
-        clean_results.iloc["total_video_time"] = current_data.iloc["last_frame"][-1] - current_data.iloc["first_frame"][0]
-        clean_results.iloc["total_tracked_time"] = np.sum(current_data["total_time"])
+        clean_results.iloc[i_plate, "folder"] = current_folder
+        clean_results.iloc[i_plate, "condition"] = current_data["condition"][0]
+        clean_results.iloc[i_plate, "total_video_time"] = current_data.iloc["last_frame"][-1] - current_data.iloc["first_frame"][0]
+        clean_results.iloc[i_plate, "total_tracked_time"] = np.sum(current_data["total_time"])
+        clean_results.iloc[i_plate, "nb_of_holes"] = len(current_data)
+        clean_results.iloc[i_plate, "where_hole"] = nb_bad_events(current_data)
+        clean_results.iloc[i_plate, "avg_proportion_double_frames"] = (len(current_trajectory["frame"])/len(np.unique(current_trajectory["frame"]))) - 1
+
+        # Adjusting it for MVT analyses
+        adjusted_raw_visits = mvt_patch_visits(raw_visit_timestamps, order_of_visits, patch_list)
+        # Computing global variables
+        duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, total_transit_time, \
+            adjusted_duration_sum, adjusted_nb_of_visits = analyse_patch_visits(raw_visit_timestamps,
+                                                                                adjusted_raw_visits, \
+                                                                                patch_list, first_pos)
+
+        # Computing average speed
+        average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch"], current_data["frame"],
+                                                                 current_data["distances"])
+
+        clean_results.loc[i_plate, "total_transit_time"] = total_transit_time
+        clean_results.loc[i_plate, "adjusted_raw_visits"] = str(adjusted_raw_visits)
+        clean_results.loc[i_plate, "adjusted_duration_sum"] = adjusted_duration_sum
+        clean_results.loc[i_plate, "adjusted_nb_of_visits"] = adjusted_nb_of_visits
+        clean_results.loc[i_plate, "average_speed_inside"] = average_speed_in
+        clean_results.loc[i_plate, "average_speed_outside"] = average_speed_out
 
     return clean_results
 
