@@ -324,12 +324,11 @@ def plot_graphs():
     #plot_selected_data(0, 11, "total_time", [], "Total measured time", divided_by= "", mycolor = "green")
     #plot_selected_data(0, 11, "duration_sum", [], "Average duration of visits", divided_by= "nb_of_visits", mycolor = "green")
 
-
-# I have two lines, one for Windows and the other for Linux:
-if fd.is_linux():
+# Data path
+if fd.is_linux():  # Linux path
     path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/"
-else:
-    path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_Nov2022_clean/"
+else:  # Windows path
+    path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean/"
 
 # Extracting data, the function looks for all "traj.csv" files in the indicated path (will look into subfolders)
 # It will then generate a "results" table, with one line per worm, and these info:
@@ -351,10 +350,17 @@ else:
 
 # Only run this once in the beginning of your analysis!
 ### Saves these results in a "trajectories.csv" and a "results.csv" file in path, so no need to run this line every time!
-regenerate_data = False # Set to True to regenerate the result dataset, otherwise use the saved one
-if regenerate_data:
-    #gr.generate_trajectories(path)
-    gr.generate_results(path)
+# Set to True to regenerate a dataset, otherwise use the saved one
+regenerate_trajectories = True
+regenerate_results_per_id = True
+regenerate_results_per_plate = True
+
+if regenerate_trajectories:
+    gr.generate_trajectories(path)
+if regenerate_results_per_id:
+    gr.generate_results_per_id(path)
+if regenerate_results_per_plate:
+    gr.generate_clean_results(path)
 
 # Retrieve results from what generate_and_save has saved
 trajectories = pd.read_csv(path + "trajectories.csv")
