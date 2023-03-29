@@ -288,51 +288,6 @@ def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_c
     return duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_duration_sum, adjusted_nb_of_visits
 
 
-def new_analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, list_of_transits, patch_centers, first_xy):
-    """
-    Function that takes a list of timestamps as spitted out by single_traj_analysis, and the MVT adjusted version,
-    and returns global variables on these visits.
-    """
-
-    visit_duration_sum = 0  # this is to compute the avg duration of visits
-    nb_of_visits = 0
-    adjusted_visit_duration_sum = 0
-    adjusted_nb_of_visits = 0
-    list_of_visited_patches = []
-    furthest_patch_distance = 0
-    furthest_patch_position = [0, 0]
-    transit_duration_sum = 0
-    nb_of_transit_events = 0
-
-    # Run through each patch
-    for i_patch in range(len(patch_centers)):
-        # Select visits to the current patch
-        current_list_of_timestamps = pd.DataFrame([list_of_timestamps[i] for i in range(len(list_of_timestamps)) if list_of_timestamps[i][2] == i_patch])
-        current_nb_of_visits = len(current_list_of_timestamps)
-        if not current_list_of_timestamps.empty:
-            visit_duration_sum += np.sum(current_list_of_timestamps.apply(lambda t: t[1] - t[0], axis=1))
-            nb_of_visits += current_nb_of_visits
-
-        # Same but adjusted for multiple consecutive visits to same patch
-        current_adjusted_list_of_durations = pd.DataFrame(adjusted_list_of_durations[i_patch])
-        if not current_adjusted_list_of_durations.empty:
-            adjusted_visit_duration_sum += int(np.sum(current_adjusted_list_of_durations))
-            adjusted_nb_of_visits += len(current_adjusted_list_of_durations)
-
-        # Update list of visited patches and the furthest patch visited
-        if current_nb_of_visits > 0:  # if the patch was visited at least once in this trajectory
-            patch_distance_to_center = distance.euclidean(first_xy, patch_centers[i_patch])
-            if patch_distance_to_center > furthest_patch_distance:
-                furthest_patch_position = patch_centers[i_patch]
-                furthest_patch_distance = distance.euclidean(first_xy, furthest_patch_position)
-            list_of_visited_patches.append(i_patch)
-
-    visit_duration_sum = np.sum(list_of_timestamps.apply(lambda t: t[1] - t[0], axis=1))
-    transit_duration_sum = np.sum([pd.DataFrame(list_of_timestamps[0]).apply(lambda t: t[1] - t[0], axis=1)])
-
-    return visit_duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_visit_duration_sum, adjusted_nb_of_visits, transit_duration_sum, nb_of_transit_events
-
-
 def make_results_per_id_table(data):
     """
     Takes our data table and returns a series of analysis regarding patch visits, one line per "worm", which in fact
@@ -394,7 +349,7 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "list_of_visited_patches"] = str(list_of_visited_patches)  # index of patches visited
         results_table.loc[i_track, "first_recorded_position"] = str(first_pos)  # first position for the whole plate (used to check trajectories)
         results_table.loc[i_track, "first_frame"] = current_data["frame"][0]
-        results_table.loc[i_track, "first_tracked_position_patch"] = current_data["patch"].iloc[-1]  # patch where the worm is when tracking starts (-1 = outside): one value per id
+        results_table.loc[i_track, "first_tracked_position_patch"] = current_data["patch"][0]  # patch where the worm is when tracking starts (-1 = outside): one value per id
         results_table.loc[i_track, "last_frame"] = current_data["frame"].iloc[-1]
         results_table.loc[i_track, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[-1]])  # last position for the current worm (used to check tracking)
         results_table.loc[i_track, "last_tracked_position_patch"] = current_data["patch"].iloc[-1]  # patch where the worm is when tracking stops (-1 = outside)
@@ -455,7 +410,7 @@ def fill_holes(list_of_visits, data_per_id):
     """
     Function that takes a list of visit time stamps for a plate [[[v0,v1, p0],[v2,v3, p1],...],[[v10,v11, p2],...],...],
     with one sublist of time stamps for each track of the same plate, third element being the patch of the visit
-    Returns a new list in the format [[v0,v1],[v2,v3],...] where the last visit of a track and the first of the next
+    Returns a new list in the format [[v0,v1, p0],[v2,v3, p1],...] where the last visit of a track and the first of the next
     were fused into one in the case where the tracking started and stopped in the same patch,
     and another new list in the same format with the same concept but for transit times
     """
@@ -463,11 +418,17 @@ def fill_holes(list_of_visits, data_per_id):
     corrected_list_of_transits = []  # size minus 1 nb of transitions
     i_visit_global = 0  # global counter to know where we are in the corrected list
 
+    #TODO have both the full version of the list and the nonempty version??
+
+    # Remove tracks when they don't have any visits: it means the worm was outside for the whole track and so it should
+    # not affect aggregation of visits
+    list_of_visits = [nonempty for nonempty in list_of_visits if nonempty != []]
+
     nb_of_tracks = len(list_of_visits)
     for i_track in range(nb_of_tracks):  # for each track
         nb_of_visits = len(list_of_visits[i_track])
 
-        for i_visit in range(nb_of_visits - 1):  # for each visit of that track
+        for i_visit in range(nb_of_visits):  # for each visit of that track
             current_visit_start = list_of_visits[i_track][i_visit][0]
             current_visit_end = list_of_visits[i_track][i_visit][1]
             current_patch = list_of_visits[i_track][i_visit][2]
@@ -478,7 +439,7 @@ def fill_holes(list_of_visits, data_per_id):
 
             # If this visit is the last of a track, and not of the last track, then we might have to aggregate it to the next
             is_last_visit = i_visit == nb_of_visits - 1
-            is_last_track = i_track < nb_of_tracks
+            is_last_track = i_track == nb_of_tracks - 1
 
             # Next visit start and end
             if is_last_visit and not is_last_track:  # if this is the last visit of the track and not the last track
@@ -495,7 +456,7 @@ def fill_holes(list_of_visits, data_per_id):
                 # If it's the last visit of not-the-last-track
                 if is_last_visit:
                     # Case where the tracking stops when the worm is out (so after end of last patch visit), and the worm is still out when it restarts
-                    if current_visit_end < data_per_id["last_frame"]:
+                    if current_visit_end < data_per_id["last_frame"][0]:
                         # If the tracking restarts with the worm still out, it's counted as transit
                         if data_per_id["first_tracked_position_patch"][i_track + 1] == -1:
                             corrected_list_of_transits.append([current_visit_end, next_visit_start, -1])
@@ -529,18 +490,19 @@ def fill_holes(list_of_visits, data_per_id):
 
             i_visit_global += 1
 
-    # Make everything a transit if there are not visits in the track
+    # Make everything a transit if there are no visits in the track
     if not corrected_list_of_visits:
         corrected_list_of_transits = [[data_per_id["first_frame"][0], data_per_id["last_frame"].iloc[-1], -1]]
     # Add first and last transit if needed
-    elif data_per_id["first_tracked_position_patch"][0] == -1:  # if worm starts the first track outside
-        # Initialize first transit at first frame and end it at the beginning of the first visit
-        corrected_list_of_transits = [[data_per_id["first_frame"][0],
-                                      corrected_list_of_visits[0][0], -1]] + corrected_list_of_transits
-    elif data_per_id["last_tracked_position_patch"].iloc[-1] == -1:  # if worm ends last track outside
-        # Initialize last transit at the end of the last visit and end it at last frame
-        corrected_list_of_transits = corrected_list_of_transits + [[corrected_list_of_visits[-1][1],
-                                                                   data_per_id["last_frame"].iloc[-1], -1]]
+    else:
+        if data_per_id["first_tracked_position_patch"][0] == -1:  # if worm starts the first track outside
+            # Initialize first transit at first frame and end it at the beginning of the first visit
+            corrected_list_of_transits = [[data_per_id["first_frame"][0],
+                                          corrected_list_of_visits[0][0], -1]] + corrected_list_of_transits
+        if data_per_id["last_tracked_position_patch"].iloc[-1] == -1:  # if worm ends last track outside
+            # Initialize last transit at the end of the last visit and end it at last frame
+            corrected_list_of_transits = corrected_list_of_transits + [[corrected_list_of_visits[-1][1],
+                                                                       data_per_id["last_frame"].iloc[-1], -1]]
 
     return corrected_list_of_visits, corrected_list_of_transits
 
@@ -567,12 +529,12 @@ def make_clean_results(data_per_id, trajectories):
     clean_results = pd.DataFrame()
     list_of_plates = np.unique(data_per_id["folder"])
     for i_plate in range(len(list_of_plates)):
+        print(i_plate, " / ", len(list_of_plates))
         # Import tables
         current_folder = list_of_plates[i_plate]
         current_trajectory = trajectories[trajectories["folder"] == current_folder]
         current_metadata = fd.folder_to_metadata(current_folder)
         current_data = data_per_id[data_per_id["folder"] == current_folder].reset_index()
-        first_pos = json.loads(current_data["first_recorded_position"][0])
 
         # Loading visit info from data_per_id
         patch_list = current_metadata["patch_centers"]
@@ -604,6 +566,7 @@ def make_clean_results(data_per_id, trajectories):
         clean_results.loc[i_plate, "total_visit_time"] = np.sum([pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
         clean_results.loc[i_plate, "total_transit_time"] = np.sum([pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
         clean_results.loc[i_plate, "aggregated_raw_visits"] = str(aggregated_visit_timestamps)
+        clean_results.loc[i_plate, "aggregated_raw_transits"] = str(aggregated_transit_timestamps)
         clean_results.loc[i_plate, "nb_of_visits"] = len(aggregated_visit_timestamps)
         clean_results.loc[i_plate, "mvt_raw_visits"] = str(adjusted_raw_durations)
         clean_results.loc[i_plate, "mvt_nb_of_visits"] = len(adjusted_raw_durations)
