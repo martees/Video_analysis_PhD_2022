@@ -70,7 +70,6 @@ def folder_to_metadata(path):
     found in the same folder:
         patch_centers: list of coordinates of the patch centers
         patch_densities: list of densities of each patch
-        TODO: code and reference from holes positions (see with al)
     :param path: a string with the path leading to the traj.csv whose metadata you want to retrieve (metadata should be in the same folder)
     """
     metadata = pd.DataFrame() #where we'll put everything
@@ -88,7 +87,6 @@ def folder_to_metadata(path):
     # Extract the data into the dataframe
     # holepositions = pd.DataFrame(holesmat.get('pointList')) # gets the holes positions
     # condition_number = readcode(holepositions) #get the condition from that
-    # TODO reference_scale, reference_xyshift, reference_rotation = read_reference_holes(holepositions)
 
     metadata["patch_centers"] = list(patchesmat.get("centers_patches"))
     metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
