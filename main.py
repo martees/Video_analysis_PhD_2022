@@ -255,7 +255,7 @@ def plot_selected_data(plot_title, condition_low, condition_high, column_name, c
     # Plot condition averages as a bar plot
     ax.bar(list_of_conditions, average_per_condition, color = mycolor)
     ax.set_xticks(range(len(list_of_conditions)))
-    ax.set_xticklabels(condition_names)
+    ax.set_xticklabels(condition_names, rotation = 45)
     ax.errorbar(list_of_conditions, average_per_condition, errorbars, fmt='.k', capsize=5)
     ax.set(xlabel="Condition number")
     # Plot plate averages as scatter on top
@@ -293,30 +293,30 @@ def plot_data_coverage(trajectories):
 
 def plot_graphs():
     # Speed plots
-    plot_selected_data("Average speed in all densities (inside)", 0, 11, "average_speed_inside", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5", "cluster 0.5", "", "", "", ""], divided_by= "", mycolor = "green")
-    plot_selected_data("Average speed in all densities (outside)", 0, 11, "average_speed_outside", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5", "cluster 0.5", "", "", "", ""], divided_by= "", mycolor = "green")
+    plot_selected_data("Average speed in all densities (inside)", 0, 11, "average_speed_inside", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5", "cluster 0.5", "medium 1.25", "medium 0.2+0.5", "medium 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
+    plot_selected_data("Average speed in all densities (outside)", 0, 11, "average_speed_outside", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5", "cluster 0.5", "", "", "", ""], divided_by= "", mycolor = "green")
 
     # Low density plots
-    plot_selected_data("Average duration of visits in low densities", 0, 3, "total_visit_time", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "nb_of_visits", mycolor = "brown")
-    plot_selected_data("Average proportion of time spent in patches in low densities", 0, 3, "total_visit_time", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
-    plot_selected_data("Average visit rate in low densities", 0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
-    #plot_selected_data("Average number of visits in low densities", 0, 3, "nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
-    #plot_selected_data("Average furthest visited patch distance in low densities", 0, 3, "furthest_patch_distance", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
-    plot_selected_data("Average duration of MVT visits in low densities", 0, 3, "total_visit_time", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "adjusted_nb_of_visits", mycolor = "brown")
-    plot_selected_data("Average visit rate MVT in low densities", 0, 3, "adjusted_nb_of_visits", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_time", mycolor = "brown")
-    #plot_selected_data("Average proportion of visited patches in low densities", 0, 3, "proportion_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
-    #plot_selected_data("Average number of visited patches in low densities", 0, 3, "nb_of_visited_patches", ["close 0.2", "medium 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+    plot_selected_data("Average duration of visits in low densities", 0, 3, "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "nb_of_visits", mycolor = "brown")
+    plot_selected_data("Average proportion of time spent in patches in low densities", 0, 3, "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
+    plot_selected_data("Average visit rate in low densities", 0, 3, "nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
+    #plot_selected_data("Average number of visits in low densities", 0, 3, "nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+    #plot_selected_data("Average furthest visited patch distance in low densities", 0, 3, "furthest_patch_distance", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+    plot_selected_data("Average duration of MVT visits in low densities", 0, 3, "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "adjusted_nb_of_visits", mycolor = "brown")
+    plot_selected_data("Average visit rate MVT in low densities", 0, 3, "adjusted_nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
+    #plot_selected_data("Average proportion of visited patches in low densities", 0, 3, "proportion_of_visited_patches", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+    #plot_selected_data("Average number of visited patches in low densities", 0, 3, "nb_of_visited_patches", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
 
     # Medium density plots
-    plot_selected_data("Average duration of visits in medium densities", 4, 7, "total_visit_time", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "nb_of_visits", mycolor = "orange")
-    plot_selected_data("Average proportion of time spent in patches in mediun densities", 4, 7, "total_visit_time", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_time", mycolor = "orange")
-    plot_selected_data("Average visit rate in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_time", mycolor = "orange")
-    #plot_selected_data("Average number of visits in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
-    #plot_selected_data("Average furthest visited patch distance in medium densities", 4, 7, "furthest_patch_distance", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
-    plot_selected_data("Average duration of MVT visits in medium densities", 4, 7, "total_visit_time", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "adjusted_nb_of_visits", mycolor = "orange")
-    plot_selected_data("Average visit rate MVT in medium densities", 4, 7, "adjusted_nb_of_visits", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_time", mycolor = "orange")
-    #plot_selected_data("Average proportion of visited patches in medium densities", 4, 7, "proportion_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
-    #plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "medium 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+    plot_selected_data("Average duration of visits in medium densities", 4, 7, "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "nb_of_visits", mycolor = "orange")
+    plot_selected_data("Average proportion of time spent in patches in mediun densities", 4, 7, "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
+    plot_selected_data("Average visit rate in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
+    #plot_selected_data("Average number of visits in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+    #plot_selected_data("Average furthest visited patch distance in medium densities", 4, 7, "furthest_patch_distance", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+    plot_selected_data("Average duration of MVT visits in medium densities", 4, 7, "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "adjusted_nb_of_visits", mycolor = "orange")
+    plot_selected_data("Average visit rate MVT in medium densities", 4, 7, "adjusted_nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
+    #plot_selected_data("Average proportion of visited patches in medium densities", 4, 7, "proportion_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+    #plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
 
 
     # Full plots
@@ -365,14 +365,14 @@ if regenerate_results_per_plate:
 
 # Retrieve results from what generate_and_save has saved
 trajectories = pd.read_csv(path + "trajectories.csv")
-results = pd.read_csv(path + "results.csv")
+results = pd.read_csv(path + "clean_results.csv")
 
 print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-plot_traj(trajectories, 9,  plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True)
-# plot_graphs()
+# plot_traj(trajectories, 9,  plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True)
+plot_graphs()
 
 # plot_data_coverage(trajectories)
 

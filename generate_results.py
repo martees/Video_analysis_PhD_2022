@@ -341,7 +341,7 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "folder"] = current_folder
         results_table.loc[i_track, "condition"] = current_metadata["condition"][0]
         results_table.loc[i_track, "track_id"] = current_track
-        results_table.loc[i_track, "total_time"] = len(current_list_x)  # number of tracked time steps
+        results_table.loc[i_track, "total_tracked_time"] = len(current_list_x)  # number of tracked time steps
         results_table.loc[i_track, "raw_visits"] = str(raw_visit_timestamps)  # all visits of all patches
         results_table.loc[i_track, "order_of_visits"] = str(order_of_visits)  # patch order of visits
         results_table.loc[i_track, "total_visit_time"] = duration_sum  # total duration of visits
@@ -433,7 +433,7 @@ def fill_holes(data_per_id):
     i_next_track = 1
 
     while i_track < nb_of_tracks:  # for each track
-        print("==== i_track = ", i_track, " / ", nb_of_tracks)
+        # print("==== i_track = ", i_track, " / ", nb_of_tracks)
         nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
         i_visit = 0
         while i_visit < nb_of_visits and i_track < nb_of_tracks:  # for each visit of that track
@@ -553,7 +553,8 @@ def make_clean_results(data_per_id, trajectories):
     clean_results = pd.DataFrame()
     list_of_plates = np.unique(data_per_id["folder"])
     for i_plate in range(len(list_of_plates)):
-        print(i_plate, " / ", len(list_of_plates))
+        if i_plate % 10 == 0:
+            print(i_plate, " / ", len(list_of_plates))
         # Import tables
         current_folder = list_of_plates[i_plate]
         current_trajectory = trajectories[trajectories["folder"] == current_folder]
@@ -573,15 +574,15 @@ def make_clean_results(data_per_id, trajectories):
         # Adjusting it for MVT analyses
         adjusted_raw_durations = new_mvt_patch_visits(aggregated_visit_timestamps, patch_list)
 
-        # Computing average speed
-        average_speed_in, average_speed_out = avg_speed_analysis(current_trajectory["patch"], current_trajectory["frame"],
-                                                                 current_trajectory["distances"])
+        # Computing average speed by doing a weighted average of the average speeds in each track (weight is relative tracking time)
+        average_speed_in = np.sum((current_data["average_speed_inside"] * current_data["total_tracked_time"]) / np.sum(current_data["total_tracked_time"]))
+        average_speed_out = np.sum((current_data["average_speed_outside"] * current_data["total_tracked_time"]) / np.sum(current_data["total_tracked_time"]))
 
         # Fill up the table
         clean_results.loc[i_plate, "folder"] = current_folder
         clean_results.loc[i_plate, "condition"] = current_data["condition"][0]
-        clean_results.loc[i_plate, "total_video_time"] = current_data["last_frame"].iloc[-1] - current_data["first_frame"].iloc[0]
-        clean_results.loc[i_plate, "total_tracked_time"] = np.sum(current_data["total_time"])
+        clean_results.loc[i_plate, "total_video_time"] = np.max(current_data["last_frame"]) - np.min(current_data["first_frame"])
+        clean_results.loc[i_plate, "total_tracked_time"] = np.sum(current_data["total_tracked_time"])
         clean_results.loc[i_plate, "nb_of_holes"] = len(current_data)
         clean_results.loc[i_plate, "nb_of_bad_events"] = nb_bad_events(current_data)
         clean_results.loc[i_plate, "avg_proportion_double_frames"] = (len(current_trajectory["frame"]) / len(np.unique(current_trajectory["frame"]))) - 1
