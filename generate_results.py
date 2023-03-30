@@ -430,15 +430,13 @@ def fill_holes(data_per_id):
     corrected_list_of_transits = []  # size minus 1 nb of transitions
     nb_of_tracks = len(list_of_visits)
     i_track = 0
-    i_next_track = 0
+    i_next_track = 1
 
     while i_track < nb_of_tracks:  # for each track
-        print("i_track = ", i_track, " / ", nb_of_tracks)
+        print("==== i_track = ", i_track, " / ", nb_of_tracks)
         nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
-        if nb_of_visits == 0:  # if there are no visits in this track, then just go to the next
-            i_track += 1
-            nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
-        for i_visit in range(nb_of_visits):  # for each visit of that track
+        i_visit = 0
+        while i_visit < nb_of_visits and i_track < nb_of_tracks:  # for each visit of that track
             current_visit_start = list_of_visits[i_track][i_visit][0]
             current_visit_end = list_of_visits[i_track][i_visit][1]
             current_patch = list_of_visits[i_track][i_visit][2]
@@ -449,24 +447,24 @@ def fill_holes(data_per_id):
 
             # If this visit is the last of a track, and not of the last track, then we might have to aggregate it to the next
             is_last_visit = i_visit == nb_of_visits - 1
-            is_last_track = i_track == nb_of_tracks - 1
+            is_last_nonempty_track = (i_track == nb_of_tracks - 1) or ((i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
 
             # We look for the next visit start and end
-            if is_last_visit and not is_last_track:  # if this is the last visit of the track and not the last track
-                i_next_track = i_track + 1  # start looking at the next track
+            if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
                 while not list_of_visits[i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
                     i_next_track += 1
-                if list_of_visits[i_next_track]:
+                if list_of_visits[i_next_track]:  # if a non-empty track was found in the end
                     next_visit_start = list_of_visits[i_next_track][0][0]  # next visit is first visit of next non-empty track
                     next_visit_end = list_of_visits[i_next_track][0][1]
-                # Find next next visit (for updating transit durations in case of visit aggregation)
-                if len(list_of_visits[i_next_track + 1]) >= 2:  # if there is a next next visit in the next track
-                    next_next_visit_start = list_of_visits[i_next_track][1][0]
-                elif i_next_track < nb_of_tracks - 2:  # otherwise look for a next next visit in the next next track
-                    i_next_next_track = i_next_track + 1
-                    while not list_of_visits[i_next_next_track] and i_next_next_track < nb_of_tracks - 1:
-                        i_next_next_track += 1
-                    next_next_visit_start = list_of_visits[i_next_next_track][0][0]
+                    # Find next next visit (for updating transit durations in case of visit aggregation)
+                    if len(list_of_visits[i_next_track]) >= 2:  # if there is a next next visit in the next track
+                        next_next_visit_start = list_of_visits[i_next_track][1][0]
+                    elif i_next_track < nb_of_tracks - 2:  # otherwise look for a next next visit in the next next track
+                        i_next_next_track = i_next_track + 1
+                        while not list_of_visits[i_next_next_track] and i_next_next_track < nb_of_tracks - 1:
+                            i_next_next_track += 1
+                        if list_of_visits[i_next_next_track]:  # if a next next visit was found in the end
+                            next_next_visit_start = list_of_visits[i_next_next_track][0][0]
                 # Otherwise we won't be looking for a next next visit
             elif not is_last_visit:  # not the last visit (so if it's a middle visit and not the last of the last track)
                 next_visit_start = list_of_visits[i_track][i_visit + 1][0]
@@ -474,7 +472,7 @@ def fill_holes(data_per_id):
             # Otherwise, it's the last visit of the last track we won't need a next_visit to be defined
 
             # Fill the transits list
-            if not (is_last_track and is_last_visit):  # if we're not in the last visit of the last track
+            if not (is_last_visit and is_last_nonempty_track):  # if we're not in the last visit of the last non-empty track
                 # If it's the last visit of not-the-last-track
                 if is_last_visit:
                     # Case where the tracking stops when the worm is out (so after end of last patch visit), and the worm is still out when it restarts
@@ -495,11 +493,11 @@ def fill_holes(data_per_id):
 
             # Fill the visits list
             # If this is the end of this track, and not the last track, and the tracking stops during the visit
-            if is_last_visit and not is_last_track and current_visit_end == data_per_id["last_frame"][0]:
+            if is_last_visit and not is_last_nonempty_track and current_visit_end == data_per_id["last_frame"][0]:
                 # Check if the hole in the tracking is valid (ends and then starts in the same patch)
                 if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][i_track + 1]:
                     # We increase i_track by 2, to not look at next visit as it has already been counted
-                    i_next_track += 1
+                    i_visit += 1
                     # Then the current visit in fact ends at the end of the first visit of the next track
                     corrected_list_of_visits.append([current_visit_start, next_visit_end, current_patch])
                 # Else if the hole is not valid, don't aggregate the visits
@@ -510,8 +508,11 @@ def fill_holes(data_per_id):
             else:  # then just copy the end of the current visit in the corresponding corrected table visit
                 corrected_list_of_visits.append([current_visit_start, current_visit_end, current_patch])
 
-            i_track = i_next_track
-            nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
+            i_visit += 1
+
+        i_track = i_next_track
+        i_next_track = i_track + 1  # update next_track index
+
 
     # Make everything a transit if there are no visits in the track
     if not corrected_list_of_visits:

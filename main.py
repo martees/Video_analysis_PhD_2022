@@ -354,7 +354,7 @@ else:  # Windows path
 # Set to True to regenerate a dataset, otherwise use the saved one
 regenerate_trajectories = False
 regenerate_results_per_id = False
-regenerate_results_per_plate = True
+regenerate_results_per_plate = False
 
 if regenerate_trajectories:
     gr.generate_trajectories(path)
@@ -371,7 +371,7 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-# plot_traj(trajectories, 2,  plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True)
+plot_traj(trajectories, 9,  plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True)
 # plot_graphs()
 
 # plot_data_coverage(trajectories)
