@@ -343,6 +343,7 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "track_id"] = current_track
         results_table.loc[i_track, "total_tracked_time"] = len(current_list_x)  # number of tracked time steps
         results_table.loc[i_track, "raw_visits"] = str(raw_visit_timestamps)  # all visits of all patches
+        results_table.loc[i_track, "better_raw_visits"] = str(better_visit_structure(raw_visit_timestamps))  # all visits of all patches
         results_table.loc[i_track, "order_of_visits"] = str(order_of_visits)  # patch order of visits
         results_table.loc[i_track, "total_visit_time"] = duration_sum  # total duration of visits
         results_table.loc[i_track, "nb_of_visits"] = nb_of_visits  # total nb of visits
@@ -431,11 +432,15 @@ def fill_holes(data_per_id):
     nb_of_tracks = len(list_of_visits)
     i_track = 0
     i_next_track = 1
+    init_visit_at_one = False
 
     while i_track < nb_of_tracks:  # for each track
         # print("==== i_track = ", i_track, " / ", nb_of_tracks)
         nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
         i_visit = 0
+        if init_visit_at_one:  # this is the case where the first visit of the current track was already treated by being fused to previous visit
+            i_visit = 1
+            init_visit_at_one = False
         while i_visit < nb_of_visits and i_track < nb_of_tracks:  # for each visit of that track
             current_visit_start = list_of_visits[i_track][i_visit][0]
             current_visit_end = list_of_visits[i_track][i_visit][1]
@@ -493,11 +498,11 @@ def fill_holes(data_per_id):
 
             # Fill the visits list
             # If this is the end of this track, and not the last track, and the tracking stops during the visit
-            if is_last_visit and not is_last_nonempty_track and current_visit_end == data_per_id["last_frame"][0]:
+            if is_last_visit and not is_last_nonempty_track and current_visit_end == data_per_id["last_frame"][i_track]:
                 # Check if the hole in the tracking is valid (ends and then starts in the same patch)
                 if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][i_track + 1]:
                     # We increase i_track by 2, to not look at next visit as it has already been counted
-                    i_visit += 1
+                    init_visit_at_one = True
                     # Then the current visit in fact ends at the end of the first visit of the next track
                     corrected_list_of_visits.append([current_visit_start, next_visit_end, current_patch])
                 # Else if the hole is not valid, don't aggregate the visits
