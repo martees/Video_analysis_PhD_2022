@@ -114,7 +114,7 @@ def bottestrop_ci(data, nb_resample):
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
-def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite = True, plot_in_patch = False, plot_continuity = False, plot_speed = False):
+def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite = True, plot_in_patch = False, plot_continuity = False, plot_speed = False, plate_list = []):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -122,7 +122,13 @@ def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite
     :param traj: dataframe containing the series of (x,y) positions ([[x0,x1,x2...] [y0,y1,y2...])
     :return: trajectory plot
     """
-    worm_list = np.unique(traj["id_conservative"])
+    if plate_list:
+        worm_list = []
+        for i_plate in range(len(plate_list)):
+            worm_list.append(traj[traj["folder"] == plate_list[i_plate]]["id_conservative"])
+        worm_list = np.unique(worm_list)
+    else:
+        worm_list = np.unique(traj["id_conservative"])
     nb_of_worms = len(worm_list)
     colors = plt.cm.jet(np.linspace(0, 1, nb_of_worms))
     previous_folder = 0
@@ -189,7 +195,7 @@ def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite
             if plot_continuity:
                 plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color="red")
                 if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "white")
+                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "black", s = 100)
                     previous_folder = current_folder
                 else:
                     plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "green")
@@ -292,9 +298,13 @@ def plot_data_coverage(trajectories):
     plt.show()
 
 def plot_graphs():
+    # Data quality
+    plot_selected_data("Average proportion of double frames in all densities", 0, 11, "avg_proportion_double_frames", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
+    plot_selected_data("Average number of bad events in all densities", 0, 11, "nb_of_bad_events", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
+
     # Speed plots
-    plot_selected_data("Average speed in all densities (inside)", 0, 11, "average_speed_inside", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5", "cluster 0.5", "medium 1.25", "medium 0.2+0.5", "medium 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
-    plot_selected_data("Average speed in all densities (outside)", 0, 11, "average_speed_outside", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "medium 0.5", "far 0.5", "cluster 0.5", "", "", "", ""], divided_by= "", mycolor = "green")
+    plot_selected_data("Average speed in all densities (inside)", 0, 11, "average_speed_inside", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
+    plot_selected_data("Average speed in all densities (outside)", 0, 11, "average_speed_outside", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
 
     # Low density plots
     plot_selected_data("Average duration of visits in low densities", 0, 3, "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "nb_of_visits", mycolor = "brown")
@@ -354,7 +364,7 @@ else:  # Windows path
 # Set to True to regenerate a dataset, otherwise use the saved one
 regenerate_trajectories = False
 regenerate_results_per_id = False
-regenerate_results_per_plate = True
+regenerate_results_per_plate = False
 
 if regenerate_trajectories:
     gr.generate_trajectories(path)
@@ -371,7 +381,7 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-# plot_traj(trajectories, 9,  plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True)
+# plot_traj(trajectories, 2, n_max = 4, plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True, plate_list=["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T115434_SmallPatches_C5-CAM8/traj.csv"])
 # plot_graphs()
 
 # plot_data_coverage(trajectories)
