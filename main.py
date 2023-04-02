@@ -201,6 +201,8 @@ def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite
                     plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "green")
     plt.show()
 
+def plot_variable_through_time(traj, variable, time_window):
+    pass
 
 
 # for i_traj in range(len(trajectories)):
