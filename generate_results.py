@@ -489,8 +489,9 @@ def fill_holes(data_per_id):
                         else:
                             corrected_list_of_transits.append([current_visit_end, data_per_id["last_frame"][i_track]])
                     # Case where the tracking stops when the worm is inside, and it's not the last hole
-                    if current_visit_end == data_per_id["last_frame"][i_track] and i_track <= nb_of_tracks - 2:
-                        # In this case we take the transit for the next visit now because the visit list loop pops this value
+                    if current_visit_end == data_per_id["last_frame"][i_track]:
+                        # In this case we take the transit for the next visit now because the visit list loop will skip
+                        # this value for the next loop
                         corrected_list_of_transits.append([next_visit_end, next_next_visit_start, -1])
                 # If it's not the last visit of any track then it's a piece of cake
                 else:
