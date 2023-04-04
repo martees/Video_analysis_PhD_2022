@@ -438,6 +438,7 @@ def fill_holes(data_per_id):
         # print("==== i_track = ", i_track, " / ", nb_of_tracks)
         nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
         i_visit = 0
+        skipped_empty_tracks = False  # True if empty tracks have been skipped
         if init_visit_at_one:  # this is the case where the first visit of the current track was already treated by being fused to previous visit
             i_visit = 1
             init_visit_at_one = False
@@ -458,6 +459,7 @@ def fill_holes(data_per_id):
             if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
                 while not list_of_visits[i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
                     i_next_track += 1
+                    skipped_empty_tracks = True
                 if list_of_visits[i_next_track]:  # if a non-empty track was found in the end
                     next_visit_start = list_of_visits[i_next_track][0][0]  # next visit is first visit of next non-empty track
                     next_visit_end = list_of_visits[i_next_track][0][1]
@@ -490,6 +492,12 @@ def fill_holes(data_per_id):
                             corrected_list_of_transits.append([current_visit_end, data_per_id["last_frame"][i_track]])
                     # Case where the tracking stops when the worm is inside, and it's not the last hole
                     if current_visit_end == data_per_id["last_frame"][i_track]:
+                        # # Case where there are empty tracks between this track and the next, so worm is outside
+                        # # at the beginning of next track
+                        # if skipped_empty_tracks:
+                        #     corrected_list_of_transits.append([current_visit_end, next_visit_start, -1])
+                        # Case where there are no empty tracks and next visit starts while the worm is still in
+                        # else:
                         # In this case we take the transit for the next visit now because the visit list loop will skip
                         # this value for the next loop
                         corrected_list_of_transits.append([next_visit_end, next_next_visit_start, -1])
@@ -537,7 +545,7 @@ def fill_holes(data_per_id):
     return corrected_list_of_visits, corrected_list_of_transits
 
 
-def make_clean_results(data_per_id, trajectories):
+def make_results_per_plate(data_per_id, trajectories):
     """
     Function that takes our results_per_id table as an input, and will output a table with info for each plate:
         - folder
@@ -556,7 +564,7 @@ def make_clean_results(data_per_id, trajectories):
         event" column is non-zero
     and it also returns transit times aggregated in the same way!
     """
-    clean_results = pd.DataFrame()
+    results_per_plate = pd.DataFrame()
     list_of_plates = np.unique(data_per_id["folder"])
     for i_plate in range(len(list_of_plates)):
         if i_plate % 10 == 0:
@@ -585,24 +593,28 @@ def make_clean_results(data_per_id, trajectories):
         average_speed_out = np.sum((current_data["average_speed_outside"] * current_data["total_tracked_time"]) / np.sum(current_data["total_tracked_time"]))
 
         # Fill up the table
-        clean_results.loc[i_plate, "folder"] = current_folder
-        clean_results.loc[i_plate, "condition"] = current_data["condition"][0]
-        clean_results.loc[i_plate, "total_video_time"] = np.max(current_data["last_frame"]) - np.min(current_data["first_frame"])
-        clean_results.loc[i_plate, "total_tracked_time"] = np.sum(current_data["total_tracked_time"])
-        clean_results.loc[i_plate, "nb_of_holes"] = len(current_data)
-        clean_results.loc[i_plate, "nb_of_bad_events"] = nb_bad_events(current_data)
-        clean_results.loc[i_plate, "avg_proportion_double_frames"] = (len(current_trajectory["frame"]) / len(np.unique(current_trajectory["frame"]))) - 1
-        clean_results.loc[i_plate, "total_visit_time"] = np.sum([pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
-        clean_results.loc[i_plate, "total_transit_time"] = np.sum([pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
-        clean_results.loc[i_plate, "aggregated_raw_visits"] = str(aggregated_visit_timestamps)
-        clean_results.loc[i_plate, "aggregated_raw_transits"] = str(aggregated_transit_timestamps)
-        clean_results.loc[i_plate, "nb_of_visits"] = len(aggregated_visit_timestamps)
-        clean_results.loc[i_plate, "mvt_raw_visits"] = str(adjusted_raw_durations)
-        clean_results.loc[i_plate, "mvt_nb_of_visits"] = len(adjusted_raw_durations)
-        clean_results.loc[i_plate, "average_speed_inside"] = average_speed_in
-        clean_results.loc[i_plate, "average_speed_outside"] = average_speed_out
+        results_per_plate.loc[i_plate, "folder"] = current_folder
+        results_per_plate.loc[i_plate, "condition"] = current_data["condition"][0]
+        results_per_plate.loc[i_plate, "total_video_time"] = np.max(current_data["last_frame"]) - np.min(current_data["first_frame"])
+        results_per_plate.loc[i_plate, "total_tracked_time"] = np.sum(current_data["total_tracked_time"])
+        results_per_plate.loc[i_plate, "nb_of_holes"] = len(current_data)
+        results_per_plate.loc[i_plate, "nb_of_bad_events"] = nb_bad_events(current_data)
+        results_per_plate.loc[i_plate, "avg_proportion_double_frames"] = (len(current_trajectory["frame"]) / len(np.unique(current_trajectory["frame"]))) - 1
+        results_per_plate.loc[i_plate, "total_visit_time"] = np.sum([pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
+        results_per_plate.loc[i_plate, "total_transit_time"] = np.sum([pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
+        results_per_plate.loc[i_plate, "aggregated_raw_visits"] = str(aggregated_visit_timestamps)
+        results_per_plate.loc[i_plate, "aggregated_raw_transits"] = str(aggregated_transit_timestamps)
+        results_per_plate.loc[i_plate, "nb_of_visits"] = len(aggregated_visit_timestamps)
+        results_per_plate.loc[i_plate, "mvt_raw_visits"] = str(adjusted_raw_durations)
+        results_per_plate.loc[i_plate, "mvt_nb_of_visits"] = len(adjusted_raw_durations)
+        results_per_plate.loc[i_plate, "average_speed_inside"] = average_speed_in
+        results_per_plate.loc[i_plate, "average_speed_outside"] = average_speed_out
 
-    return clean_results
+    return results_per_plate
+
+
+def exclude_invalid_videos(results_per_plate):
+    return results_per_plate[results_per_plate["total_video_time"] >= 10000 and results_per_plate["avg_proportion_double_frames"] >= 0.01]
 
 
 def generate_trajectories(path):
@@ -633,7 +645,10 @@ def generate_clean_results(path):
     print("Retrieving results...")
     trajectories = pd.read_csv(path + "trajectories.csv")
     results_per_id = pd.read_csv(path + "results_per_id.csv")
-    print("Starting to build clean_results from results_per_id...")
-    clean_results = make_clean_results(results_per_id, trajectories)
+    print("Starting to build results_per_plate from results_per_id...")
+    results_per_plate = make_results_per_plate(results_per_id, trajectories)
+    results_per_plate.to_csv(path + "results_per_plate.csv")
+    print("Cleaning results...")
+    clean_results = exclude_invalid_videos(results_per_plate)
     clean_results.to_csv(path + "clean_results.csv")
     return 0

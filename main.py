@@ -341,7 +341,7 @@ def plot_graphs():
 
 # Data path
 if fd.is_linux():  # Linux path
-    path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/"
+    path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/"
 else:  # Windows path
     path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean/"
 
@@ -368,7 +368,7 @@ else:  # Windows path
 # Set to True to regenerate a dataset, otherwise use the saved one
 regenerate_trajectories = False
 regenerate_results_per_id = False
-regenerate_results_per_plate = False
+regenerate_results_per_plate = True
 
 if regenerate_trajectories:
     gr.generate_trajectories(path)
