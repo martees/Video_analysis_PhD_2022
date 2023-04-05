@@ -259,6 +259,7 @@ def plot_selected_data(plot_title, condition_low, condition_high, column_name, c
     errorbars[1] = errorbars[1][condition_low:condition_high+1]
 
     # Plotttt
+    plt.figure(figsize=(10, 8))
     plt.title(plot_title)
     fig = plt.gcf()
     ax = fig.gca()
@@ -316,8 +317,8 @@ def plot_graphs():
     plot_selected_data("Average visit rate in low densities", 0, 3, "nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
     #plot_selected_data("Average number of visits in low densities", 0, 3, "nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
     #plot_selected_data("Average furthest visited patch distance in low densities", 0, 3, "furthest_patch_distance", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
-    plot_selected_data("Average duration of MVT visits in low densities", 0, 3, "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "adjusted_nb_of_visits", mycolor = "brown")
-    plot_selected_data("Average visit rate MVT in low densities", 0, 3, "adjusted_nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
+    ## plot_selected_data("Average duration of MVT visits in low densities", 0, 3, "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "adjusted_nb_of_visits", mycolor = "brown")
+    ## plot_selected_data("Average visit rate MVT in low densities", 0, 3, "adjusted_nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
     #plot_selected_data("Average proportion of visited patches in low densities", 0, 3, "proportion_of_visited_patches", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
     #plot_selected_data("Average number of visited patches in low densities", 0, 3, "nb_of_visited_patches", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
 
@@ -327,8 +328,8 @@ def plot_graphs():
     plot_selected_data("Average visit rate in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
     #plot_selected_data("Average number of visits in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
     #plot_selected_data("Average furthest visited patch distance in medium densities", 4, 7, "furthest_patch_distance", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
-    plot_selected_data("Average duration of MVT visits in medium densities", 4, 7, "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "adjusted_nb_of_visits", mycolor = "orange")
-    plot_selected_data("Average visit rate MVT in medium densities", 4, 7, "adjusted_nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
+    ## plot_selected_data("Average duration of MVT visits in medium densities", 4, 7, "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "adjusted_nb_of_visits", mycolor = "orange")
+    ## plot_selected_data("Average visit rate MVT in medium densities", 4, 7, "adjusted_nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
     #plot_selected_data("Average proportion of visited patches in medium densities", 4, 7, "proportion_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
     #plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
 
@@ -372,8 +373,8 @@ else:  # Windows path
 # Will regenerate the dataset from the first True boolean
 regenerate_trajectories = False
 regenerate_results_per_id = False
-regenerate_results_per_plate = True
-regenerate_clean_results = True
+regenerate_results_per_plate = False
+regenerate_clean_results = False
 
 if regenerate_trajectories:
     gr.generate_trajectories(path)
@@ -402,7 +403,7 @@ print("finished retrieving stuff")
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
 # plot_traj(trajectories, 2, n_max = 4, plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True, plate_list=["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T115434_SmallPatches_C5-CAM8/traj.csv"])
-# plot_graphs()
+plot_graphs()
 
 # plot_data_coverage(trajectories)
 
