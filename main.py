@@ -363,18 +363,34 @@ else:  # Windows path
 #         results_table["adjusted_total_visit_time"] = should be the same as duration sum (did this to check)
 #         results_table["adjusted_nb_of_visits"] = nb of adjusted visits
 
-# Only run this once in the beginning of your analysis!
-### Saves these results in a "trajectories.csv" and a "results.csv" file in path, so no need to run this line every time!
-# Set to True to regenerate a dataset, otherwise use the saved one
+# Only generate the results in the beginning of your analysis!
+### Saves the results in path:
+####### "trajectories.csv": raw trajectories, one line per tracked point
+####### "results_per_id.csv":
+####### "results_per_plate.csv":
+####### "clean_results.csv":
+# Will regenerate the dataset from the first True boolean
 regenerate_trajectories = False
 regenerate_results_per_id = False
 regenerate_results_per_plate = True
+regenerate_clean_results = True
 
 if regenerate_trajectories:
     gr.generate_trajectories(path)
-if regenerate_results_per_id:
     gr.generate_results_per_id(path)
-if regenerate_results_per_plate:
+    gr.generate_results_per_plate(path)
+    gr.generate_clean_results(path)
+
+elif regenerate_results_per_id:
+    gr.generate_results_per_id(path)
+    gr.generate_results_per_plate(path)
+    gr.generate_clean_results(path)
+
+elif regenerate_results_per_plate:
+    gr.generate_results_per_plate(path)
+    gr.generate_clean_results(path)
+
+elif regenerate_clean_results:
     gr.generate_clean_results(path)
 
 # Retrieve results from what generate_and_save has saved
