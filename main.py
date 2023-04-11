@@ -262,6 +262,7 @@ def plot_selected_data(plot_title, condition_list, column_name, condition_names,
     plt.title(plot_title)
     fig = plt.gcf()
     ax = fig.gca()
+    fig.set_size_inches(5, 6)
     # Plot condition averages as a bar plot
     ax.bar(range(len(list_of_conditions)), average_per_condition, color = mycolor)
     ax.set_xticks(range(len(list_of_conditions)))
@@ -381,6 +382,7 @@ else:  # Windows path
 regenerate_trajectories = False
 regenerate_results_per_id = False
 regenerate_results_per_plate = False
+regenerate_clean_results = False
 
 if regenerate_trajectories:
     gr.generate_trajectories(path)
