@@ -379,7 +379,7 @@ else:  # Windows path
 ####### "results_per_plate.csv":
 ####### "clean_results.csv":
 # Will regenerate the dataset from the first True boolean
-regenerate_trajectories = False
+regenerate_trajectories = True
 regenerate_results_per_id = False
 regenerate_results_per_plate = False
 regenerate_clean_results = False

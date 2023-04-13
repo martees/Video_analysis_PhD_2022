@@ -1,3 +1,5 @@
+import scipy.interpolate
+
 import find_data as fd
 import numpy as np
 from scipy.spatial import distance
@@ -9,15 +11,25 @@ import copy
 import json
 
 
-def in_patch(position, patch):
+def in_patch(position, patch_center, spline_breaks, spline_coefs):
     """
     returns True if position = [x,y] is inside the patch
     uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
     """
-    center = [patch[0], patch[1]]
-    radius = patch_radius
-    distance_from_center = np.sqrt((position[0] - center[0]) ** 2 + (position[1] - center[1]) ** 2)
-    return distance_from_center < radius + radial_tolerance
+    # Compute radial coordinates
+    angular_position = (position[1] - patch_center[1]) / (position[0] - patch_center[0])
+    distance_from_center = np.sqrt((position[0] - patch_center[0]) ** 2 + (position[1] - patch_center[1]) ** 2)
+
+    # Find which section of the spline we're in
+    i = 0
+    while angular_position < spline_breaks[i]:
+        i += 1
+
+    # Compute the local radius of the patch spline
+    local_polynomial = np.polynomial.Polynomial(spline_coefs[i])
+    local_radius = local_polynomial(angular_position)
+
+    return distance_from_center < local_radius
 
 
 def in_patch_list(traj):
@@ -41,6 +53,8 @@ def in_patch_list(traj):
         current_plate = list_of_plates[i_plate]
         current_metadata = fd.folder_to_metadata(current_plate)
         patch_centers = current_metadata["patch_centers"]
+        patch_spline_breaks = current_metadata["spline_breaks"]
+        patch_spline_coefs = current_metadata["spline_coefs"]
 
         # Extract positions
         current_data = traj[traj["folder"] == current_plate]
@@ -57,13 +71,13 @@ def in_patch_list(traj):
 
             # In case the worm is in the same patch, don't try all the patches (doesn't work if worm is out):
             if patch_where_it_was != -1:
-                if in_patch([list_x[time], list_y[time]], patch_centers[patch_where_it_was]):
+                if in_patch([list_x[time], list_y[time]], patch_centers[patch_where_it_was], patch_spline_breaks[patch_where_it_was], patch_spline_coefs[patch_where_it_was]):
                     patch_where_it_is = patch_where_it_was
 
             # If the worm is out or changed patch, then look for it
             else:
                 for i_patch in range(len(patch_centers)):  # for every patch
-                    if in_patch([list_x[time], list_y[time]], patch_centers[i_patch]):  # check if the worm is in it:
+                    if in_patch([list_x[time], list_y[time]], patch_centers[i_patch], patch_spline_breaks[i_patch], patch_spline_coefs[i_patch]):  # check if the worm is in it:
                         patch_where_it_is = i_patch  # if it's in it, keep that in mind
 
             # Update list accordingly
