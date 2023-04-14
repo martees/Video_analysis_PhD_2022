@@ -232,11 +232,24 @@ def check_patches(folder_list):
 
         patches = metadata["patch_centers"]
         patch_densities = metadata["patch_densities"]
+        patch_spline_breaks = metadata["spline_breaks"]
+        patch_spline_coefs = metadata["spline_coefs"]
         for i_patch in range(len(patches)):
-            circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), 50, color="white", alpha=0.5)
+            circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), patch_radius, color="white", alpha=0.5)
+
+            angular_pos = np.linspace(-pi,pi,100)
+            radiuses = np.zeros(len(angular_pos))
+            for angle in angular_pos:
+                radiuses[angle] = spline_value(angular_pos, patch_spline_breaks, patch_spline_coefs)
+
             fig = plt.gcf()
             ax = fig.gca()
             ax.add_patch(circle)
+
+            for point in range(len(angular_pos)):
+                plt.scatter(radiuses[point]*np.sin(angular_pos[point]), radiuses[point]*np.cos(angular_pos[point]))
+
+            plt.plot()
 
         plt.title(folder)
 

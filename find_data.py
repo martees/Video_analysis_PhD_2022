@@ -77,30 +77,32 @@ def folder_to_metadata(path):
     # Finding the path of the other files
     lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
     path_for_holes = path[:-lentoremove] + "holes.mat"
-    path_for_patches = path[:-lentoremove] + "foodpatches_new.mat"
+    path_for_patches = path[:-lentoremove] + "foodpatches.mat"
+    path_for_patch_splines = path[:-lentoremove] + "foodpatches_new.mat"
 
     # Loadmat function loads .mat file into a dictionnary with meta info
     # the data is stored as a value for the key with the original table name ('traj' for traj.mat)
     holesmat = loadmat(path_for_holes)  # load holes in a dictionary using loadmat
-    patchesmat = loadmat(path_for_patches)  # load alfonso's patch objects
+    patchesmat = loadmat(path_for_patches)  # load
+    splinesmat = loadmat(path_for_patch_splines)  # load alfonso's patch objects
 
-    patch_objects = patchesmat.get("fp_struct")[0]
+    # Extract patch objects
+    patch_objects = splinesmat.get("fp_struct")[0]
     # In patch_object[0] are 8x2 lists of interpolation points that were used to extract the spline
     # In patch_object[1] is a 1x2 list with the patch center coordinates
     # In patch_object[2] is a matlab spline object stuck in two [[[]]], so we access it like that:
-    spline_objects = [patch_objects[i][2] for i in range(len(patch_objects))][0][0][0]
-    # For each patch i:
-    # In spline_objects[i][0] is useless strings
-    # In spline_objects[i][1] is the breaks which give the intervals for each spline equation
-    # In spline_objects[i][2] are the coefficients of the spline
+    spline_objects = [patch_objects[i][2] for i in range(len(patch_objects))]
+    # In spline_objects[0] is useless strings
+    # In spline_objects[1] is the breaks which give the intervals for each spline equation
+    # In spline_objects[2] are the coefficients of the spline
 
     # Extract the data into the dataframe
     # holepositions = pd.DataFrame(holesmat.get('pointList')) # gets the holes positions
     # condition_number = readcode(holepositions) #get the condition from that
 
-    metadata["patch_centers"] = [patch_objects[i][1] for i in range(len(patch_objects))]
-    metadata["spline_breaks"] = [spline_objects[i][1] for i in range(len(spline_objects))]
-    metadata["spline_coefs"] = [spline_objects[i][2] for i in range(len(spline_objects))]
+    metadata["patch_centers"] = [patch_objects[i][1][0] for i in range(len(patch_objects))]
+    metadata["spline_breaks"] = [list(spline_objects[i][0][0][1][0]) for i in range(len(spline_objects))]
+    metadata["spline_coefs"] = [[list(spline_objects[j][0][0][2][i]) for i in range(len(spline_objects[j][0][0][2]))] for j in range(len(spline_objects))]
 
     metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
     metadata["condition"] = list(patchesmat.get("num_condition"))[0][0]

@@ -11,23 +11,25 @@ import copy
 import json
 
 
+def spline_value(angular_position, spline_breaks, spline_coefs):
+    i = 0
+    while i < len(spline_breaks)-1 and angular_position >= spline_breaks[i]:
+        i += 1
+    local_polynomial = np.polynomial.Polynomial(spline_coefs[i - 1], domain=[spline_breaks[i - 1], spline_breaks[i]])
+    return local_polynomial(angular_position - spline_breaks[i-1])
+
+
 def in_patch(position, patch_center, spline_breaks, spline_coefs):
     """
     returns True if position = [x,y] is inside the patch
     uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
     """
     # Compute radial coordinates
-    angular_position = (position[1] - patch_center[1]) / (position[0] - patch_center[0])
+    angular_position = np.arctan(position[1] - patch_center[1]) / (position[0] - patch_center[0])
     distance_from_center = np.sqrt((position[0] - patch_center[0]) ** 2 + (position[1] - patch_center[1]) ** 2)
 
-    # Find which section of the spline we're in
-    i = 0
-    while angular_position < spline_breaks[i]:
-        i += 1
-
     # Compute the local radius of the patch spline
-    local_polynomial = np.polynomial.Polynomial(spline_coefs[i])
-    local_radius = local_polynomial(angular_position)
+    local_radius = spline_value(angular_position, spline_breaks, spline_coefs)
 
     return distance_from_center < local_radius
 
