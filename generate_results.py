@@ -13,9 +13,11 @@ import json
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
     i = 0
-    while i < len(spline_breaks)-1 and angular_position >= spline_breaks[i]:
+    while i < len(spline_breaks) and angular_position >= spline_breaks[i]:
         i += 1
-    local_polynomial = np.polynomial.Polynomial(spline_coefs[i - 1], domain=[spline_breaks[i - 1], spline_breaks[i]])
+    # invert coef order
+    spline_coefs[i-1] = [spline_coefs[i-1][j] for j in range(len(spline_coefs[i-1])-1, -1, -1)]
+    local_polynomial = np.polynomial.polynomial.Polynomial(spline_coefs[i-1])
     return local_polynomial(angular_position - spline_breaks[i-1])
 
 

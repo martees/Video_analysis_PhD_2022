@@ -2,6 +2,7 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+import math
 
 import numpy as np
 import pandas as pd
@@ -218,7 +219,7 @@ def check_patches(folder_list):
     """
     for folder in folder_list:
         metadata = fd.folder_to_metadata(folder)
-        patches = metadata["patch_centers"]
+        patch_centers = metadata["patch_centers"]
 
         lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
         folder = folder[:-lentoremove]
@@ -227,32 +228,37 @@ def check_patches(folder_list):
         composite = plt.imread(folder + "composite_patches.tif")
 
         fig, ax = plt.subplots()
-        background = ax.imshow(background, cmap = 'gray')
-        # composite = ax.imshow(composite)
+        #background = ax.imshow(background, cmap = 'gray')
+        composite = ax.imshow(composite)
 
-        patches = metadata["patch_centers"]
+        patch_centers = metadata["patch_centers"]
         patch_densities = metadata["patch_densities"]
         patch_spline_breaks = metadata["spline_breaks"]
         patch_spline_coefs = metadata["spline_coefs"]
-        for i_patch in range(len(patches)):
-            circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), patch_radius, color="white", alpha=0.5)
 
-            angular_pos = np.linspace(-pi,pi,100)
+        colors = plt.cm.jet(np.linspace(0, 1, len(patch_centers)))
+
+        for i_patch in range(len(patch_centers)):
+            circle = plt.Circle((patch_centers[i_patch][0], patch_centers[i_patch][1]), patch_radius, color="white", alpha=0.5)
+
+            angular_pos = np.linspace(0,2*np.pi,100)
             radiuses = np.zeros(len(angular_pos))
-            for angle in angular_pos:
-                radiuses[angle] = spline_value(angular_pos, patch_spline_breaks, patch_spline_coefs)
+            for i_angle in range(len(angular_pos)):
+                radiuses[i_angle] = gr.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch], patch_spline_coefs[i_patch])
 
             fig = plt.gcf()
             ax = fig.gca()
-            ax.add_patch(circle)
+            #ax.add_patch(circle)
 
+            colors = plt.cm.jet(np.linspace(0,1,len(angular_pos)))
+            x_pos = []
+            y_pos = []
             for point in range(len(angular_pos)):
-                plt.scatter(radiuses[point]*np.sin(angular_pos[point]), radiuses[point]*np.cos(angular_pos[point]))
-
-            plt.plot()
+                x_pos.append(patch_centers[i_patch][0]+(radiuses[point]*np.sin(angular_pos[point])))
+                y_pos.append(patch_centers[i_patch][1]+(radiuses[point]*np.cos(angular_pos[point])))
+            plt.plot(x_pos,y_pos, color=colors[point])
 
         plt.title(folder)
-
         plt.show()
 
 def plot_selected_data(plot_title, condition_list, column_name, condition_names, divided_by = "", mycolor = "blue"):
@@ -392,7 +398,7 @@ else:  # Windows path
 ####### "results_per_plate.csv":
 ####### "clean_results.csv":
 # Will regenerate the dataset from the first True boolean
-regenerate_trajectories = True
+regenerate_trajectories = False
 regenerate_results_per_id = False
 regenerate_results_per_plate = False
 regenerate_clean_results = False
@@ -421,10 +427,10 @@ results = pd.read_csv(path + "clean_results.csv")
 
 print("finished retrieving stuff")
 
-# check_patches(fd.path_finding_traj(path))
+check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
 # plot_traj(trajectories, 2, n_max = 4, plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True, plate_list=["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T115434_SmallPatches_C5-CAM8/traj.csv"])
-plot_graphs()
+# plot_graphs()
 
 # plot_data_coverage(trajectories)
 
