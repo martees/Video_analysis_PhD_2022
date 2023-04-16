@@ -16,8 +16,8 @@ def spline_value(angular_position, spline_breaks, spline_coefs):
     while i < len(spline_breaks) and angular_position >= spline_breaks[i]:
         i += 1
     # invert coef order
-    spline_coefs[i-1] = [spline_coefs[i-1][j] for j in range(len(spline_coefs[i-1])-1, -1, -1)]
-    local_polynomial = np.polynomial.polynomial.Polynomial(spline_coefs[i-1])
+    coefficients = [spline_coefs[i-1][j] for j in range(len(spline_coefs[i-1])-1, -1, -1)]
+    local_polynomial = np.polynomial.polynomial.Polynomial(coefficients)
     return local_polynomial(angular_position - spline_breaks[i-1])
 
 
@@ -69,6 +69,9 @@ def in_patch_list(traj):
         patch_where_it_is = -1  # initializing variable with index of patch where the worm currently is
         # We go through the whole trajectory
         for time in range(len(list_x)):
+            if time % 100 == 0:
+                print(time, "/", len(list_x))
+
             # First we figure out where the worm is
             patch_where_it_was = patch_where_it_is  # index of the patch where it is
             patch_where_it_is = -1  # resetting the variable to "worm is out"
