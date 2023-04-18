@@ -115,7 +115,7 @@ def bottestrop_ci(data, nb_resample):
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
-def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite = True, plot_in_patch = False, plot_continuity = False, plot_speed = False, plate_list = []):
+def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_composite = True, plot_in_patch = False, plot_continuity = False, plot_speed = False, plate_list = []):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -143,35 +143,32 @@ def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite
         metadata = fd.folder_to_metadata(current_folder)
         current_condition = metadata["condition"][0]
         plt.suptitle("Trajectories for condition " + str(i_condition))
-        if current_condition == i_condition:
+        if plate_list or current_condition == i_condition:
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                 if n_plate > n_max:
                     plt.show()
                     n_plate = 1
-                plt.subplot(n_max//2, n_max//2, n_plate)
-                n_plate += 1
-                # if previous_folder != 0: #if its not the first (if its the first theres nothing to show)
-                # plt.show()
+                if len(plate_list) != 1:
+                    plt.subplot(n_max//2, n_max//2, n_plate)
+                    n_plate += 1
                 # Show background and patches
-                patches = metadata["patch_centers"]
-                patch_densities = metadata["patch_densities"]
                 fig = plt.gcf()
                 ax = fig.gca()
-                fig.set_tight_layout(True)
-                if show_composite :
+                fig.set_tight_layout(True)  # make the margins tighter
+                if show_composite :  # show composite with real patches
                     composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
                     ax.imshow(composite)
-                else :
+                else :  # show cleaner background without the patches
                     background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
                     ax.imshow(background, cmap='gray')
                 ax.set_title(str(current_folder[-48:-9]))
-                for i_patch in range(len(patches)):
-                    circle = plt.Circle((patches[i_patch][0], patches[i_patch][1]), patch_radius, color="grey",
-                                        alpha=min(1, patch_densities[i_patch][0]))
-                    fig = plt.gcf()
-                    ax = fig.gca()
-                    if plot_patches:
-                        ax.add_patch(circle)
+                if is_plot_patches:
+                    patch_densities = metadata["patch_densities"]
+                    patch_centers = metadata["patch_centers"]
+                    x_list, y_list = plot_patches([current_folder], show_composite=False, is_plot=False)
+                    for i_patch in range(len(patch_centers)):
+                        ax.plot(x_list[i_patch],y_list[i_patch], color='yellow', alpha=patch_densities[i_patch])
+                        ax.annotate(str(i_patch),xy = (patch_centers[i_patch][0]+80,patch_centers[i_patch][1]+80),color='white')
 
             #     # Plot first and last position of the worm
             # first_pos = json.loads(current_traj["first_recorded_position"])
@@ -205,17 +202,15 @@ def plot_traj(traj, i_condition, n_max = 4, plot_patches = False, show_composite
 def plot_speed_through_time(traj, time_window):
     plate_list = np.unique(traj["folder"])
 
-
-
-
 # for i_traj in range(len(trajectories)):
     #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
     #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
 
-def check_patches(folder_list):
+def plot_patches(folder_list, show_composite = True, is_plot = True):
     """
-    Function that takes a folder list, and for each folder, will:
-    plot the patch positions on the composite patch image, to check if our metadata matches our actual data
+    Function that takes a folder list, and for each folder, will either:
+    - plot the patch positions on the composite patch image, to check if our metadata matches our actual data (is_plot = True)
+    - return a list of border positions for each patch (is_plot = False)
     """
     for folder in folder_list:
         metadata = fd.folder_to_metadata(folder)
@@ -224,12 +219,14 @@ def check_patches(folder_list):
         lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
         folder = folder[:-lentoremove]
 
-        background = plt.imread(folder + "background.tif")
-        composite = plt.imread(folder + "composite_patches.tif")
-
-        fig, ax = plt.subplots()
-        #background = ax.imshow(background, cmap = 'gray')
-        composite = ax.imshow(composite)
+        if is_plot:
+            fig, ax = plt.subplots()
+            if show_composite:
+                composite = plt.imread(folder + "composite_patches.tif")
+                composite = ax.imshow(composite)
+            else:
+                background = plt.imread(folder + "background.tif")
+                background = ax.imshow(background, cmap = 'gray')
 
         patch_centers = metadata["patch_centers"]
         patch_densities = metadata["patch_densities"]
@@ -237,28 +234,40 @@ def check_patches(folder_list):
         patch_spline_coefs = metadata["spline_coefs"]
 
         colors = plt.cm.jet(np.linspace(0, 1, len(patch_centers)))
-
+        x_list = []
+        y_list = []
+        # For each patch
         for i_patch in range(len(patch_centers)):
-            circle = plt.Circle((patch_centers[i_patch][0], patch_centers[i_patch][1]), patch_radius, color="white", alpha=0.5)
-
+            # For a range of 100 angular positions
             angular_pos = np.linspace(0,2*np.pi,100)
             radiuses = np.zeros(len(angular_pos))
+            # Compute the local spline value for each of those radiuses
             for i_angle in range(len(angular_pos)):
                 radiuses[i_angle] = gr.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch], patch_spline_coefs[i_patch])
 
             fig = plt.gcf()
             ax = fig.gca()
-            #ax.add_patch(circle)
 
+            # Create lists of cartesian positions out of this
             x_pos = []
             y_pos = []
             for point in range(len(angular_pos)):
                 x_pos.append(patch_centers[i_patch][0]+(radiuses[point]*np.sin(angular_pos[point])))
                 y_pos.append(patch_centers[i_patch][1]+(radiuses[point]*np.cos(angular_pos[point])))
-            plt.plot(x_pos,y_pos, color=colors[i_patch])
 
-        plt.title(folder)
-        plt.show()
+            # Either plot them
+            if is_plot:
+                plt.plot(x_pos,y_pos, color=colors[i_patch])
+            # Or add them to a list for later
+            else:
+                x_list.append(x_pos)
+                y_list.append(y_pos)
+
+        if is_plot:
+            plt.title(folder)
+            plt.show()
+        else:
+            return(x_list, y_list)
 
 def plot_selected_data(plot_title, condition_list, column_name, condition_names, divided_by = "", mycolor = "blue"):
     """
@@ -378,20 +387,6 @@ else:  # Windows path
 # Extracting data, the function looks for all "traj.csv" files in the indicated path (will look into subfolders)
 # It will then generate a "results" table, with one line per worm, and these info:
 # NOTE: lists are stored as strings in the csv so we retrieve the values with json loads function
-#         results_table["folder"] = folder from which the worm comes (so plate identifier)
-#         results_table["condition"] = condition written on the plate of the worm
-#         results_table["track_id"] = number of the track (100 times the file number + id attributed by tracking algorithm)
-#         results_table["total_time"] = total number of frames for this worm
-#         results_table["raw_visits"] = list outputed by patch_visits_single_traj (see its description)
-#         results_table["order_of_visits"] = list of order of visits [2 3 0 1] = first patch 2, then patch 3, etc
-#         results_table["total_visit_time"] = total duration of visits for each worm
-#         results_table["nb_of_visits"] = nb of visits to patches this worm did
-#         results_table["nb_of_visited_patches"] = nb of different patches it visited
-#         results_table["furthest_patch_distance"] = furthest patch visited
-#         results_table["total_transit_time"] = total time spent outside of patches (same as total_time - total_visit_time)
-#         results_table["adjusted_raw_visits"] = adjusted: consecutive visits to the same patch are counted as one
-#         results_table["adjusted_total_visit_time"] = should be the same as duration sum (did this to check)
-#         results_table["adjusted_nb_of_visits"] = nb of adjusted visits
 
 # Only generate the results in the beginning of your analysis!
 ### Saves the results in path:
@@ -400,7 +395,7 @@ else:  # Windows path
 ####### "results_per_plate.csv":
 ####### "clean_results.csv":
 # Will regenerate the dataset from the first True boolean
-regenerate_trajectories = True
+regenerate_trajectories = False
 regenerate_results_per_id = False
 regenerate_results_per_plate = False
 regenerate_clean_results = False
@@ -424,14 +419,14 @@ elif regenerate_clean_results:
     gr.generate_clean_results(path)
 
 # Retrieve results from what generate_and_save has saved
-#trajectories = pd.read_csv(path + "trajectories.csv")
+trajectories = pd.read_csv(path + "trajectories.csv")
 results = pd.read_csv(path + "clean_results.csv")
 
 print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-# plot_traj(trajectories, 2, n_max = 4, plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True, plate_list=["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean/20221013T115434_SmallPatches_C5-CAM8/traj.csv"])
+plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True, plate_list=["C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/20221011T111213_SmallPatches_C1-CAM1/traj.csv"])
 # plot_graphs()
 
 # plot_data_coverage(trajectories)

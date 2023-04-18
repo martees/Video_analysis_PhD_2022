@@ -53,4 +53,21 @@ Contains functions to:
 - derive statistics from the results returned by generate_results.py
 - plot these statistics using mostly badly written functions
 
+### Data structure
+#### results_per_id.csv
+
+- **folder** = folder from which the worm comes (so plate identifier)  
+- **condition** = condition written on the plate of the worm  
+- **track_id** = number of the track (100 times the file number + id attributed by tracking algorithm)  
+- **total_time** = total number of frames for this worm  
+- **raw_visits** = list outputed by patch_visits_single_traj (see its description)  
+- **order_of_visits** = list of order of visits [2 3 0 1] = first patch 2, then patch 3, etc  
+- **total_visit_time** = total duration of visits for each worm  
+- **nb_of_visits** = nb of visits to patches this worm did  
+- **nb_of_visited_patches** = nb of different patches it visited  
+- **furthest_patch_distance** = furthest patch visited  
+- **total_transit_time** = total time spent outside of patches (same as total_time - total_visit_time)  
+- **adjusted_raw_visits** = adjusted: consecutive visits to the same patch are counted as one  
+- **adjusted_total_visit_time** = should be the same as duration sum (did this to check)  
+- **adjusted_nb_of_visits** = nb of adjusted visits  
 

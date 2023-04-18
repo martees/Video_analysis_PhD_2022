@@ -13,7 +13,7 @@ import json
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
     i = 0
-    while i < len(spline_breaks) and angular_position >= spline_breaks[i]:
+    while i < len(spline_breaks) - 1 and angular_position >= spline_breaks[i]:
         i += 1
     # invert coef order
     coefficients = [spline_coefs[i-1][j] for j in range(len(spline_coefs[i-1])-1, -1, -1)]
@@ -27,7 +27,7 @@ def in_patch(position, patch_center, spline_breaks, spline_coefs):
     uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
     """
     # Compute radial coordinates
-    angular_position = np.arctan(position[1] - patch_center[1]) / (position[0] - patch_center[0])
+    angular_position = np.arctan((position[1] - patch_center[1]) / (position[0] - patch_center[0]))
     distance_from_center = np.sqrt((position[0] - patch_center[0]) ** 2 + (position[1] - patch_center[1]) ** 2)
 
     # Compute the local radius of the patch spline
@@ -48,10 +48,10 @@ def in_patch_list(traj):
     list_of_patches = [-1 for i in range(len(traj["x"]))]
     i = 0  # global counter
 
-    for i_plate in range(nb_of_plates):  # for every plate
+    for i_plate in range(10):  # for every plate
         # Handmade progress bar
         if i_plate % 10 == 0 or i_plate == nb_of_plates:
-            print(i_plate, "/", nb_of_plates)
+            print("patch_position for plate ", i_plate, "/", nb_of_plates)
 
         # Extract patch information
         current_plate = list_of_plates[i_plate]
@@ -69,7 +69,7 @@ def in_patch_list(traj):
         patch_where_it_is = -1  # initializing variable with index of patch where the worm currently is
         # We go through the whole trajectory
         for time in range(len(list_x)):
-            if time % 100 == 0:
+            if verbose and time % 100 == 0:
                 print(time, "/", len(list_x))
 
             # First we figure out where the worm is

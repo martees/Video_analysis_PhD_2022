@@ -48,8 +48,6 @@ def trajmat_to_dataframe(paths_of_mat):
         # We add the file number to the worm identifyers, for them to become unique accross all folders
         current_data["id_conservative"] = [id + 100*i_file for id in current_data["id_conservative"]]
 
-        print(i_file,"/",len(paths_of_mat))
-
         if i_file == 0:
             dataframe = current_data
         else:
