@@ -27,7 +27,7 @@ def in_patch(position, patch_center, spline_breaks, spline_coefs):
     uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
     """
     # Compute radial coordinates
-    angular_position = np.arctan((position[1] - patch_center[1]) / (position[0] - patch_center[0]))
+    angular_position = np.arctan2((position[1] - patch_center[1]),(position[0] - patch_center[0]))
     distance_from_center = np.sqrt((position[0] - patch_center[0]) ** 2 + (position[1] - patch_center[1]) ** 2)
 
     # Compute the local radius of the patch spline
@@ -48,7 +48,7 @@ def in_patch_list(traj):
     list_of_patches = [-1 for i in range(len(traj["x"]))]
     i = 0  # global counter
 
-    for i_plate in range(10):  # for every plate
+    for i_plate in range(nb_of_plates):  # for every plate
         # Handmade progress bar
         if i_plate % 10 == 0 or i_plate == nb_of_plates:
             print("patch_position for plate ", i_plate, "/", nb_of_plates)

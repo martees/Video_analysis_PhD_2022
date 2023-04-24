@@ -115,7 +115,7 @@ def bottestrop_ci(data, nb_resample):
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
-def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_composite = True, plot_in_patch = False, plot_continuity = False, plot_speed = False, plate_list = []):
+def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_composite = True, plot_in_patch = False, plot_continuity = False, plot_speed = False, plot_time = False, plate_list = []):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -170,33 +170,49 @@ def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_compos
                         ax.plot(x_list[i_patch],y_list[i_patch], color='yellow', alpha=patch_densities[i_patch])
                         ax.annotate(str(i_patch),xy = (patch_centers[i_patch][0]+80,patch_centers[i_patch][1]+80),color='white')
 
-            #     # Plot first and last position of the worm
-            # first_pos = json.loads(current_traj["first_recorded_position"])
-            # last_pos = json.loads(current_traj["last_tracked_position"])
-            # plt.scatter(first_pos[0], first_pos[1], marker = '*')
-            # plt.scatter(last_pos[0], last_pos[1], marker = 'X')
-
             # Plot worm trajectory
-            indexes_in_patch = np.where(current_traj["patch"]!=-1)
-            if not plot_speed:
-                plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s = .5)
-            else:
+            # Plot the trajectory with a colormap based on the speed of the worm
+            if plot_speed:
                 distance_list = current_traj.reset_index()["distances"]
                 normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
                 plt.scatter(current_list_x, current_list_y, c = distance_list, cmap = "hot", norm = normalize, s = 1)
                 if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                     plt.colorbar()
 
+            # Plot the trajectory with a colormap based on time
+            if plot_time:
+                nb_of_timepoints = len(current_list_x)
+                bin_size = 100
+                #colors = plt.cm.jet(np.linspace(0, 1, nb_of_timepoints//bin_size))
+                for bin in range(nb_of_timepoints//bin_size):
+                    lower_bound = bin*bin_size
+                    upper_bound = min((bin+1)*bin_size,len(current_list_x))
+                    plt.scatter(current_list_x[lower_bound:upper_bound], current_list_y[lower_bound:upper_bound], c = range(lower_bound,upper_bound),cmap = "hot", s = 0.5)
+                if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
+                    plt.colorbar()
+
+            # Plot black dots when the worm is inside
             if plot_in_patch:
+                plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s=.5)
+                indexes_in_patch = np.where(current_traj["patch"] != -1)
                 plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black', s = .5)
 
+            # Plot markers where the tracks start, interrupt and restart
             if plot_continuity:
+                # Tracking stops
                 plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color="red")
+                # Tracking restarts
                 if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                     plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "black", s = 100)
                     previous_folder = current_folder
+                # First tracked point
                 else:
                     plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "green")
+
+            # Plot the trajectory, one color per worm
+            else:
+                plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s=.5)
+
     plt.show()
 
 def plot_speed_through_time(traj, time_window):
@@ -316,7 +332,6 @@ def plot_data_coverage(trajectories):
     list_x = []
     list_y = []
     for i_plate in range(nb_of_plates):
-        print(i_plate," / ",nb_of_plates)
         current_plate = list_of_plates[i_plate]
         current_plate_data = trajectories[trajectories["folder"] == current_plate] #select one plate
         current_list_of_frames = list(current_plate_data["frame"]) #extract its frames
@@ -426,8 +441,8 @@ print("finished retrieving stuff")
 
 # check_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = True, plate_list=["C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/20221011T111213_SmallPatches_C1-CAM1/traj.csv"])
-# plot_graphs()
+# plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = False, plot_time = True)
+plot_graphs(plot_speed=True,plot_visit_duration=True)
 
 # plot_data_coverage(trajectories)
 
