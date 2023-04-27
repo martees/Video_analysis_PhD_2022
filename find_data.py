@@ -83,8 +83,8 @@ def folder_to_metadata(path):
     # Loadmat function loads .mat file into a dictionnary with meta info
     # the data is stored as a value for the key with the original table name ('traj' for traj.mat)
     holesmat = loadmat(path_for_holes)  # load holes in a dictionary using loadmat
-    patchesmat = loadmat(path_for_patches)  # load
-    splinesmat = loadmat(path_for_patch_splines)  # load alfonso's patch objects
+    patchesmat = loadmat(path_for_patches)  # load old patch objects (just centers and densities)
+    splinesmat = loadmat(path_for_patch_splines)  # load alfonso's patch objects (with spline info)
 
     # Extract patch objects
     patch_objects = splinesmat.get("fp_struct")[0]

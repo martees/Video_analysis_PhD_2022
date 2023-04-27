@@ -439,10 +439,10 @@ results = pd.read_csv(path + "clean_results.csv")
 
 print("finished retrieving stuff")
 
-# check_patches(fd.path_finding_traj(path))
+# plot_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-# plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = False, plot_continuity = True, plot_speed = False, plot_time = True)
-plot_graphs(plot_speed=True,plot_visit_duration=True)
+plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = True, plot_continuity = True, plot_speed = False, plot_time = False)
+# plot_graphs(plot_speed=True,plot_visit_duration=True)
 
 # plot_data_coverage(trajectories)
 
