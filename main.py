@@ -104,9 +104,9 @@ def results_per_condition(result_table, column_name, divided_by=""):
 
 
 def bottestrop_ci(data, nb_resample):
-    '''
+    """
     Function that takes a dataset and returns a confidence interval using nb_resample samples for bootstrapping
-    '''
+    """
     bootstrapped_means = []
     # data = [x for x in data if str(x) != 'nan']
     for i in range(nb_resample):
@@ -224,7 +224,7 @@ def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=
     plt.show()
 
 
-def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, weighted=True):
+def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples):
     """
     Will take the trajectory dataframe and exit the following plot:
     x-axis: time-window size
@@ -267,7 +267,12 @@ def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, weight
 def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, step_size, nb_resamples, current_speed,
                                       speed_history, past_speed):
     """
-    Will take the trajectory dataframe and exit the following plot:
+    === Will take the trajectory dataframe and:
+    start and end for the time windows
+    step size by which to increase time window
+    nb of times to do a random resample in the video
+    3 bool values to describe which speed is plotted as color
+    === Exits the following plot:
     x-axis: time-window size
     y-axis: average proportion of time spent on food over that time-window
     color: current speed
@@ -301,6 +306,53 @@ def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, st
     plt.show()
     return 0
 
+
+def binned_speed_as_a_function_of_time_window(traj, list_of_time_windows, list_of_food_bins, nb_resamples):
+    """
+    Function that takes a table of trajectories, a list of time windows and food bins,
+    and will plot the CURRENT SPEED for each time window and for each average food during that time window
+    FOR NOW, WILL TAKE nb_resamples RANDOM TIMES IN EACH PLATE
+    """
+    plate_list = np.unique(traj["folder"])
+    nb_of_plates = len(plate_list)
+    normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
+    for i_window in range(len(list_of_time_windows)):
+        window_size = list_of_time_windows[i_window]
+        average_food_list = np.zeros(nb_of_plates * nb_resamples)
+        current_speed_list = np.zeros(nb_of_plates * nb_resamples)
+        for i_plate in range(nb_of_plates):
+            plate = plate_list[i_plate]
+            current_traj = traj[traj["folder"] == plate].reset_index()
+            # Pick a random time to look at, cannot be before window_size otherwise not enough past for avg food
+            for i_resample in range(nb_resamples):
+                if len(current_traj) > 10000:
+                    random_time = random.randint(window_size, len(current_traj) - 1)
+                    traj_window = traj[random_time - window_size: random_time]
+                    average_food_list[i_plate * nb_resamples + i_resample] = len(
+                        traj_window[traj_window["patch"] != -1]) / window_size
+                    current_speed_list[i_plate * nb_resamples + i_resample] = current_traj["distances"][random_time]
+                else:
+                    average_food_list[i_plate + i_resample] = -1
+                    current_speed_list[i_plate + i_resample] = -1
+        # Sort all lists according to average_food (in one line sorry oopsie)
+        average_food_list, current_speed_list = zip(*sorted(zip(average_food_list, current_speed_list)))
+        # Fill the binsss
+        binned_avg_speeds = np.zeros(len(list_of_food_bins))
+        errorbars = np.zeros(len(list_of_food_bins))
+        i_food = 0
+        for i_bin in range(len(list_of_food_bins)):
+            list_avg_food_this_bin = []
+            list_curr_speed_this_bin = []
+            while average_food_list[i_food] < list_of_food_bins[i_bin]:
+                list_avg_food_this_bin[i_food].append(average_food_list[i_food])
+                list_curr_speed_this_bin[i_food].append(current_speed_list[i_food])
+                i_food += 1
+            binned_avg_speeds[i_bin] = np.mean(list_curr_speed_this_bin)
+            errorbars[i_bin] = bottestrop_ci(list_curr_speed_this_bin,1000)
+        # Plot for this window size
+        plt.bar(list_of_food_bins, binned_avg_speeds, errorbars)
+    plt.show()
+    return 0
 
 # for i_traj in range(len(trajectories)):
 #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
@@ -535,7 +587,7 @@ else:  # Windows path
 ####### "results_per_plate.csv":
 ####### "clean_results.csv":
 # Will regenerate the dataset from the first True boolean
-regenerate_trajectories = True
+regenerate_trajectories = False
 regenerate_results_per_id = False
 regenerate_results_per_plate = False
 regenerate_clean_results = False
@@ -566,12 +618,12 @@ print("finished retrieving stuff")
 
 # plot_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
+# plot_data_coverage(trajectories)
 # plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = True, plot_continuity = True, plot_speed = False, plot_time = False)
 # plot_graphs(plot_speed=True,plot_visit_duration=True)
 # plot_speed_time_window_list(trajectories, [10000], 1)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=True, past_speed=False)
-
-# plot_data_coverage(trajectories)
+binned_speed_as_a_function_of_time_window(trajectories, [1, 100], [0, 0.5, 1], 1)
 
 # TODO movement stuff between patches: speed, turning rate, MSD over time
 # TODO radial_tolerance in a useful way
