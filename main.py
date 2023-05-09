@@ -215,8 +215,72 @@ def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_compos
 
     plt.show()
 
-def plot_speed_through_time(traj, time_window):
+
+def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, weighted=True):
+    """
+    Will take the trajectory dataframe and exit the following plot:
+    x-axis: time-window size
+    y-axis: average proportion of time spent on food over that time-window
+    color: current speed
+    Note: it will show one point per time window per plate because otherwise wtf
+    """
     plate_list = np.unique(traj["folder"])
+    nb_of_plates = len(plate_list)
+    normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
+    for i_window in range(len(list_of_time_windows)):
+        window_size = list_of_time_windows[i_window]
+        print(window_size)
+        average_food_list = np.zeros(nb_of_plates*nb_resamples)
+        current_speed_list = np.zeros(nb_of_plates*nb_resamples)
+        for i_plate in range(nb_of_plates):
+            plate = plate_list[i_plate]
+            current_traj = traj[traj["folder"] == plate].reset_index()
+            # Pick a random time to look at, cannot be before window_size otherwise not enough past for avg food
+            for i_resample in range(nb_resamples):
+                if len(current_traj)>10000:
+                    random_time = random.randint(window_size,len(current_traj) - 1)
+                    traj_window = traj[random_time - window_size : random_time]
+                    average_food_list[i_plate*nb_resamples+i_resample] = len(traj_window[traj_window["patch"] != -1])/window_size
+                    current_speed_list[i_plate*nb_resamples+i_resample] = current_traj["distances"][random_time]
+                else:
+                    average_food_list[i_plate+i_resample] = -1
+                    current_speed_list[i_plate+i_resample] = -1
+        # Sort all lists according to speed (in one line sorry oopsie)
+        current_speed_list, average_food_list = zip(*sorted(zip(current_speed_list, average_food_list)))
+        # Plot for this window size
+        plt.scatter([window_size+current_speed_list[i] for i in range(len(current_speed_list))], average_food_list, c=current_speed_list, cmap="viridis", norm=normalize)
+    plt.colorbar()
+    plt.show()
+    return 0
+
+
+def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, nb_resamples):
+    """
+    Will take the trajectory dataframe and exit the following plot:
+    x-axis: time-window size
+    y-axis: average proportion of time spent on food over that time-window
+    color: current speed
+    Note: it will show one point per time window per plate because otherwise wtf
+    """
+    plate_list = np.unique(traj["folder"])
+    random_plate = plate_list[random.randint(0, len(plate_list))]
+    random_traj = traj[traj["folder"] == random_plate].reset_index()
+    for n in range(nb_resamples):
+        present_time = random.randint(0,len(random_traj))
+        normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
+        window_size = time_window_min-20
+        while window_size < min(len(random_traj), time_window_max):
+            window_size += 20
+            traj_window = traj[present_time - window_size:present_time]
+            average_food = len(traj_window[traj_window["patch"] != -1])/window_size
+            current_speed = random_traj["distances"][present_time]
+            # Plot for this window size
+            plt.scatter(window_size, average_food, c=current_speed, cmap="viridis", norm=normalize)
+    plt.colorbar()
+    plt.title(str(random_plate))
+    plt.show()
+    return 0
+
 
 # for i_traj in range(len(trajectories)):
     #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
@@ -441,8 +505,10 @@ print("finished retrieving stuff")
 
 # plot_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
-plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = True, plot_continuity = True, plot_speed = False, plot_time = False)
+# plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = True, plot_continuity = True, plot_speed = False, plot_time = False)
 # plot_graphs(plot_speed=True,plot_visit_duration=True)
+# plot_speed_time_window_list(trajectories, [10000], 1)
+plot_speed_time_window_continuous(trajectories, 1, 1000, 100)
 
 # plot_data_coverage(trajectories)
 
