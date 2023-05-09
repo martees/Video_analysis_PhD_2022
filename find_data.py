@@ -14,6 +14,7 @@ def is_linux():  # returns true if you're using linux, otherwise false
      except AttributeError:
          return False
 
+
 def path_finding_traj(path_prefix):
     """
     Function that takes a folder prefix and returns a list of paths of the traj.csv files present in that folder
@@ -63,6 +64,7 @@ def trajmat_to_dataframe(paths_of_mat):
         # Structure of traj.mat: traj.mat[0] = one line per worm, with their x,y positions at t_0
         # So if you call traj.mat[:,0] you get all the positions of the first worm.
     return dataframe
+
 
 def folder_to_metadata(path):
     """
@@ -128,4 +130,11 @@ def reformat_trajectories(bad_trajectory):
     return cleaned_trajectories
 
 
+def return_folder_list_one_condition(full_folder_list, condition):
+    condition_folders = []
+    for folder in full_folder_list:
+        current_condition = folder_to_metadata(folder).reset_index()["condition"][0]
+        if current_condition == condition:
+            condition_folders.append(folder)
+    return condition_folders
 

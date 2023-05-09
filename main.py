@@ -17,7 +17,8 @@ import find_data as fd
 from param import *
 import json
 
-def results_per_condition(result_table, column_name, divided_by = ""):
+
+def results_per_condition(result_table, column_name, divided_by=""):
     """
     Function that takes our result table and a column name (as a string)
     Returns the list of values of that column pooled by condition, a list of the average value for each condition, and a
@@ -52,31 +53,32 @@ def results_per_condition(result_table, column_name, divided_by = ""):
         for i_plate in range(len(list_of_plates)):
             # Take only one plate
             current_plate = current_data[current_data["folder"] == list_of_plates[i_plate]]
-            if divided_by != "": # In this case, we want to divide column name by another one
-                if np.sum(current_plate[divided_by]) != 0: # Non zero check for division
+            if divided_by != "":  # In this case, we want to divide column name by another one
+                if np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
                 else:
                     print("Trying to divide by 0... what a shame")
-                #if divided_by == "nb_of_visits" and column_name == "total_visit_time" and current_condition == 2: #detecting extreme far 0.2 cases
+                # if divided_by == "nb_of_visits" and column_name == "total_visit_time" and current_condition == 2: #detecting extreme far 0.2 cases
                 #    if list_of_values[i_plate]>800:
                 #        print(list_of_plates[i_plate])
                 #        print(list_of_values[i_plate])
-            else: # No division has to be made
+            else:  # No division has to be made
                 if column_name == "average_speed_inside" or column_name == "average_speed_outside":
                     # Exclude the 0's which are the cases were the worm didnt go to a patch / out of a patch for a full track
                     list_speed_current_plate = [nonzero for nonzero in current_plate[column_name] if int(nonzero) != 0]
                     if list_speed_current_plate:  # If any non-zero speed was recorded for that plate
                         list_of_values[i_plate] = np.average(list_speed_current_plate)
-                elif column_name == "proportion_of_visited_patches" or column_name == "nb_of_visited_patches": # Special case: divide by total nb of patches in plate
+                elif column_name == "proportion_of_visited_patches" or column_name == "nb_of_visited_patches":  # Special case: divide by total nb of patches in plate
                     current_plate = current_plate.reset_index()
-                    list_of_visited_patches = [json.loads(current_plate["list_of_visited_patches"][i]) for i in range(len(current_plate["list_of_visited_patches"]))]
+                    list_of_visited_patches = [json.loads(current_plate["list_of_visited_patches"][i]) for i in
+                                               range(len(current_plate["list_of_visited_patches"]))]
                     list_of_visited_patches = [i for liste in list_of_visited_patches for i in liste]
                     if column_name == "nb_of_visited_patches":
                         list_of_values[i_plate] = len(np.unique(list_of_visited_patches))
                     else:
                         list_total_patch = [52, 24, 7, 25, 52, 24, 7, 25, 24, 24, 24, 24]
-                        list_of_values[i_plate] = len(np.unique(list_of_visited_patches))\
-                                              /list_total_patch[i_condition]
+                        list_of_values[i_plate] = len(np.unique(list_of_visited_patches)) \
+                                                  / list_total_patch[i_condition]
                 elif column_name == "furthest_patch_distance":  # in this case we want the maximal value and not the average
                     list_of_values[i_plate] = np.max(current_plate[column_name])
                 else:  # in any other case
@@ -100,12 +102,13 @@ def results_per_condition(result_table, column_name, divided_by = ""):
 
     return list_of_conditions, full_list_of_values, list_of_avg_values, [errors_inf, errors_sup]
 
+
 def bottestrop_ci(data, nb_resample):
     '''
     Function that takes a dataset and returns a confidence interval using nb_resample samples for bootstrapping
     '''
     bootstrapped_means = []
-    #data = [x for x in data if str(x) != 'nan']
+    # data = [x for x in data if str(x) != 'nan']
     for i in range(nb_resample):
         y = []
         for k in range(len(data)):
@@ -115,7 +118,9 @@ def bottestrop_ci(data, nb_resample):
     bootstrapped_means.sort()
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
-def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_composite = True, plot_in_patch = False, plot_continuity = False, plot_speed = False, plot_time = False, plate_list = []):
+
+def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
+              plot_continuity=False, plot_speed=False, plot_time=False, plate_list=[]):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -149,16 +154,16 @@ def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_compos
                     plt.show()
                     n_plate = 1
                 if len(plate_list) != 1:
-                    plt.subplot(n_max//2, n_max//2, n_plate)
+                    plt.subplot(n_max // 2, n_max // 2, n_plate)
                     n_plate += 1
                 # Show background and patches
                 fig = plt.gcf()
                 ax = fig.gca()
                 fig.set_tight_layout(True)  # make the margins tighter
-                if show_composite :  # show composite with real patches
+                if show_composite:  # show composite with real patches
                     composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
                     ax.imshow(composite)
-                else :  # show cleaner background without the patches
+                else:  # show cleaner background without the patches
                     background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
                     ax.imshow(background, cmap='gray')
                 ax.set_title(str(current_folder[-48:-9]))
@@ -167,15 +172,16 @@ def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_compos
                     patch_centers = metadata["patch_centers"]
                     x_list, y_list = plot_patches([current_folder], show_composite=False, is_plot=False)
                     for i_patch in range(len(patch_centers)):
-                        ax.plot(x_list[i_patch],y_list[i_patch], color='yellow', alpha=patch_densities[i_patch])
-                        ax.annotate(str(i_patch),xy = (patch_centers[i_patch][0]+80,patch_centers[i_patch][1]+80),color='white')
+                        ax.plot(x_list[i_patch], y_list[i_patch], color='yellow', alpha=patch_densities[i_patch])
+                        ax.annotate(str(i_patch), xy=(patch_centers[i_patch][0] + 80, patch_centers[i_patch][1] + 80),
+                                    color='white')
 
             # Plot worm trajectory
             # Plot the trajectory with a colormap based on the speed of the worm
             if plot_speed:
                 distance_list = current_traj.reset_index()["distances"]
                 normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
-                plt.scatter(current_list_x, current_list_y, c = distance_list, cmap = "hot", norm = normalize, s = 1)
+                plt.scatter(current_list_x, current_list_y, c=distance_list, cmap="hot", norm=normalize, s=1)
                 if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                     plt.colorbar()
 
@@ -183,11 +189,12 @@ def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_compos
             if plot_time:
                 nb_of_timepoints = len(current_list_x)
                 bin_size = 100
-                #colors = plt.cm.jet(np.linspace(0, 1, nb_of_timepoints//bin_size))
-                for bin in range(nb_of_timepoints//bin_size):
-                    lower_bound = bin*bin_size
-                    upper_bound = min((bin+1)*bin_size,len(current_list_x))
-                    plt.scatter(current_list_x[lower_bound:upper_bound], current_list_y[lower_bound:upper_bound], c = range(lower_bound,upper_bound),cmap = "hot", s = 0.5)
+                # colors = plt.cm.jet(np.linspace(0, 1, nb_of_timepoints//bin_size))
+                for bin in range(nb_of_timepoints // bin_size):
+                    lower_bound = bin * bin_size
+                    upper_bound = min((bin + 1) * bin_size, len(current_list_x))
+                    plt.scatter(current_list_x[lower_bound:upper_bound], current_list_y[lower_bound:upper_bound],
+                                c=range(lower_bound, upper_bound), cmap="hot", s=0.5)
                 if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                     plt.colorbar()
 
@@ -195,7 +202,8 @@ def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_compos
             if plot_in_patch:
                 plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s=.5)
                 indexes_in_patch = np.where(current_traj["patch"] != -1)
-                plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black', s = .5)
+                plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black',
+                            s=.5)
 
             # Plot markers where the tracks start, interrupt and restart
             if plot_continuity:
@@ -203,11 +211,11 @@ def plot_traj(traj, i_condition, n_max = 4, is_plot_patches = False, show_compos
                 plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color="red")
                 # Tracking restarts
                 if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "black", s = 100)
+                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="black", s=100)
                     previous_folder = current_folder
                 # First tracked point
                 else:
-                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color = "green")
+                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="green")
 
             # Plot the trajectory, one color per worm
             else:
@@ -230,31 +238,34 @@ def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, weight
     for i_window in range(len(list_of_time_windows)):
         window_size = list_of_time_windows[i_window]
         print(window_size)
-        average_food_list = np.zeros(nb_of_plates*nb_resamples)
-        current_speed_list = np.zeros(nb_of_plates*nb_resamples)
+        average_food_list = np.zeros(nb_of_plates * nb_resamples)
+        current_speed_list = np.zeros(nb_of_plates * nb_resamples)
         for i_plate in range(nb_of_plates):
             plate = plate_list[i_plate]
             current_traj = traj[traj["folder"] == plate].reset_index()
             # Pick a random time to look at, cannot be before window_size otherwise not enough past for avg food
             for i_resample in range(nb_resamples):
-                if len(current_traj)>10000:
-                    random_time = random.randint(window_size,len(current_traj) - 1)
-                    traj_window = traj[random_time - window_size : random_time]
-                    average_food_list[i_plate*nb_resamples+i_resample] = len(traj_window[traj_window["patch"] != -1])/window_size
-                    current_speed_list[i_plate*nb_resamples+i_resample] = current_traj["distances"][random_time]
+                if len(current_traj) > 10000:
+                    random_time = random.randint(window_size, len(current_traj) - 1)
+                    traj_window = traj[random_time - window_size: random_time]
+                    average_food_list[i_plate * nb_resamples + i_resample] = len(
+                        traj_window[traj_window["patch"] != -1]) / window_size
+                    current_speed_list[i_plate * nb_resamples + i_resample] = current_traj["distances"][random_time]
                 else:
-                    average_food_list[i_plate+i_resample] = -1
-                    current_speed_list[i_plate+i_resample] = -1
+                    average_food_list[i_plate + i_resample] = -1
+                    current_speed_list[i_plate + i_resample] = -1
         # Sort all lists according to speed (in one line sorry oopsie)
         current_speed_list, average_food_list = zip(*sorted(zip(current_speed_list, average_food_list)))
         # Plot for this window size
-        plt.scatter([window_size+current_speed_list[i] for i in range(len(current_speed_list))], average_food_list, c=current_speed_list, cmap="viridis", norm=normalize)
+        plt.scatter([window_size + current_speed_list[i] for i in range(len(current_speed_list))], average_food_list,
+                    c=current_speed_list, cmap="viridis", norm=normalize)
     plt.colorbar()
     plt.show()
     return 0
 
 
-def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, nb_resamples):
+def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, step_size, nb_resamples, current_speed,
+                                      speed_history, past_speed):
     """
     Will take the trajectory dataframe and exit the following plot:
     x-axis: time-window size
@@ -265,28 +276,37 @@ def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, nb
     plate_list = np.unique(traj["folder"])
     random_plate = plate_list[random.randint(0, len(plate_list))]
     random_traj = traj[traj["folder"] == random_plate].reset_index()
+    condition = fd.folder_to_metadata(random_plate)["condition"].reset_index()
     for n in range(nb_resamples):
-        present_time = random.randint(0,len(random_traj))
+        present_time = random.randint(0, len(random_traj))
         normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
-        window_size = time_window_min-20
+        window_size = time_window_min - step_size
         while window_size < min(len(random_traj), time_window_max):
-            window_size += 20
+            window_size += step_size
             traj_window = traj[present_time - window_size:present_time]
-            average_food = len(traj_window[traj_window["patch"] != -1])/window_size
-            current_speed = random_traj["distances"][present_time]
+            average_food = len(traj_window[traj_window["patch"] != -1]) / window_size
+            speed = 0
+            if current_speed:
+                speed = random_traj["distances"][present_time]
+            if speed_history:
+                speed = np.mean(traj_window["distances"])
+            if past_speed:
+                speed = np.mean(traj_window["distances"][0:window_size])
             # Plot for this window size
-            plt.scatter(window_size, average_food, c=current_speed, cmap="viridis", norm=normalize)
+            plt.scatter(window_size, average_food, c=speed, cmap="viridis", norm=normalize)
     plt.colorbar()
-    plt.title(str(random_plate))
+    plt.ylabel("Average feeding rate")
+    plt.xlabel("Time window to compute past average feeding rate")
+    plt.title(str(condition["condition"][0]) + ", " + str(random_plate)[-48:-9])
     plt.show()
     return 0
 
 
 # for i_traj in range(len(trajectories)):
-    #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
-    #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
+#     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
+#     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
 
-def plot_patches(folder_list, show_composite = True, is_plot = True):
+def plot_patches(folder_list, show_composite=True, is_plot=True):
     """
     Function that takes a folder list, and for each folder, will either:
     - plot the patch positions on the composite patch image, to check if our metadata matches our actual data (is_plot = True)
@@ -306,7 +326,7 @@ def plot_patches(folder_list, show_composite = True, is_plot = True):
                 composite = ax.imshow(composite)
             else:
                 background = plt.imread(folder + "background.tif")
-                background = ax.imshow(background, cmap = 'gray')
+                background = ax.imshow(background, cmap='gray')
 
         patch_centers = metadata["patch_centers"]
         patch_densities = metadata["patch_densities"]
@@ -319,11 +339,12 @@ def plot_patches(folder_list, show_composite = True, is_plot = True):
         # For each patch
         for i_patch in range(len(patch_centers)):
             # For a range of 100 angular positions
-            angular_pos = np.linspace(0,2*np.pi,100)
+            angular_pos = np.linspace(0, 2 * np.pi, 100)
             radiuses = np.zeros(len(angular_pos))
             # Compute the local spline value for each of those radiuses
             for i_angle in range(len(angular_pos)):
-                radiuses[i_angle] = gr.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch], patch_spline_coefs[i_patch])
+                radiuses[i_angle] = gr.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
+                                                    patch_spline_coefs[i_patch])
 
             fig = plt.gcf()
             ax = fig.gca()
@@ -332,12 +353,12 @@ def plot_patches(folder_list, show_composite = True, is_plot = True):
             x_pos = []
             y_pos = []
             for point in range(len(angular_pos)):
-                x_pos.append(patch_centers[i_patch][0]+(radiuses[point]*np.sin(angular_pos[point])))
-                y_pos.append(patch_centers[i_patch][1]+(radiuses[point]*np.cos(angular_pos[point])))
+                x_pos.append(patch_centers[i_patch][0] + (radiuses[point] * np.sin(angular_pos[point])))
+                y_pos.append(patch_centers[i_patch][1] + (radiuses[point] * np.cos(angular_pos[point])))
 
             # Either plot them
             if is_plot:
-                plt.plot(x_pos,y_pos, color=colors[i_patch])
+                plt.plot(x_pos, y_pos, color=colors[i_patch])
             # Or add them to a list for later
             else:
                 x_list.append(x_pos)
@@ -347,23 +368,26 @@ def plot_patches(folder_list, show_composite = True, is_plot = True):
             plt.title(folder)
             plt.show()
         else:
-            return(x_list, y_list)
+            return x_list, y_list
 
-def plot_selected_data(plot_title, condition_list, column_name, condition_names, divided_by = "", mycolor = "blue"):
+
+def plot_selected_data(plot_title, condition_list, column_name, condition_names, divided_by="", mycolor="blue"):
     """
     This function will plot a selected part of the data. Selection is described as follows:
     - condition_low, condition_high: bounds on the conditions (0,3 => function will plot conditions 0, 1, 2, 3)
     - column_name:
     """
     # Getting results
-    list_of_conditions, list_of_avg_each_plate, average_per_condition, errorbars = results_per_condition(results, column_name, divided_by)
+    list_of_conditions, list_of_avg_each_plate, average_per_condition, errorbars = results_per_condition(results,
+                                                                                                         column_name,
+                                                                                                         divided_by)
 
     # Slicing to get condition we're interested in
     list_of_conditions = [list_of_conditions[i] for i in condition_list]
     list_of_avg_each_plate = [list_of_avg_each_plate[i] for i in condition_list]
     average_per_condition = [average_per_condition[i] for i in condition_list]
     errorbars[0] = [errorbars[0][i] for i in condition_list]
-    errorbars[1] =  [errorbars[1][i] for i in condition_list]
+    errorbars[1] = [errorbars[1][i] for i in condition_list]
 
     # Plotttt
     plt.title(plot_title)
@@ -371,15 +395,17 @@ def plot_selected_data(plot_title, condition_list, column_name, condition_names,
     ax = fig.gca()
     fig.set_size_inches(5, 6)
     # Plot condition averages as a bar plot
-    ax.bar(range(len(list_of_conditions)), average_per_condition, color = mycolor)
+    ax.bar(range(len(list_of_conditions)), average_per_condition, color=mycolor)
     ax.set_xticks(range(len(list_of_conditions)))
-    ax.set_xticklabels(condition_names, rotation = 45)
+    ax.set_xticklabels(condition_names, rotation=45)
     ax.set(xlabel="Condition number")
     # Plot plate averages as scatter on top
     for i in range(len(list_of_conditions)):
-        ax.scatter([range(len(list_of_conditions))[i] for j in range(len(list_of_avg_each_plate[i]))], list_of_avg_each_plate[i], color="red", zorder = 2)
+        ax.scatter([range(len(list_of_conditions))[i] for j in range(len(list_of_avg_each_plate[i]))],
+                   list_of_avg_each_plate[i], color="red", zorder=2)
     ax.errorbar(range(len(list_of_conditions)), average_per_condition, errorbars, fmt='.k', capsize=5)
     plt.show()
+
 
 def plot_data_coverage(trajectories):
     """
@@ -390,71 +416,106 @@ def plot_data_coverage(trajectories):
     """
     list_of_plates = np.unique(trajectories["folder"])
     nb_of_plates = len(list_of_plates)
-    list_of_frames = [list(i) for i in np.zeros((nb_of_plates, 1), dtype='int')]  #list of list of frames for each plate [[0],[0],...,[0]]
-    list_of_coverages = np.zeros(len(list_of_plates)) #proportion of coverage for each plate
+    list_of_frames = [list(i) for i in np.zeros((nb_of_plates, 1),
+                                                dtype='int')]  # list of list of frames for each plate [[0],[0],...,[0]]
+    list_of_coverages = np.zeros(len(list_of_plates))  # proportion of coverage for each plate
     # to plot data coverage
     list_x = []
     list_y = []
     for i_plate in range(nb_of_plates):
         current_plate = list_of_plates[i_plate]
-        current_plate_data = trajectories[trajectories["folder"] == current_plate] #select one plate
-        current_list_of_frames = list(current_plate_data["frame"]) #extract its frames
-        current_coverage = len(current_list_of_frames)/current_list_of_frames[-1] #coverage
+        current_plate_data = trajectories[trajectories["folder"] == current_plate]  # select one plate
+        current_list_of_frames = list(current_plate_data["frame"])  # extract its frames
+        current_coverage = len(current_list_of_frames) / current_list_of_frames[-1]  # coverage
         list_of_coverages[i_plate] = current_coverage
         if current_coverage > 0.85:
             for frame in current_list_of_frames:
                 list_x.append(frame)
                 list_y.append(current_plate)
-    plt.scatter(list_x, list_y, s = .8)
+    plt.scatter(list_x, list_y, s=.8)
     plt.show()
 
-def plot_graphs(plot_quality = False, plot_speed = False, plot_visit_duration = False, plot_visit_rate = False, plot_proportion = False, plot_full = False):
+
+def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False, plot_visit_rate=False,
+                plot_proportion=False, plot_full=False):
     # Data quality
     if plot_quality:
-        plot_selected_data("Average proportion of double frames in all densities", 0, 11, "avg_proportion_double_frames", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
-        plot_selected_data("Average number of bad events in all densities", 0, 11, "nb_of_bad_events", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
+        plot_selected_data("Average proportion of double frames in all densities", 0, 11,
+                           "avg_proportion_double_frames",
+                           ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5",
+                            "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by="",
+                           mycolor="green")
+        plot_selected_data("Average number of bad events in all densities", 0, 11, "nb_of_bad_events",
+                           ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5",
+                            "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by="",
+                           mycolor="green")
 
     # Speed plots
     if plot_speed:
-        plot_selected_data("Average speed in all densities (inside)", range(12), "average_speed_inside", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
-        plot_selected_data("Average speed in all densities (outside)", range(12), "average_speed_outside", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by= "", mycolor = "green")
+        plot_selected_data("Average speed in all densities (inside)", range(12), "average_speed_inside",
+                           ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5",
+                            "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by="",
+                           mycolor="green")
+        plot_selected_data("Average speed in all densities (outside)", range(12), "average_speed_outside",
+                           ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5",
+                            "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by="",
+                           mycolor="green")
 
     # Visits plots
     if plot_visit_duration:
-        plot_selected_data("Average duration of visits in low densities", [0,1,2,11], "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "control"], divided_by= "nb_of_visits", mycolor = "brown")
-        plot_selected_data("Average duration of visits in medium densities", [4,5,6,11], "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "control"], divided_by= "nb_of_visits", mycolor = "orange")
-        plot_selected_data("Average duration of MVT visits in low densities", [0,1,2,11], "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "control"], divided_by= "mvt_nb_of_visits", mycolor = "brown")
-        plot_selected_data("Average duration of MVT visits in medium densities", [4,5,6,11], "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "control"], divided_by= "mvt_nb_of_visits", mycolor = "orange")
+        plot_selected_data("Average duration of visits in low densities", [0, 1, 2, 11], "total_visit_time",
+                           ["close 0.2", "med 0.2", "far 0.2", "control"], divided_by="nb_of_visits", mycolor="brown")
+        plot_selected_data("Average duration of visits in medium densities", [4, 5, 6, 11], "total_visit_time",
+                           ["close 0.5", "med 0.5", "far 0.5", "control"], divided_by="nb_of_visits", mycolor="orange")
+        plot_selected_data("Average duration of MVT visits in low densities", [0, 1, 2, 11], "total_visit_time",
+                           ["close 0.2", "med 0.2", "far 0.2", "control"], divided_by="mvt_nb_of_visits",
+                           mycolor="brown")
+        plot_selected_data("Average duration of MVT visits in medium densities", [4, 5, 6, 11], "total_visit_time",
+                           ["close 0.5", "med 0.5", "far 0.5", "control"], divided_by="mvt_nb_of_visits",
+                           mycolor="orange")
 
     if plot_visit_rate:
-        plot_selected_data("Average visit rate in low densities", [0,1,2,11], "nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
-        plot_selected_data("Average visit rate in medium densities", [4,5,6,11], "nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
-        plot_selected_data("Average visit rate MVT in low densities", [0,1,2,11], "mvt_nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
-        plot_selected_data("Average visit rate MVT in medium densities", [4,5,6,11], "mvt_nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
+        plot_selected_data("Average visit rate in low densities", [0, 1, 2, 11], "nb_of_visits",
+                           ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by="total_video_time",
+                           mycolor="brown")
+        plot_selected_data("Average visit rate in medium densities", [4, 5, 6, 11], "nb_of_visits",
+                           ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by="total_video_time",
+                           mycolor="orange")
+        plot_selected_data("Average visit rate MVT in low densities", [0, 1, 2, 11], "mvt_nb_of_visits",
+                           ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by="total_video_time",
+                           mycolor="brown")
+        plot_selected_data("Average visit rate MVT in medium densities", [4, 5, 6, 11], "mvt_nb_of_visits",
+                           ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by="total_video_time",
+                           mycolor="orange")
 
     if plot_proportion:
-        plot_selected_data("Average proportion of time spent in patches in low densities", [0,1,2,11], "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by= "total_video_time", mycolor = "brown")
-        plot_selected_data("Average proportion of time spent in patches in mediun densities", [4,5,6,11], "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by= "total_video_time", mycolor = "orange")
+        plot_selected_data("Average proportion of time spent in patches in low densities", [0, 1, 2, 11],
+                           "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"],
+                           divided_by="total_video_time", mycolor="brown")
+        plot_selected_data("Average proportion of time spent in patches in mediun densities", [4, 5, 6, 11],
+                           "total_visit_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"],
+                           divided_by="total_video_time", mycolor="orange")
 
-        #plot_selected_data("Average number of visits in low densities", 0, 3, "nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
-        #plot_selected_data("Average furthest visited patch distance in low densities", 0, 3, "furthest_patch_distance", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
-        #plot_selected_data("Average proportion of visited patches in low densities", 0, 3, "proportion_of_visited_patches", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
-        #plot_selected_data("Average number of visited patches in low densities", 0, 3, "nb_of_visited_patches", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+        # plot_selected_data("Average number of visits in low densities", 0, 3, "nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+        # plot_selected_data("Average furthest visited patch distance in low densities", 0, 3, "furthest_patch_distance", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+        # plot_selected_data("Average proportion of visited patches in low densities", 0, 3, "proportion_of_visited_patches", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
+        # plot_selected_data("Average number of visited patches in low densities", 0, 3, "nb_of_visited_patches", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
 
-        #plot_selected_data("Average number of visits in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
-        #plot_selected_data("Average furthest visited patch distance in medium densities", 4, 7, "furthest_patch_distance", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
-        #plot_selected_data("Average proportion of visited patches in medium densities", 4, 7, "proportion_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
-        #plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
-
+        # plot_selected_data("Average number of visits in medium densities", 4, 7, "nb_of_visits", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+        # plot_selected_data("Average furthest visited patch distance in medium densities", 4, 7, "furthest_patch_distance", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+        # plot_selected_data("Average proportion of visited patches in medium densities", 4, 7, "proportion_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
+        # plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
 
     # Full plots
     if plot_full:
         plot_selected_data("Average duration of visits in all densities", 0, 11, "total_visit_time",
                            ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5",
-                            "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by="nb_of_visits", mycolor="brown")
+                            "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"],
+                           divided_by="nb_of_visits", mycolor="brown")
         plot_selected_data("Average duration of MVT visits in all densities", 0, 11, "total_visit_time",
                            ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5",
-                            "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by="mvt_nb_of_visits", mycolor="brown")
+                            "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"],
+                           divided_by="mvt_nb_of_visits", mycolor="brown")
 
 
 # Data path
@@ -474,7 +535,7 @@ else:  # Windows path
 ####### "results_per_plate.csv":
 ####### "clean_results.csv":
 # Will regenerate the dataset from the first True boolean
-regenerate_trajectories = False
+regenerate_trajectories = True
 regenerate_results_per_id = False
 regenerate_results_per_plate = False
 regenerate_clean_results = False
@@ -508,7 +569,7 @@ print("finished retrieving stuff")
 # plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = True, plot_continuity = True, plot_speed = False, plot_time = False)
 # plot_graphs(plot_speed=True,plot_visit_duration=True)
 # plot_speed_time_window_list(trajectories, [10000], 1)
-plot_speed_time_window_continuous(trajectories, 1, 1000, 100)
+# plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=True, past_speed=False)
 
 # plot_data_coverage(trajectories)
 
