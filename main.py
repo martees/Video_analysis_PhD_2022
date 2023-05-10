@@ -226,6 +226,7 @@ def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=
 
 
 def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_patch=False, out_patch=False):
+    # TODO take care of holes in traj.csv
     """
     Will take the trajectory dataframe and exit the following plot:
     x-axis: time-window size
@@ -250,18 +251,38 @@ def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_pat
             for i_resample in range(nb_resamples):
                 if len(current_traj) > 10000:
                     random_time = random.randint(window_size, len(current_traj) - 1)
+
                     # Only take current times such as the worm is inside a patch
                     if in_patch and not out_patch:
-                        while current_traj[random_time]["patch"] == -1:
+                        n_trials = 0
+                        while current_traj["patch"][random_time] == -1 and n_trials < 100:
                             random_time = random.randint(window_size, len(current_traj) - 1)
+                            n_trials += 1
+                        if n_trials == 100:
+                            print("No in_patch position was  for window, plate:", str(window_size), ", ", plate)
+
                     # Only take current times such as the worm is outside a patch
                     if out_patch and not in_patch:
-                        while current_traj[random_time]["patch"] != -1:
+                        n_trials = 0
+                        while current_traj["patch"][random_time] != -1 and n_trials < 100:
                             random_time = random.randint(window_size, len(current_traj) - 1)
-                    traj_window = traj[random_time - window_size: random_time]
-                    average_food_list[i_plate * nb_resamples + i_resample] = len(
-                        traj_window[traj_window["patch"] != -1]) / window_size
-                    current_speed_list[i_plate * nb_resamples + i_resample] = current_traj["distances"][random_time]
+                            n_trials += 1
+                        if n_trials == 100:
+                            print("No out_patch position was  for window, plate:", str(window_size), ", ", plate)
+
+                    # Look for first index of the trajectory where the frame is at least window_size behind
+                    # This is because if we just take random time - window-size there might be a tracking hole in the traj
+                    first_index = current_traj[current_traj["frame"] <= current_traj["frame"][random_time] - window_size].index.values
+                    if len(first_index) > 0:  # if there is such a set of indices
+                        first_index = first_index[-1]  # take the latest one
+                        traj_window = traj[first_index: random_time]
+                        # Compute average feeding rate over that window and current speed
+                        average_food_list[i_plate * nb_resamples + i_resample] = len(traj_window[traj_window["patch"] != -1]) / window_size
+                        current_speed_list[i_plate * nb_resamples + i_resample] = current_traj["distances"][random_time]
+                    else:  # otherwise it means the video is not long enough
+                        average_food_list[i_plate + i_resample] = -1
+                        current_speed_list[i_plate + i_resample] = -1
+
                 else:
                     average_food_list[i_plate + i_resample] = -1
                     current_speed_list[i_plate + i_resample] = -1
@@ -277,6 +298,7 @@ def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_pat
 
 def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, step_size, nb_resamples, current_speed,
                                       speed_history, past_speed):
+    #TODO take care of holes in traj.csv
     """
     === Will take the trajectory dataframe and:
     start and end for the time windows
@@ -318,14 +340,17 @@ def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, st
     return 0
 
 
-def binned_speed_as_a_function_of_time_window(traj, list_of_time_windows, list_of_food_bins, nb_resamples):
+def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time_windows, list_of_food_bins, nb_resamples, in_patch=False, out_patch=False):
     """
     Function that takes a table of trajectories, a list of time windows and food bins,
     and will plot the CURRENT SPEED for each time window and for each average food during that time window
     FOR NOW, WILL TAKE nb_resamples RANDOM TIMES IN EACH PLATE
     """
     # Prepare plate list
-    plate_list = np.unique(traj["folder"])
+    full_plate_list = np.unique(traj["folder"])
+    plate_list = []
+    for condition in condition_list:
+        plate_list += fd.return_folder_list_one_condition(full_plate_list, condition)
     nb_of_plates = len(plate_list)
 
     # This is for x ticks for the final plot
@@ -341,15 +366,40 @@ def binned_speed_as_a_function_of_time_window(traj, list_of_time_windows, list_o
                 print("Computing for plate ", i_plate, "/", nb_of_plates)
             plate = plate_list[i_plate]
             current_traj = traj[traj["folder"] == plate].reset_index()
+
             # Pick a random time to look at, cannot be before window_size otherwise not enough past for avg food
             for i_resample in range(nb_resamples):
-                if len(current_traj) > window_size:
-                    random_time = random.randint(window_size, len(current_traj) - 1)
-                    traj_window = traj[random_time - window_size: random_time]
-                    average_food_list[i_plate * nb_resamples + i_resample] = len(
-                        traj_window[traj_window["patch"] != -1]) / window_size
+                #TODO correct this interval, it should be between last frame and first frame that is at least window size
+                random_time = random.randint(window_size, len(current_traj)-1)
+
+                # Only take current times such as the worm is inside a patch
+                if in_patch and not out_patch:
+                    n_trials = 0
+                    while current_traj["patch"][random_time] == -1 and n_trials < 100:
+                        random_time = random.randint(window_size, len(current_traj)-1)
+                        n_trials += 1
+                    if n_trials == 100:
+                        print("No in_patch position was  for window, plate:", str(window_size), ", ", plate)
+
+                # Only take current times such as the worm is outside a patch
+                if out_patch and not in_patch:
+                    n_trials = 0
+                    while current_traj["patch"][random_time] != -1 and n_trials < 100:
+                        random_time = random.randint(window_size, len(current_traj)-1)
+                        n_trials += 1
+                    if n_trials == 100:
+                        print("No out_patch position was  for window, plate:", str(window_size), ", ", plate)
+
+                # Look for first index of the trajectory where the frame is at least window_size behind
+                # This is because if we just take random time - window-size there might be a tracking hole in the traj
+                first_index = current_traj[current_traj["frame"] <= current_traj["frame"][random_time] - window_size].index.values
+                if len(first_index) > 0:  # if there is such a set of indices
+                    first_index = first_index[-1]  # take the latest one
+                    traj_window = traj[first_index: random_time]
+                    # Compute average feeding rate over that window and current speed
+                    average_food_list[i_plate * nb_resamples + i_resample] = len(traj_window[traj_window["patch"] != -1]) / window_size
                     current_speed_list[i_plate * nb_resamples + i_resample] = current_traj["distances"][random_time]
-                else:
+                else:  # otherwise it means the video is not long enough
                     average_food_list[i_plate + i_resample] = -1
                     current_speed_list[i_plate + i_resample] = -1
 
@@ -377,13 +427,13 @@ def binned_speed_as_a_function_of_time_window(traj, list_of_time_windows, list_o
             # Indicate on graph the nb of points in each bin
             if list_curr_speed_this_bin:
                 ax = plt.gca()
-                ax.annotate(str(len(list_curr_speed_this_bin)), xy=(2 * i_window + list_of_food_bins[i_bin], max(list_curr_speed_this_bin)+2))
+                ax.annotate(str(len(list_curr_speed_this_bin)), xy=(2 * i_window + list_of_food_bins[i_bin], max(list_curr_speed_this_bin)+0.5))
             print("Finished binning for bin ", i_bin, "/", len(list_of_food_bins))
 
         # Plot for this window size
         x_positions = [2 * i_window + list_of_food_bins[i] for i in range(len(list_of_food_bins))]  # for the bars
         list_of_x_positions += x_positions  # for the final plot
-        plt.bar(x_positions, binned_avg_speeds, width=1/len(list_of_food_bins), label=str(window_size))
+        plt.bar(x_positions, binned_avg_speeds, width=min(0.1, 1/len(list_of_food_bins)), label=str(window_size))
         plt.errorbar(x_positions, binned_avg_speeds, [errorbars_inf, errorbars_sup], fmt='.k', capsize=5)
 
     ax = plt.gca()
@@ -504,14 +554,14 @@ def plot_selected_data(plot_title, condition_list, column_name, condition_names,
     plt.show()
 
 
-def plot_data_coverage(trajectories):
+def plot_data_coverage(traj):
     """
     Takes a dataframe with the trajectories implemented as in our trajectories.csv folder.
     Returns a plot with plates in y, time in x, and a color depending on whether:
     - there is or not a data point for this frame
     - the worm in this frame is in a patch or not
     """
-    list_of_plates = np.unique(trajectories["folder"])
+    list_of_plates = np.unique(traj["folder"])
     nb_of_plates = len(list_of_plates)
     list_of_frames = [list(i) for i in np.zeros((nb_of_plates, 1),
                                                 dtype='int')]  # list of list of frames for each plate [[0],[0],...,[0]]
@@ -521,7 +571,7 @@ def plot_data_coverage(trajectories):
     list_y = []
     for i_plate in range(nb_of_plates):
         current_plate = list_of_plates[i_plate]
-        current_plate_data = trajectories[trajectories["folder"] == current_plate]  # select one plate
+        current_plate_data = traj[traj["folder"] == current_plate]  # select one plate
         current_list_of_frames = list(current_plate_data["frame"])  # extract its frames
         current_coverage = len(current_list_of_frames) / current_list_of_frames[-1]  # coverage
         list_of_coverages[i_plate] = current_coverage
@@ -656,7 +706,7 @@ elif regenerate_clean_results:
     gr.generate_clean_results(path)
 
 # Retrieve results from what generate_and_save has saved
-trajectories = pd.read_csv(path + "trajectories.csv")
+trajectories = pd.read_csv(path + "clean_trajectories.csv")
 results = pd.read_csv(path + "clean_results.csv")
 
 print("finished retrieving stuff")
@@ -666,9 +716,13 @@ print("finished retrieving stuff")
 # plot_data_coverage(trajectories)
 # plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = True, plot_continuity = True, plot_speed = False, plot_time = False)
 # plot_graphs(plot_visit_duration=True)
-# plot_speed_time_window_list(trajectories, [10000], 1)
+# plot_speed_time_window_list(trajectories, [100, 1000, 10000], 1, out_patch=True)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=True, past_speed=False)
-binned_speed_as_a_function_of_time_window(trajectories, [1, 50, 100, 500, 1000, 9000], list(np.linspace(0, 1, 4)), 1)
+# binned_speed_as_a_function_of_time_window(trajectories, [2], [100, 1000, 10000], [0, 0.6, 0.8, 0.9, 1], 10, out_patch=True)
+
+# TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top
+# TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
+# TODO function that shows length of (first) visit to a patch as a function of last travel time / average feeding rate in window
 
 # TODO movement stuff between patches: speed, turning rate, MSD over time
 # TODO radial_tolerance in a useful way
