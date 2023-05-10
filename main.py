@@ -100,7 +100,7 @@ def results_per_condition(result_table, column_name, divided_by=""):
         errors_inf[i_condition] = list_of_avg_values[i_condition] - bootstrap_ci[0]
         errors_sup[i_condition] = bootstrap_ci[1] - list_of_avg_values[i_condition]
 
-    return list_of_conditions, full_list_of_values, list_of_avg_values, [errors_inf, errors_sup]
+    return list_of_conditions, full_list_of_values, list_of_avg_values, [list(errors_inf), list(errors_sup)]
 
 
 def bottestrop_ci(data, nb_resample):
@@ -338,25 +338,26 @@ def binned_speed_as_a_function_of_time_window(traj, list_of_time_windows, list_o
         average_food_list, current_speed_list = zip(*sorted(zip(average_food_list, current_speed_list)))
         # Fill the binsss
         binned_avg_speeds = np.zeros(len(list_of_food_bins))
-        errorbars = np.zeros(len(list_of_food_bins))
+        errorbars = [[0, 0] for _ in range(len(list_of_food_bins))]
         i_food = 0
         for i_bin in range(len(list_of_food_bins)):
             list_avg_food_this_bin = []
             list_curr_speed_this_bin = []
             while average_food_list[i_food] < list_of_food_bins[i_bin]:
-                list_avg_food_this_bin[i_food].append(average_food_list[i_food])
-                list_curr_speed_this_bin[i_food].append(current_speed_list[i_food])
+                list_avg_food_this_bin.append(average_food_list[i_food])
+                list_curr_speed_this_bin.append(current_speed_list[i_food])
                 i_food += 1
             binned_avg_speeds[i_bin] = np.mean(list_curr_speed_this_bin)
-            errorbars[i_bin] = bottestrop_ci(list_curr_speed_this_bin,1000)
+            errorbars[i_bin] = bottestrop_ci(list_curr_speed_this_bin, 1000)
         # Plot for this window size
-        plt.bar(list_of_food_bins, binned_avg_speeds, errorbars)
+        plt.bar(list_of_food_bins, binned_avg_speeds, errorbars, c=binned_avg_speeds, cmap="viridis", norm=normalize)
     plt.show()
     return 0
 
 # for i_traj in range(len(trajectories)):
 #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
 #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
+
 
 def plot_patches(folder_list, show_composite=True, is_plot=True):
     """
@@ -434,7 +435,7 @@ def plot_selected_data(plot_title, condition_list, column_name, condition_names,
                                                                                                          column_name,
                                                                                                          divided_by)
 
-    # Slicing to get condition we're interested in
+    # Slicing to get condition we're interested in (only take indexes from condition_list)
     list_of_conditions = [list_of_conditions[i] for i in condition_list]
     list_of_avg_each_plate = [list_of_avg_each_plate[i] for i in condition_list]
     average_per_condition = [average_per_condition[i] for i in condition_list]
@@ -453,7 +454,7 @@ def plot_selected_data(plot_title, condition_list, column_name, condition_names,
     ax.set(xlabel="Condition number")
     # Plot plate averages as scatter on top
     for i in range(len(list_of_conditions)):
-        ax.scatter([range(len(list_of_conditions))[i] for j in range(len(list_of_avg_each_plate[i]))],
+        ax.scatter([range(len(list_of_conditions))[i] for _ in range(len(list_of_avg_each_plate[i]))],
                    list_of_avg_each_plate[i], color="red", zorder=2)
     ax.errorbar(range(len(list_of_conditions)), average_per_condition, errorbars, fmt='.k', capsize=5)
     plt.show()
@@ -620,10 +621,10 @@ print("finished retrieving stuff")
 # plot_avg_furthest_patch()
 # plot_data_coverage(trajectories)
 # plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = True, plot_continuity = True, plot_speed = False, plot_time = False)
-# plot_graphs(plot_speed=True,plot_visit_duration=True)
+# plot_graphs(plot_visit_duration=True)
 # plot_speed_time_window_list(trajectories, [10000], 1)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=True, past_speed=False)
-binned_speed_as_a_function_of_time_window(trajectories, [1, 100], [0, 0.5, 1], 1)
+binned_speed_as_a_function_of_time_window(trajectories, [1, 100], [0, 1], 1)
 
 # TODO movement stuff between patches: speed, turning rate, MSD over time
 # TODO radial_tolerance in a useful way
