@@ -646,10 +646,14 @@ def make_results_per_plate(data_per_id, trajectories):
     return results_per_plate
 
 
-def exclude_invalid_videos(results_per_plate):
-    results_per_plate = results_per_plate[results_per_plate["total_video_time"] >= 10000]
-    results_per_plate = results_per_plate[results_per_plate["avg_proportion_double_frames"] <= 0.01]
-    return results_per_plate
+def exclude_invalid_videos(trajectories, results_per_plate):
+    cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
+    cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
+    valid_folders = np.unique(results_per_plate["folder"])
+    cleaned_traj = pd.DataFrame(columns=trajectories.columns)
+    for plate in valid_folders:
+        cleaned_traj.append([cleaned_traj, trajectories[trajectories["folders"] == plate]])
+    return cleaned_traj, cleaned_results
 
 
 def generate_trajectories(path):
@@ -687,9 +691,11 @@ def generate_results_per_plate(path):
 
 
 def generate_clean_results(path):
-    print("Retrieving results...")
+    print("Retrieving results and trajectories...")
     results_per_plate = pd.read_csv(path + "results_per_plate.csv")
+    trajectories = pd.read_csv(path + "trajectories.csv")
     print("Cleaning results...")
-    clean_results = exclude_invalid_videos(results_per_plate)
+    clean_trajectories, clean_results = exclude_invalid_videos(trajectories, results_per_plate)
     clean_results.to_csv(path + "clean_results.csv")
+    clean_trajectories.to_csv(path + "clean_trajectories.csv")
     return 0
