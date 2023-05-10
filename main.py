@@ -167,6 +167,7 @@ def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=
                     background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
                     ax.imshow(background, cmap='gray')
                 ax.set_title(str(current_folder[-48:-9]))
+                # Plot them patches
                 if is_plot_patches:
                     patch_densities = metadata["patch_densities"]
                     patch_centers = metadata["patch_centers"]
@@ -224,13 +225,15 @@ def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=
     plt.show()
 
 
-def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples):
+def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_patch=False, out_patch=False):
     """
     Will take the trajectory dataframe and exit the following plot:
     x-axis: time-window size
     y-axis: average proportion of time spent on food over that time-window
     color: current speed
-    Note: it will show one point per time window per plate because otherwise wtf
+    in_patch / out_patch: only take time points such as the worm is currently inside / outside a patch
+                          if both are True or both are False, will take any time point
+    This function will show nb_resamples per time window per plate.
     """
     plate_list = np.unique(traj["folder"])
     nb_of_plates = len(plate_list)
@@ -247,6 +250,14 @@ def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples):
             for i_resample in range(nb_resamples):
                 if len(current_traj) > 10000:
                     random_time = random.randint(window_size, len(current_traj) - 1)
+                    # Only take current times such as the worm is inside a patch
+                    if in_patch and not out_patch:
+                        while current_traj[random_time]["patch"] == -1:
+                            random_time = random.randint(window_size, len(current_traj) - 1)
+                    # Only take current times such as the worm is outside a patch
+                    if out_patch and not in_patch:
+                        while current_traj[random_time]["patch"] != -1:
+                            random_time = random.randint(window_size, len(current_traj) - 1)
                     traj_window = traj[random_time - window_size: random_time]
                     average_food_list[i_plate * nb_resamples + i_resample] = len(
                         traj_window[traj_window["patch"] != -1]) / window_size
@@ -313,19 +324,26 @@ def binned_speed_as_a_function_of_time_window(traj, list_of_time_windows, list_o
     and will plot the CURRENT SPEED for each time window and for each average food during that time window
     FOR NOW, WILL TAKE nb_resamples RANDOM TIMES IN EACH PLATE
     """
+    # Prepare plate list
     plate_list = np.unique(traj["folder"])
     nb_of_plates = len(plate_list)
-    normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
+
+    # This is for x ticks for the final plot
+    list_of_x_positions = []
+
+    # Fill lists with info for each plate
     for i_window in range(len(list_of_time_windows)):
         window_size = list_of_time_windows[i_window]
         average_food_list = np.zeros(nb_of_plates * nb_resamples)
         current_speed_list = np.zeros(nb_of_plates * nb_resamples)
         for i_plate in range(nb_of_plates):
+            if i_plate % 20 == 0:
+                print("Computing for plate ", i_plate, "/", nb_of_plates)
             plate = plate_list[i_plate]
             current_traj = traj[traj["folder"] == plate].reset_index()
             # Pick a random time to look at, cannot be before window_size otherwise not enough past for avg food
             for i_resample in range(nb_resamples):
-                if len(current_traj) > 10000:
+                if len(current_traj) > window_size:
                     random_time = random.randint(window_size, len(current_traj) - 1)
                     traj_window = traj[random_time - window_size: random_time]
                     average_food_list[i_plate * nb_resamples + i_resample] = len(
@@ -334,23 +352,47 @@ def binned_speed_as_a_function_of_time_window(traj, list_of_time_windows, list_o
                 else:
                     average_food_list[i_plate + i_resample] = -1
                     current_speed_list[i_plate + i_resample] = -1
+
         # Sort all lists according to average_food (in one line sorry oopsie)
         average_food_list, current_speed_list = zip(*sorted(zip(average_food_list, current_speed_list)))
+        print("Finished computing for window = ", window_size)
+
         # Fill the binsss
         binned_avg_speeds = np.zeros(len(list_of_food_bins))
-        errorbars = [[0, 0] for _ in range(len(list_of_food_bins))]
+        errorbars_sup = []
+        errorbars_inf = []
         i_food = 0
         for i_bin in range(len(list_of_food_bins)):
-            list_avg_food_this_bin = []
             list_curr_speed_this_bin = []
-            while average_food_list[i_food] < list_of_food_bins[i_bin]:
-                list_avg_food_this_bin.append(average_food_list[i_food])
+            # While avg food is not above bin, continue filling it
+            while i_food < len(average_food_list) and average_food_list[i_food] <= list_of_food_bins[i_bin]:
                 list_curr_speed_this_bin.append(current_speed_list[i_food])
                 i_food += 1
+            # Once the bin is over,
             binned_avg_speeds[i_bin] = np.mean(list_curr_speed_this_bin)
-            errorbars[i_bin] = bottestrop_ci(list_curr_speed_this_bin, 1000)
+            errors = bottestrop_ci(list_curr_speed_this_bin, 1000)
+            errorbars_inf.append(errors[0])
+            errorbars_sup.append(errors[1])
+            plt.scatter([2 * i_window + list_of_food_bins[i_bin] for _ in range(len(list_curr_speed_this_bin))], list_curr_speed_this_bin, zorder=2, color="gray")
+            # Indicate on graph the nb of points in each bin
+            if list_curr_speed_this_bin:
+                ax = plt.gca()
+                ax.annotate(str(len(list_curr_speed_this_bin)), xy=(2 * i_window + list_of_food_bins[i_bin], max(list_curr_speed_this_bin)+2))
+            print("Finished binning for bin ", i_bin, "/", len(list_of_food_bins))
+
         # Plot for this window size
-        plt.bar(list_of_food_bins, binned_avg_speeds, errorbars, c=binned_avg_speeds, cmap="viridis", norm=normalize)
+        x_positions = [2 * i_window + list_of_food_bins[i] for i in range(len(list_of_food_bins))]  # for the bars
+        list_of_x_positions += x_positions  # for the final plot
+        plt.bar(x_positions, binned_avg_speeds, width=1/len(list_of_food_bins), label=str(window_size))
+        plt.errorbar(x_positions, binned_avg_speeds, [errorbars_inf, errorbars_sup], fmt='.k', capsize=5)
+
+    ax = plt.gca()
+    ax.set_xticks(list_of_x_positions)
+    ax.set_xticklabels([str(np.round(list_of_food_bins[i], 2)) for i in range(len(list_of_food_bins))]*len(list_of_time_windows))
+    plt.xlabel("Average amount of food during time window")
+    plt.ylabel("Average speed")
+    plt.legend(title="Time window size")
+
     plt.show()
     return 0
 
@@ -447,11 +489,13 @@ def plot_selected_data(plot_title, condition_list, column_name, condition_names,
     fig = plt.gcf()
     ax = fig.gca()
     fig.set_size_inches(5, 6)
+
     # Plot condition averages as a bar plot
     ax.bar(range(len(list_of_conditions)), average_per_condition, color=mycolor)
     ax.set_xticks(range(len(list_of_conditions)))
     ax.set_xticklabels(condition_names, rotation=45)
     ax.set(xlabel="Condition number")
+
     # Plot plate averages as scatter on top
     for i in range(len(list_of_conditions)):
         ax.scatter([range(len(list_of_conditions))[i] for _ in range(len(list_of_avg_each_plate[i]))],
@@ -624,7 +668,7 @@ print("finished retrieving stuff")
 # plot_graphs(plot_visit_duration=True)
 # plot_speed_time_window_list(trajectories, [10000], 1)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=True, past_speed=False)
-binned_speed_as_a_function_of_time_window(trajectories, [1, 100], [0, 1], 1)
+binned_speed_as_a_function_of_time_window(trajectories, [1, 50, 100, 500, 1000, 9000], list(np.linspace(0, 1, 4)), 1)
 
 # TODO movement stuff between patches: speed, turning rate, MSD over time
 # TODO radial_tolerance in a useful way
