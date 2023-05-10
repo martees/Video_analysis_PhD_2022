@@ -652,7 +652,7 @@ def exclude_invalid_videos(trajectories, results_per_plate):
     valid_folders = np.unique(results_per_plate["folder"])
     cleaned_traj = pd.DataFrame(columns=trajectories.columns)
     for plate in valid_folders:
-        cleaned_traj.append([cleaned_traj, trajectories[trajectories["folders"] == plate]])
+        pd.concat([cleaned_traj, trajectories[trajectories["folder"] == plate]])
     return cleaned_traj, cleaned_results
 
 
