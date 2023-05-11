@@ -418,12 +418,18 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
             while i_food < len(average_food_list) and average_food_list[i_food] <= list_of_food_bins[i_bin]:
                 list_curr_speed_this_bin.append(current_speed_list[i_food])
                 i_food += 1
-            # Once the bin is over,
+            # Once the bin is over, fill stat info for global plot
             binned_avg_speeds[i_bin] = np.mean(list_curr_speed_this_bin)
             errors = bottestrop_ci(list_curr_speed_this_bin, 1000)
             errorbars_inf.append(errors[0])
             errorbars_sup.append(errors[1])
-            plt.scatter([2 * i_window + list_of_food_bins[i_bin] for _ in range(len(list_curr_speed_this_bin))], list_curr_speed_this_bin, zorder=2, color="gray")
+            # and plot individual points
+            plt.scatter([2 * i_window + list_of_food_bins[i_bin] for _ in range(len(list_curr_speed_this_bin))],
+                        list_curr_speed_this_bin, zorder=2, color="gray")
+            try:
+                plt.violinplot(list_curr_speed_this_bin, positions=[2 * i_window + list_of_food_bins[i_bin]])
+            except ValueError:
+                pass
             # Indicate on graph the nb of points in each bin
             if list_curr_speed_this_bin:
                 ax = plt.gca()
@@ -449,6 +455,32 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 # for i_traj in range(len(trajectories)):
 #     reformatted_trajectory = list(zip(*trajectories[i_traj])) # converting from [x y][x y][x y] format to [x x x] [y y y]
 #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
+
+
+def visit_time_as_a_function_of(result_table, variable):
+    if variable == "last_travel_time":
+        list_of_visit_lengths = []
+        list_of_previous_transit_lengths = []
+        starts_with_visit = False
+        ends_with_transit = False
+        for i_plate in range(len(result_table)):
+            list_of_visits = list(json.loads(result_table["aggregated_raw_visits"][i_plate]))
+            list_of_transits = list(json.loads(result_table["aggregated_raw_transits"][i_plate]))
+            if list_of_visits and list_of_transits:  # if there's at least one visit and one transit
+                # Check whether the plate starts and ends with a visit or a transit
+                if list_of_visits[0][0] < list_of_transits[0][0]:
+                    starts_with_visit = True
+                if list_of_transits[-1][0] > list_of_visits[-1][0]:
+                    ends_with_transit = True
+                for i_visit in range(len(list_of_visits) - starts_with_visit - ends_with_transit):
+                    # When the video starts with a visit, visit 1 has to be compared to transit 0
+                    # Otherwise, visit 0 has to be compared to transit 0
+                    current_visit = list_of_visits[i_visit + starts_with_visit]  # True = 1 in Python
+                    current_transit = list_of_transits[i_visit]
+                    list_of_visit_lengths.append(current_visit[1]-current_visit[0]+1)
+                    list_of_previous_transit_lengths.append(current_transit[1]-current_transit[0]+1)
+        plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths)
+        plt.show()
 
 
 def plot_patches(folder_list, show_composite=True, is_plot=True):
@@ -718,7 +750,8 @@ print("finished retrieving stuff")
 # plot_graphs(plot_visit_duration=True)
 # plot_speed_time_window_list(trajectories, [100, 1000, 10000], 1, out_patch=True)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=True, past_speed=False)
-# binned_speed_as_a_function_of_time_window(trajectories, [2], [100, 1000, 10000], [0, 0.6, 0.8, 0.9, 1], 10, out_patch=True)
+# binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 100, 1000], [0, 0.6, 0.8, 0.9, 1], 1, out_patch=True)
+visit_time_as_a_function_of(results, "last_travel_time")
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
