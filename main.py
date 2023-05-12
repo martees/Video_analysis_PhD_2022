@@ -470,15 +470,36 @@ def visit_time_as_a_function_of(result_table, variable):
                 # Check whether the plate starts and ends with a visit or a transit
                 if list_of_visits[0][0] < list_of_transits[0][0]:
                     starts_with_visit = True
-                if list_of_transits[-1][0] > list_of_visits[-1][0]:
-                    ends_with_transit = True
-                for i_visit in range(len(list_of_visits) - starts_with_visit - ends_with_transit):
+                # If it starts with a visit we only start at visit 1 (visit 0 has no previous transit)
+                i_visit = starts_with_visit
+                # If there are consecutive visits/transits, we count them to still look at temporally consecutive visits and transits
+                double_transits = 0
+                double_visits = 0
+                while i_visit + double_visits < len(list_of_visits):
+                    if verbose:
+                        print("Nb of visits = ", len(list_of_visits), ", nb of transits = ", len(list_of_transits), ", i_visit = ", i_visit, "starts_with = ", starts_with_visit)
+                        print("double_transits = ", double_transits, ", double_visits = ", double_visits)
+                    current_visit = list_of_visits[i_visit + double_visits]  # True = 1 in Python
                     # When the video starts with a visit, visit 1 has to be compared to transit 0
                     # Otherwise, visit 0 has to be compared to transit 0
-                    current_visit = list_of_visits[i_visit + starts_with_visit]  # True = 1 in Python
-                    current_transit = list_of_transits[i_visit]
-                    list_of_visit_lengths.append(current_visit[1]-current_visit[0]+1)
-                    list_of_previous_transit_lengths.append(current_transit[1]-current_transit[0]+1)
+                    current_transit = list_of_transits[i_visit + double_transits - double_visits + starts_with_visit]
+                    # Check that this is the right transit:
+                    if current_visit[0] == current_transit[1]:
+                        list_of_visit_lengths.append(current_visit[1]-current_visit[0]+1)
+                        list_of_previous_transit_lengths.append(current_transit[1]-current_transit[0]+1)
+                    else:
+                        # Take care of any extra visit/transit that's in the way
+                        while current_visit[0] > current_transit[1]:  # there were two consecutive transits
+                            double_transits += 1
+                            current_transit = list_of_transits[i_visit - starts_with_visit - double_visits + double_transits]
+                            # We add this extra transit to the previous transit length
+                            list_of_previous_transit_lengths[-1] += current_transit[1]-current_transit[0]+1
+                        while current_visit[0] < current_transit[1]:  # there were two consecutive visits
+                            double_visits += 1
+                            current_visit = list_of_visits[i_visit + double_visits]
+                            # We add this extra transit to the previous transit length
+                            list_of_visit_lengths[-1] += current_visit[1]-current_visit[0]+1
+                    i_visit += 1
         plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths)
         plt.show()
 
