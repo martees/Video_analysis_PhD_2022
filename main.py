@@ -125,102 +125,107 @@ def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
     Extracts list of series of positions from indicated condition and draws them, with one color per id
-    :param traj: dataframe containing the series of (x,y) positions ([[x0,x1,x2...] [y0,y1,y2...])
+    traj: dataframe containing the series of (x,y) positions ([[x0,x1,x2...] [y0,y1,y2...])
+    i_condition: the experimental condition that you want displayed
+    n_max: max number of subplots in each graphic displayed
+    plate_list: list of plates to display. Overrides condition selection
     :return: trajectory plot
     """
+    # If there is a plate list
     if plate_list:
-        worm_list = []
+        folder_list = []
         for i_plate in range(len(plate_list)):
-            worm_list.append(traj[traj["folder"] == plate_list[i_plate]]["id_conservative"])
-        worm_list = np.unique(worm_list)
+            folder_list.append(traj[traj["folder"] == plate_list[i_plate]]["folder"])
+        folder_list = np.unique(folder_list)
+    # Otherwise take all the plates of the condition
     else:
-        worm_list = np.unique(traj["id_conservative"])
-    nb_of_worms = len(worm_list)
-    colors = plt.cm.jet(np.linspace(0, 1, nb_of_worms))
+        folder_list = fd.return_folder_list_one_condition(np.unique(traj["folder"]), i_condition)
+    nb_of_folders = len(folder_list)
+    colors = plt.cm.jet(np.linspace(0, 1, nb_of_folders))
     previous_folder = 0
     n_plate = 1
-    for i_worm in range(nb_of_worms):
-        current_worm = worm_list[i_worm]
-        current_traj = traj[traj["id_conservative"] == current_worm]
+    for i_folder in range(nb_of_folders):
+        current_folder = folder_list[i_folder]
+        current_traj = traj[traj["folder"] == current_folder]
         current_list_x = current_traj.reset_index()["x"]
         current_list_y = current_traj.reset_index()["y"]
-        current_folder = list(current_traj["folder"])[0]
         metadata = fd.folder_to_metadata(current_folder)
-        current_condition = metadata["condition"][0]
         plt.suptitle("Trajectories for condition " + str(i_condition))
-        if plate_list or current_condition == i_condition:
+
+        # If we just changed plate or if it's the 1st, plot the background elements
+        if previous_folder != current_folder or previous_folder == 0:
+            if n_plate > n_max:  # If we exceeded the max nb of plates per graphic
+                plt.show()
+                n_plate = 1
+            if n_plate <= n_max or len(plate_list) > 1:
+                plt.subplot(n_max // 2, n_max // 2, n_plate)
+                n_plate += 1
+            # Show background and patches
+            fig = plt.gcf()
+            ax = fig.gca()
+            fig.set_tight_layout(True)  # make the margins tighter
+            if show_composite:  # show composite with real patches
+                composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
+                ax.imshow(composite)
+            else:  # show cleaner background without the patches
+                background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
+                ax.imshow(background, cmap='gray')
+            ax.set_title(str(current_folder[-48:-9]))
+            # Plot them patches
+            if is_plot_patches:
+                patch_densities = metadata["patch_densities"]
+                patch_centers = metadata["patch_centers"]
+                x_list, y_list = plot_patches([current_folder], is_plot=False)
+                for i_patch in range(len(patch_centers)):
+                    ax.plot(x_list[i_patch], y_list[i_patch], color='yellow')
+                    # to show density, add this to previous call: , alpha=patch_densities[i_patch][0]
+                    # ax.annotate(str(i_patch), xy=(patch_centers[i_patch][0] + 80, patch_centers[i_patch][1] + 80), color='white')
+
+        # In any case, plot worm trajectory
+        # Plot the trajectory with a colormap based on the speed of the worm
+        if plot_speed:
+            distance_list = current_traj.reset_index()["distances"]
+            normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
+            plt.scatter(current_list_x, current_list_y, c=distance_list, cmap="hot", norm=normalize, s=1)
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                if n_plate > n_max:
-                    plt.show()
-                    n_plate = 1
-                if len(plate_list) != 1:
-                    plt.subplot(n_max // 2, n_max // 2, n_plate)
-                    n_plate += 1
-                # Show background and patches
-                fig = plt.gcf()
-                ax = fig.gca()
-                fig.set_tight_layout(True)  # make the margins tighter
-                if show_composite:  # show composite with real patches
-                    composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
-                    ax.imshow(composite)
-                else:  # show cleaner background without the patches
-                    background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
-                    ax.imshow(background, cmap='gray')
-                ax.set_title(str(current_folder[-48:-9]))
-                # Plot them patches
-                if is_plot_patches:
-                    patch_densities = metadata["patch_densities"]
-                    patch_centers = metadata["patch_centers"]
-                    x_list, y_list = plot_patches([current_folder], show_composite=False, is_plot=False)
-                    for i_patch in range(len(patch_centers)):
-                        ax.plot(x_list[i_patch], y_list[i_patch], color='yellow', alpha=patch_densities[i_patch])
-                        ax.annotate(str(i_patch), xy=(patch_centers[i_patch][0] + 80, patch_centers[i_patch][1] + 80),
-                                    color='white')
+                plt.colorbar()
 
-            # Plot worm trajectory
-            # Plot the trajectory with a colormap based on the speed of the worm
-            if plot_speed:
-                distance_list = current_traj.reset_index()["distances"]
-                normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
-                plt.scatter(current_list_x, current_list_y, c=distance_list, cmap="hot", norm=normalize, s=1)
-                if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                    plt.colorbar()
+        # Plot the trajectory with a colormap based on time
+        if plot_time:
+            nb_of_timepoints = len(current_list_x)
+            bin_size = 100
+            # colors = plt.cm.jet(np.linspace(0, 1, nb_of_timepoints//bin_size))
+            for bin in range(nb_of_timepoints // bin_size):
+                lower_bound = bin * bin_size
+                upper_bound = min((bin + 1) * bin_size, len(current_list_x))
+                plt.scatter(current_list_x[lower_bound:upper_bound], current_list_y[lower_bound:upper_bound],
+                            c=range(lower_bound, upper_bound), cmap="hot", s=0.5)
+            if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
+                plt.colorbar()
 
-            # Plot the trajectory with a colormap based on time
-            if plot_time:
-                nb_of_timepoints = len(current_list_x)
-                bin_size = 100
-                # colors = plt.cm.jet(np.linspace(0, 1, nb_of_timepoints//bin_size))
-                for bin in range(nb_of_timepoints // bin_size):
-                    lower_bound = bin * bin_size
-                    upper_bound = min((bin + 1) * bin_size, len(current_list_x))
-                    plt.scatter(current_list_x[lower_bound:upper_bound], current_list_y[lower_bound:upper_bound],
-                                c=range(lower_bound, upper_bound), cmap="hot", s=0.5)
-                if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                    plt.colorbar()
+        # Plot black dots when the worm is inside
+        if plot_in_patch:
+            plt.scatter(current_list_x, current_list_y, color=colors[i_folder], s=.5)
+            indexes_in_patch = np.where(current_traj["patch"] != -1)
+            plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black',
+                        s=.5, zorder=1.5)
 
-            # Plot black dots when the worm is inside
-            if plot_in_patch:
-                plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s=.5)
-                indexes_in_patch = np.where(current_traj["patch"] != -1)
-                plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black',
-                            s=.5)
-
-            # Plot markers where the tracks start, interrupt and restart
-            if plot_continuity:
-                # Tracking stops
-                plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color="red")
-                # Tracking restarts
-                if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="black", s=100)
-                    previous_folder = current_folder
-                # First tracked point
-                else:
-                    plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="green")
-
-            # Plot the trajectory, one color per worm
+        # Plot markers where the tracks start, interrupt and restart
+        if plot_continuity:
+            # Tracking stops
+            plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color="red")
+            # Tracking restarts
+            if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
+                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="black", s=100)
+            # First tracked point
             else:
-                plt.scatter(current_list_x, current_list_y, color=colors[i_worm], s=.5)
+                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="green")
+
+        # Plot the trajectory, one color per worm
+        else:
+            plt.scatter(current_list_x, current_list_y, color=colors[i_folder], s=.5)
+
+        previous_folder = current_folder
 
     plt.show()
 
@@ -462,7 +467,6 @@ def visit_time_as_a_function_of(result_table, variable):
         list_of_visit_lengths = []
         list_of_previous_transit_lengths = []
         starts_with_visit = False
-        ends_with_transit = False
         for i_plate in range(len(result_table)):
             list_of_visits = list(json.loads(result_table["aggregated_raw_visits"][i_plate]))
             list_of_transits = list(json.loads(result_table["aggregated_raw_transits"][i_plate]))
@@ -475,31 +479,32 @@ def visit_time_as_a_function_of(result_table, variable):
                 # If there are consecutive visits/transits, we count them to still look at temporally consecutive visits and transits
                 double_transits = 0
                 double_visits = 0
-                while i_visit + double_visits < len(list_of_visits):
+                while i_visit < len(list_of_visits):
                     if verbose:
                         print("Nb of visits = ", len(list_of_visits), ", nb of transits = ", len(list_of_transits), ", i_visit = ", i_visit, "starts_with = ", starts_with_visit)
                         print("double_transits = ", double_transits, ", double_visits = ", double_visits)
-                    current_visit = list_of_visits[i_visit + double_visits]  # True = 1 in Python
+                    current_visit = list_of_visits[i_visit]  # True = 1 in Python
                     # When the video starts with a visit, visit 1 has to be compared to transit 0
                     # Otherwise, visit 0 has to be compared to transit 0
-                    current_transit = list_of_transits[i_visit + double_transits - double_visits + starts_with_visit]
+                    current_transit = list_of_transits[i_visit + double_transits - starts_with_visit]
                     # Check that this is the right transit:
                     if current_visit[0] == current_transit[1]:
                         list_of_visit_lengths.append(current_visit[1]-current_visit[0]+1)
                         list_of_previous_transit_lengths.append(current_transit[1]-current_transit[0]+1)
+                        i_visit += 1
                     else:
                         # Take care of any extra visit/transit that's in the way
                         while current_visit[0] > current_transit[1]:  # there were two consecutive transits
                             double_transits += 1
-                            current_transit = list_of_transits[i_visit - starts_with_visit - double_visits + double_transits]
+                            current_transit = list_of_transits[i_visit - starts_with_visit + double_transits]
                             # We add this extra transit to the previous transit length
                             list_of_previous_transit_lengths[-1] += current_transit[1]-current_transit[0]+1
                         while current_visit[0] < current_transit[1]:  # there were two consecutive visits
+                            i_visit += 1
                             double_visits += 1
-                            current_visit = list_of_visits[i_visit + double_visits]
+                            current_visit = list_of_visits[i_visit]
                             # We add this extra transit to the previous transit length
                             list_of_visit_lengths[-1] += current_visit[1]-current_visit[0]+1
-                    i_visit += 1
         plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths)
         plt.show()
 
@@ -767,7 +772,7 @@ print("finished retrieving stuff")
 # plot_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
 # plot_data_coverage(trajectories)
-# plot_traj(trajectories, 2, n_max = 4, is_plot_patches = True, show_composite = True, plot_in_patch = True, plot_continuity = True, plot_speed = False, plot_time = False)
+# plot_traj(trajectories, 7, n_max=4, is_plot_patches=True, show_composite=False, plot_in_patch=True, plot_continuity=False, plot_speed=False, plot_time=False)
 # plot_graphs(plot_visit_duration=True)
 # plot_speed_time_window_list(trajectories, [100, 1000, 10000], 1, out_patch=True)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=True, past_speed=False)
