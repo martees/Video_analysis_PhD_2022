@@ -498,7 +498,7 @@ def fill_holes(data_per_id):
                             i_next_next_track += 1
                         if list_of_visits[i_next_next_track]:  # if a next next visit was found in the end
                             next_next_visit_start = list_of_visits[i_next_next_track][0][0]
-                # Otherwise we won't be looking for a next next visit
+            # Otherwise we won't be looking for a next next visit
             elif not is_last_visit:  # not the last visit (so if it's a middle visit and not the last of the last track)
                 next_visit_start = list_of_visits[i_track][i_visit + 1][0]
                 next_visit_end = list_of_visits[i_track][i_visit + 1][1]
@@ -517,7 +517,7 @@ def fill_holes(data_per_id):
                         if data_per_id["first_tracked_position_patch"][i_next_track] == -1:
                             corrected_list_of_transits.append([current_visit_end, next_visit_start, -1])
                         # BAD HOLES: IF THE TRACKING ENDS OUT IT SHOULD NOT START ELSEWHERE
-                        # Else if the tracking restarts elsewhere, just end current transit at last frame
+                        # So if the tracking restarts elsewhere, just end current transit at last frame
                         else:
                             corrected_list_of_transits.append([current_visit_end, data_per_id["last_frame"][i_next_track - 1], -1])
                     # Case where the tracking stops when the worm is inside, and it's not the last hole

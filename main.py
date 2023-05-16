@@ -375,6 +375,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
             # Pick a random time to look at, cannot be before window_size otherwise not enough past for avg food
             for i_resample in range(nb_resamples):
                 #TODO correct this interval, it should be between last frame and first frame that is at least window size
+                #TODO try to debug the random time picker, seems theres sth weird?
                 random_time = random.randint(window_size, len(current_traj)-1)
 
                 # Only take current times such as the worm is inside a patch
@@ -431,6 +432,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
             # and plot individual points
             plt.scatter([2 * i_window + list_of_food_bins[i_bin] for _ in range(len(list_curr_speed_this_bin))],
                         list_curr_speed_this_bin, zorder=2, color="gray")
+            # Plot violins in the bgd
             try:
                 plt.violinplot(list_curr_speed_this_bin, positions=[2 * i_window + list_of_food_bins[i_bin]])
             except ValueError:
@@ -462,50 +464,130 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 #     plt.plot(reformatted_trajectory[0],reformatted_trajectory[1])
 
 
-def visit_time_as_a_function_of(result_table, variable):
+def visit_time_as_a_function_of(plot_title, condition_list, variable, condition_names):
+    """
+    Takes a condition list and a variable and will plot visit time against this variable for the selected conditions
+    """
     if variable == "last_travel_time":
-        list_of_visit_lengths = []
-        list_of_previous_transit_lengths = []
+        full_visit_list = [[] for _ in range(len(condition_list))]
+        full_transit_list = [[] for _ in range(len(condition_list))]
+        folder_list = []
+        for condition in condition_list:
+            folder_list += fd.return_folder_list_one_condition(results["folder"], condition)
         starts_with_visit = False
-        for i_plate in range(len(result_table)):
-            list_of_visits = list(json.loads(result_table["aggregated_raw_visits"][i_plate]))
-            list_of_transits = list(json.loads(result_table["aggregated_raw_transits"][i_plate]))
+        # colors = plt.cm.viridis(np.linspace(0, 1, len(condition_list)))
+        for i_plate in range(len(folder_list)):
+            # Initialization
+            # Slice to one plate
+            current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
+            # Visit and transit lists
+            list_of_visits = list(json.loads(current_plate["aggregated_raw_visits"][0]))
+            list_of_transits = list(json.loads(current_plate["aggregated_raw_transits"][0]))
+            # Lists that we'll plot
+            list_of_visit_lengths = []
+            list_of_previous_transit_lengths = []
+
             if list_of_visits and list_of_transits:  # if there's at least one visit and one transit
+                last_tracked_frame = max(list_of_visits[-1][1], list_of_transits[-1][1])  # for later computations
                 # Check whether the plate starts and ends with a visit or a transit
                 if list_of_visits[0][0] < list_of_transits[0][0]:
                     starts_with_visit = True
                 # If it starts with a visit we only start at visit 1 (visit 0 has no previous transit)
-                i_visit = starts_with_visit
+                i_visit = int(starts_with_visit)
                 # If there are consecutive visits/transits, we count them to still look at temporally consecutive visits and transits
                 double_transits = 0
                 double_visits = 0
                 while i_visit < len(list_of_visits):
-                    if verbose:
-                        print("Nb of visits = ", len(list_of_visits), ", nb of transits = ", len(list_of_transits), ", i_visit = ", i_visit, "starts_with = ", starts_with_visit)
-                        print("double_transits = ", double_transits, ", double_visits = ", double_visits)
-                    current_visit = list_of_visits[i_visit]  # True = 1 in Python
-                    # When the video starts with a visit, visit 1 has to be compared to transit 0
+
+                    current_visit = list_of_visits[i_visit]
+                    # Index to find the previous transit
+                    # When the video starts with a visit, visit 1 has to be compared to transit 0 (True = 1 in Python)
                     # Otherwise, visit 0 has to be compared to transit 0
-                    current_transit = list_of_transits[i_visit + double_transits - starts_with_visit]
-                    # Check that this is the right transit:
-                    if current_visit[0] == current_transit[1]:
-                        list_of_visit_lengths.append(current_visit[1]-current_visit[0]+1)
-                        list_of_previous_transit_lengths.append(current_transit[1]-current_transit[0]+1)
+                    # We remove double_visits because successive visits increase i_visit without going through transits
+                    # We add double_transits to account for multiple successive transits that don't go through the visits
+                    i_transit = i_visit - double_visits + double_transits - starts_with_visit
+                    current_transit = list_of_transits[i_transit]
+
+                    # Debugging shit
+                    if verbose:
+                        print(current_plate["folder"][0])
+                        print("Nb of visits = ", len(list_of_visits), ", nb of transits = ", len(list_of_transits),
+                              ", i_visit = ", i_visit, "starts_with = ", starts_with_visit)
+                        print("double_transits = ", double_transits, ", double_visits = ", double_visits)
+                        print("current transit : [", current_transit[0], ", ", current_transit[1], "]")
+                        print("current visit : [", current_visit[0], ", ", current_visit[1], "]")
+
+                    # First start a new entry in the duration lists
+                    list_of_previous_transit_lengths.append(current_transit[1]-current_transit[0]+1)
+                    list_of_visit_lengths.append(current_visit[1] - current_visit[0] + 1)
+
+                    # Then check that we're comparing the right visit(s) with the right transit(s)
+                    # (because there can be multiple consecutive transits w/o visits and vice versa)
+
+                    # If the current visit doesn't start when the current transit ends it means that there are extra transits
+                    if current_visit[0] > current_transit[1]:
+                        # Take care of any extra transit that's in the way
+                        # This transit exists if the current visit starts after the current transit ends
+                        while current_visit[0] > current_transit[1] and i_transit + 1 < len(list_of_transits):
+                            # Compute next transit
+                            current_transit = list_of_transits[i_transit + 1]
+                            if verbose:
+                                print("additional transit : [", current_transit[0], ", ", current_transit[1], "]")
+                            # IF this next transit ends before the current visit starts
+                            # THEN it means there's really a double transit (otherwise it means there's a hole in the tracking)
+                            if current_visit[0] > current_transit[1]:
+                                i_transit += 1  # we add one to this counter to remember there was a double transit for this loop only
+                                double_transits += 1  # we add one to this counter to remember there was a double transit next time we update i_transit
+                                # We add it to the previous transit length
+                                list_of_previous_transit_lengths[-1] += current_transit[1]-current_transit[0]+1
+
+                    # Now let's check if we have all the consecutive visits before the next transit
+                    next_transit_start = 0
+                    if i_visit + double_transits - starts_with_visit + 1 < len(list_of_transits):
+                        next_transit_start = list_of_transits[i_transit + 1][0]
+                    # While it is not the last visit, and it doesn't either end with the video or ends at the same time as the next transit
+                    while i_visit + 1 < len(list_of_visits) and not (current_visit[1] == last_tracked_frame or current_visit[1] >= next_transit_start):
+                        # There are no transits before this next visit, so we account for it here
                         i_visit += 1
-                    else:
-                        # Take care of any extra visit/transit that's in the way
-                        while current_visit[0] > current_transit[1]:  # there were two consecutive transits
-                            double_transits += 1
-                            current_transit = list_of_transits[i_visit - starts_with_visit + double_transits]
-                            # We add this extra transit to the previous transit length
-                            list_of_previous_transit_lengths[-1] += current_transit[1]-current_transit[0]+1
-                        while current_visit[0] < current_transit[1]:  # there were two consecutive visits
-                            i_visit += 1
-                            double_visits += 1
-                            current_visit = list_of_visits[i_visit]
-                            # We add this extra transit to the previous transit length
-                            list_of_visit_lengths[-1] += current_visit[1]-current_visit[0]+1
-        plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths)
+                        double_visits += 1
+                        current_visit = list_of_visits[i_visit]
+                        if verbose:
+                            print("additional visit : [", current_visit[0], ", ", current_visit[1], "]")
+                        # We add this extra transit to the previous transit length
+                        list_of_visit_lengths[-1] += current_visit[1] - current_visit[0] + 1
+
+                    # Go to next visit!
+                    i_visit += 1
+
+            condition = fd.folder_to_metadata(current_plate["folder"][0])["condition"][0]
+            i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
+            # plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths, color=colors[i_condition], label=str(condition_names[i_condition]), zorder=i_condition)
+
+            # For plotting
+            full_visit_list[i_condition] += list_of_visit_lengths
+            full_transit_list[i_condition] += list_of_previous_transit_lengths
+
+        nb_cond = len(condition_list)
+        for i_cond in range(nb_cond):
+            plt.subplot(1, nb_cond, i_cond+1)
+            fig = plt.gcf()
+            ax = fig.gca()
+            fig.set_tight_layout(True)
+            ax.set_title(str(condition_names[i_cond]))
+            ax.set_xlabel("Previous transit duration")
+            ax.set_ylabel("Visit duration")
+            plt.hist2d(full_transit_list[i_cond], full_visit_list[i_cond], range=[[0, 2000], [0, 2000]],
+                       bins=[100, 100], cmap="viridis", norm="log")
+
+        fig = plt.gcf()
+        fig.set_size_inches(5*nb_cond, 6)
+        plt.suptitle(plot_title)
+
+        ## Plot legend with every label just once
+        #handles, labels = plt.gca().get_legend_handles_labels()
+        #by_label = dict(zip(labels, handles))
+        #plt.legend(by_label.values(), by_label.keys())
+
         plt.show()
 
 
@@ -641,8 +723,8 @@ def plot_data_coverage(traj):
     plt.show()
 
 
-def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False, plot_visit_rate=False,
-                plot_proportion=False, plot_full=False):
+def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False, plot_transit_duration=False,
+                plot_visit_duration_analysis=False, plot_visit_rate=False, plot_proportion=False, plot_full=False):
     # Data quality
     if plot_quality:
         plot_selected_data("Average proportion of double frames in all densities", 0, 11,
@@ -666,6 +748,20 @@ def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False,
                             "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "buffer"], divided_by="",
                            mycolor="green")
 
+        plot_selected_data("Average speed in low densities (inside)", [0, 1, 2, 11], "average_speed_inside",
+                           ["close 0.2", "med 0.2", "far 0.2", "control"], divided_by="",
+                           mycolor="brown")
+        plot_selected_data("Average speed in low densities (outside)", [0, 1, 2, 11], "average_speed_outside",
+                           ["close 0.2", "med 0.2", "far 0.2", "control"], divided_by="",
+                           mycolor="brown")
+
+        plot_selected_data("Average speed in medium densities (inside)", [4, 5, 6, 11], "average_speed_inside",
+                           ["close 0.5", "med 0.5", "far 0.5", "control"], divided_by="",
+                           mycolor="orange")
+        plot_selected_data("Average speed in medium densities (outside)", [4, 5, 6, 11], "average_speed_outside",
+                           ["close 0.5", "med 0.5", "far 0.5", "control"], divided_by="",
+                           mycolor="orange")
+
     # Visits plots
     if plot_visit_duration:
         plot_selected_data("Average duration of visits in low densities", [0, 1, 2, 11], "total_visit_time",
@@ -679,6 +775,21 @@ def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False,
                            ["close 0.5", "med 0.5", "far 0.5", "control"], divided_by="mvt_nb_of_visits",
                            mycolor="orange")
 
+    # Transits plots
+    if plot_transit_duration:
+        plot_selected_data("Average duration of transits in low densities", [0, 1, 2, 11], "total_transit_time",
+                           ["close 0.2", "med 0.2", "far 0.2", "control"], divided_by="nb_of_visits", mycolor="brown")
+        plot_selected_data("Average duration of transits in medium densities", [4, 5, 6, 11], "total_transit_time",
+                           ["close 0.5", "med 0.5", "far 0.5", "control"], divided_by="nb_of_visits", mycolor="orange")
+
+    if plot_visit_duration_analysis:
+        visit_time_as_a_function_of("Visit duration vs. previous transit in low densities", [0, 1, 2, 3, 11],
+                                    "last_travel_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "control"])
+
+        visit_time_as_a_function_of("Visit duration vs. previous transit in medium densities", [4, 5, 6, 7, 11],
+                                    "last_travel_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "control"])
+
+    # Visit rate plots
     if plot_visit_rate:
         plot_selected_data("Average visit rate in low densities", [0, 1, 2, 11], "nb_of_visits",
                            ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], divided_by="total_video_time",
@@ -693,6 +804,7 @@ def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False,
                            ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], divided_by="total_video_time",
                            mycolor="orange")
 
+    # Proportion of visited patches plots
     if plot_proportion:
         plot_selected_data("Average proportion of time spent in patches in low densities", [0, 1, 2, 11],
                            "total_visit_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"],
@@ -773,15 +885,16 @@ print("finished retrieving stuff")
 # plot_avg_furthest_patch()
 # plot_data_coverage(trajectories)
 # plot_traj(trajectories, 7, n_max=4, is_plot_patches=True, show_composite=False, plot_in_patch=True, plot_continuity=False, plot_speed=False, plot_time=False)
-# plot_graphs(plot_visit_duration=True)
+plot_graphs(plot_visit_duration_analysis=True)
 # plot_speed_time_window_list(trajectories, [100, 1000, 10000], 1, out_patch=True)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=True, past_speed=False)
 # binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 100, 1000], [0, 0.6, 0.8, 0.9, 1], 1, out_patch=True)
-visit_time_as_a_function_of(results, "last_travel_time")
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
 # TODO function that shows length of (first) visit to a patch as a function of last travel time / average feeding rate in window
+
+# TODO review fill_holes function to double-check what it does to bad holes...
 
 # TODO movement stuff between patches: speed, turning rate, MSD over time
 # TODO radial_tolerance in a useful way
