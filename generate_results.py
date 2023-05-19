@@ -144,8 +144,8 @@ def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
 def single_traj_analysis(which_patch_list, list_of_frames, patch_centers):
     """
     Takes a list containing the patch where the worm is at each timestep, a list of frames to which each data point
-    corresponds, a list of patch centers ([[x0,y0],...,[xN,yN]]), and the first recorded position for that worm [x,y]
-    For now, uses the unique patch_radius defined as a global parameter.
+    corresponds, a list of patch centers ([[x0,y0],...,[xN,yN]]) (just a handy way of accessing the number of patches in
+    that condition)
     Returns a list [[[d0,d1],...], [[d0,d1],...],...] with one list per patch
     each sublist contains the time stamps of the beginning and end of visits to each patch
     so len(output[0]) is the number of visits to the first patch
