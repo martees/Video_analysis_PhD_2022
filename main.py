@@ -472,14 +472,18 @@ def visit_time_as_a_function_of(plot_title, condition_list, variable, condition_
     """
     Takes a condition list and a variable and will plot visit time against this variable for the selected conditions
     """
+
+    # Fill the folder list up (list of folders corresponding to the conditions in condition_list)
+    folder_list = []
+    for condition in condition_list:
+        folder_list += fd.return_folder_list_one_condition(results["folder"], condition)
+
+    # Fill up the lists depending on the variable specified as an argument
+
     if variable == "last_travel_time":
         full_visit_list = [[] for _ in range(len(condition_list))]
-        full_transit_list = [[] for _ in range(len(condition_list))]
-        folder_list = []
-        for condition in condition_list:
-            folder_list += fd.return_folder_list_one_condition(results["folder"], condition)
+        full_variable_list = [[] for _ in range(len(condition_list))]
         starts_with_visit = False
-        # colors = plt.cm.viridis(np.linspace(0, 1, len(condition_list)))
         for i_plate in range(len(folder_list)):
             # Initialization
             # Slice to one plate
@@ -487,7 +491,7 @@ def visit_time_as_a_function_of(plot_title, condition_list, variable, condition_
             # Visit and transit lists
             list_of_visits = list(json.loads(current_plate["aggregated_raw_visits"][0]))
             list_of_transits = list(json.loads(current_plate["aggregated_raw_transits"][0]))
-            # Lists that we'll plot
+            # Lists that we'll fill up for this plate
             list_of_visit_lengths = []
             list_of_previous_transit_lengths = []
 
@@ -502,7 +506,6 @@ def visit_time_as_a_function_of(plot_title, condition_list, variable, condition_
                 double_transits = 0
                 double_visits = 0
                 while i_visit < len(list_of_visits):
-
                     current_visit = list_of_visits[i_visit]
                     # Index to find the previous transit
                     # When the video starts with a visit, visit 1 has to be compared to transit 0 (True = 1 in Python)
@@ -569,7 +572,24 @@ def visit_time_as_a_function_of(plot_title, condition_list, variable, condition_
 
             # For plotting
             full_visit_list[i_condition] += list_of_visit_lengths
-            full_transit_list[i_condition] += list_of_previous_transit_lengths
+            full_variable_list[i_condition] += list_of_previous_transit_lengths
+
+        if variable == "visit_start":
+            full_visit_list = [[] for _ in range(len(condition_list))]
+            full_variable_list = [[] for _ in range(len(condition_list))]
+            for i_plate in range(len(folder_list)):
+                # Initialization
+                # Slice to one plate
+                current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
+                # Visit and transit lists
+                list_of_visits = list(json.loads(current_plate["aggregated_raw_visits"][0]))
+                # Information about condition
+                condition = fd.folder_to_metadata(current_plate["folder"][0])["condition"][0]
+                i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
+                for i_visit in range(len(list_of_visits)):
+                    current_visit = list_of_visits[i_visit]
+                    full_visit_list[i_condition] += current_visit[1] - current_visit[0] + 1
+                    full_variable_list[i_condition] += current_visit[0]
 
         nb_cond = len(condition_list)
         for i_cond in range(nb_cond):
@@ -578,10 +598,11 @@ def visit_time_as_a_function_of(plot_title, condition_list, variable, condition_
             ax = fig.gca()
             fig.set_tight_layout(True)
             ax.set_title(str(condition_names[i_cond]))
-            ax.set_xlabel("Previous transit duration")
+            ax.set_xlabel(variable)
             ax.set_ylabel("Visit duration")
-            plt.hist2d(full_transit_list[i_cond], full_visit_list[i_cond], range=[[0, 2000], [0, 2000]],
-                       bins=[100, 100], cmap="viridis", norm="log")
+            plt.hist2d(full_variable_list[i_cond], full_visit_list[i_cond],
+                       bins=[100, 100], norm=mplcolors.LogNorm(), cmap="viridis")
+            # for axis limits control, add range= [[x0,xmax],[y0,ymax]] in arguments
 
         fig = plt.gcf()
         fig.set_size_inches(5*nb_cond, 6)
@@ -793,6 +814,12 @@ def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False,
         visit_time_as_a_function_of("Visit duration vs. previous transit in medium densities", [4, 5, 6, 7, 11],
                                     "last_travel_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "control"])
 
+        visit_time_as_a_function_of("Visit duration vs. visit start in low densities", [0, 1, 2, 3, 11],
+                                    "visit_start", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "control"])
+
+        visit_time_as_a_function_of("Visit duration vs. visit start in medium densities", [4, 5, 6, 7, 11],
+                                    "visit_start", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "control"])
+
     # Visit rate plots
     if plot_visit_rate:
         plot_selected_data("Average visit rate in low densities", [0, 1, 2, 11], "nb_of_visits",
@@ -889,10 +916,10 @@ print("finished retrieving stuff")
 # plot_avg_furthest_patch()
 # plot_data_coverage(trajectories)
 # plot_traj(trajectories, 7, n_max=4, is_plot_patches=True, show_composite=False, plot_in_patch=True, plot_continuity=False, plot_speed=False, plot_time=False)
-# plot_graphs(plot_visit_duration_analysis=True)
+plot_graphs(plot_visit_duration_analysis=True)
 # plot_speed_time_window_list(trajectories, [100, 1000, 10000], 1, out_patch=True)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=False, past_speed=True)
-binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 11], [1], [0, 1], 1)
+# binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 11], [1], [0, 1], 1)
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
