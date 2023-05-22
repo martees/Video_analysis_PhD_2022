@@ -2,14 +2,12 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-import math
+import pandas as pd
 
 # My code
 import plots
 import generate_results as gr
 import find_data as fd
-from param import *
-
 
 def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False, plot_transit_duration=False,
                 plot_visit_duration_analysis=False, plot_visit_rate=False, plot_proportion=False, plot_full=False):
@@ -86,17 +84,23 @@ def plot_graphs(plot_quality=False, plot_speed=False, plot_visit_duration=False,
                                  mycolor="orange")
 
     if plot_visit_duration_analysis:
-        plots.plot_visit_time(results, "Visit duration vs. previous transit in low densities", [0, 1, 2, 3, 11],
+        plots.plot_visit_time(results, trajectories, "Visit duration vs. previous transit in low densities", [0, 1, 2, 3, 11],
                               "last_travel_time", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "control"])
 
-        plots.plot_visit_time(results, "Visit duration vs. previous transit in medium densities", [4, 5, 6, 7, 11],
+        plots.plot_visit_time(results, trajectories, "Visit duration vs. previous transit in medium densities", [4, 5, 6, 7, 11],
                               "last_travel_time", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "control"])
 
-        plots.plot_visit_time(results, "Visit duration vs. visit start in low densities", [0, 1, 2, 3, 11],
+        plots.plot_visit_time(results, trajectories, "Visit duration vs. visit start in low densities", [0, 1, 2, 3, 11],
                               "visit_start", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "control"])
 
-        plots.plot_visit_time(results, "Visit duration vs. visit start in medium densities", [4, 5, 6, 7, 11],
+        plots.plot_visit_time(results, trajectories, "Visit duration vs. visit start in medium densities", [4, 5, 6, 7, 11],
                               "visit_start", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "control"])
+
+        plots.plot_visit_time(results, trajectories, "Visit duration vs. visit start in low densities", [0, 1, 2, 3, 11],
+                              "speed_when_entering", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "control"])
+
+        plots.plot_visit_time(results, trajectories, "Visit duration vs. visit start in medium densities", [4, 5, 6, 7, 11],
+                              "speed_when_entering", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5", "control"])
 
     # Visit rate plots
     if plot_visit_rate:
@@ -162,7 +166,7 @@ else:  # Windows path
 ####### "results_per_plate.csv":
 ####### "clean_results.csv":
 # Will regenerate the dataset from the first True boolean
-regenerate_trajectories = True
+regenerate_trajectories = False
 regenerate_results_per_id = False
 regenerate_results_per_plate = False
 regenerate_clean_results = False
@@ -186,7 +190,10 @@ elif regenerate_clean_results:
     gr.generate_clean_tables_and_speed(path)
 
 # Retrieve results from what generate_and_save has saved
-trajectories = pd.read_csv(path + "clean_trajectories.csv")
+if fd.is_linux():  # Linux path
+    trajectories = pd.read_csv(path + " clean_trajectories.csv")
+else:  # Windows path
+    trajectories = pd.read_csv(path + "trajectories.csv")
 results = pd.read_csv(path + "clean_results.csv")
 
 print("finished retrieving stuff")
@@ -195,12 +202,14 @@ print("finished retrieving stuff")
 # plot_avg_furthest_patch()
 # plot_data_coverage(trajectories)
 # plot_traj(trajectories, 11, n_max=4, is_plot_patches=True, show_composite=False, plot_in_patch=True, plot_continuity=False, plot_speed=False, plot_time=False)
-# plot_graphs(plot_speed=True)
+plot_graphs(plot_visit_duration_analysis=True)
 # plot_speed_time_window_list(trajectories, [1, 100, 1000], 1, out_patch=True)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=False, past_speed=True)
 
-binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [1, 100, 1000], [0, 1],
-                                          1)
+# binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [1, 100, 1000], [0, 1], 1)
+
+# plots.plot_test(results)
+
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)

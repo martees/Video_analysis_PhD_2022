@@ -1,9 +1,8 @@
 import numpy as np
-import pandas as pd
+from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 import matplotlib.colors as mplcolors
 import random
-import json
 
 import analysis as ana
 
@@ -503,10 +502,10 @@ def plot_selected_data(results, plot_title, condition_list, column_name, conditi
     plt.show()
 
 
-def plot_visit_time(results, plot_title, condition_list, variable, condition_names):
+def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names):
 
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
-    full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, condition_list, variable)
+    full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable)
 
     # Plot the thing
     nb_cond = len(condition_list)
@@ -518,14 +517,14 @@ def plot_visit_time(results, plot_title, condition_list, variable, condition_nam
         ax.set_title(str(condition_names[i_cond]))
         ax.set_xlabel(variable)
         ax.set_ylabel("Visit duration")
-        plt.hist2d(full_variable_list[i_cond], full_visit_list[i_cond],
+        plt.hist2d(full_variable_list[i_cond], full_visit_list[i_cond], range=[[0,2000],[0,2000]],
                    bins=[100, 100], norm=mplcolors.LogNorm(), cmap="viridis")
         # for axis limits control, add range= [[x0,xmax],[y0,ymax]] in arguments
 
         # Plotting a linear regression on the thing
         coef = np.polyfit(full_variable_list[i_cond], full_visit_list[i_cond], 1)
         line_function = np.poly1d(coef)  # function which takes in x and returns an estimate for y
-        plt.plot(full_variable_list[i_cond], line_function)
+        plt.plot(full_variable_list[i_cond], line_function(full_variable_list[i_cond]))
 
     # Displaying everything with a nice size
     fig = plt.gcf()
@@ -538,3 +537,10 @@ def plot_visit_time(results, plot_title, condition_list, variable, condition_nam
     # plt.legend(by_label.values(), by_label.keys())
 
     plt.show()
+
+
+def plot_test(results):
+    full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, [0], "visit_start")
+    plt.scatter(full_visit_list, full_variable_list)
+    plt.show()
+

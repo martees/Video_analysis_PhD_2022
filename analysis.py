@@ -4,7 +4,7 @@ import json
 
 # My code
 from param import *
-
+import find_data as fd
 
 def bottestrop_ci(data, nb_resample):
     """
@@ -107,7 +107,7 @@ def results_per_condition(result_table, column_name, divided_by=""):
     return list_of_conditions, full_list_of_values, list_of_avg_values, [list(errors_inf), list(errors_sup)]
 
 
-def visit_time_as_a_function_of(results, condition_list, variable):
+def visit_time_as_a_function_of(results, traj, condition_list, variable):
     """
     Takes a condition list and a variable and will plot visit time against this variable for the selected conditions
     """
@@ -117,11 +117,13 @@ def visit_time_as_a_function_of(results, condition_list, variable):
     for condition in condition_list:
         folder_list += fd.return_folder_list_one_condition(results["folder"], condition)
 
+    # Initialize the lists that will be returned
+    full_visit_list = [[] for _ in range(len(condition_list))]
+    full_variable_list = [[] for _ in range(len(condition_list))]
+
     # Fill up the lists depending on the variable specified as an argument
 
     if variable == "last_travel_time":
-        full_visit_list = [[] for _ in range(len(condition_list))]
-        full_variable_list = [[] for _ in range(len(condition_list))]
         starts_with_visit = False
         for i_plate in range(len(folder_list)):
             # Initialization
@@ -214,9 +216,7 @@ def visit_time_as_a_function_of(results, condition_list, variable):
             full_visit_list[i_condition] += list_of_visit_lengths
             full_variable_list[i_condition] += list_of_previous_transit_lengths
 
-    if variable == "visit_start":
-        full_visit_list = [[] for _ in range(len(condition_list))]
-        full_variable_list = [[] for _ in range(len(condition_list))]
+    else:
         for i_plate in range(len(folder_list)):
             # Initialization
             # Slice to one plate
@@ -228,8 +228,12 @@ def visit_time_as_a_function_of(results, condition_list, variable):
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
             for i_visit in range(len(list_of_visits)):
                 current_visit = list_of_visits[i_visit]
-                full_visit_list[i_condition] += current_visit[1] - current_visit[0] + 1
-                full_variable_list[i_condition] += current_visit[0]
+                full_visit_list[i_condition].append(current_visit[1] - current_visit[0] + 1)
+                if variable == "visit_start":
+                    full_variable_list[i_condition].append(current_visit[0])
+                if variable == "speed_when_entering":
+                    speed_when_entering = traj[traj["folder"] == current_plate]["speeds"][0]
+                    full_variable_list[i_condition].append(speed_when_entering)
 
     return full_visit_list, full_variable_list
 
