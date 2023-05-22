@@ -98,14 +98,23 @@ def trajectory_speed(traj):
     Function that takes in our trajectories dataframe, and returns a column with the distance covered by the worm since
     last timestep, in order to compute speed
     """
-    array_x_r = np.array(traj["x"].iloc[1:])
-    array_y_r = np.array(traj["y"].iloc[1:])
-    array_x_l = np.array(traj["x"].iloc[:-1])
-    array_y_l = np.array(traj["y"].iloc[:-1])
+    folder_list = np.unique(traj["folder"])
+    list_of_distances = []
+    for folder in folder_list:
+        current_traj = traj[traj["folder"] == folder].reset_index()
 
-    list_of_distances = np.sqrt((array_x_l - array_x_r) ** 2 + (array_y_l - array_y_r) ** 2)
-    list_of_distances = np.insert(list_of_distances, 0, 0)
+        # Generate shifted versions of our position columns, either shifted leftwards or rightwards
+        array_x_r = np.array(current_traj["x"].iloc[1:])
+        array_y_r = np.array(current_traj["y"].iloc[1:])
+        array_x_l = np.array(current_traj["x"].iloc[:-1])
+        array_y_l = np.array(current_traj["y"].iloc[:-1])
 
+        # Do the computation
+        current_list_of_distances = np.sqrt((array_x_l - array_x_r) ** 2 + (array_y_l - array_y_r) ** 2)
+
+        # Add 0 in the beginning because the first point has no speed
+        current_list_of_distances = np.insert(current_list_of_distances, 0, 0)
+        list_of_distances += list(current_list_of_distances)
     return list_of_distances
 
 

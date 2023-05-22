@@ -364,6 +364,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 
     # This is for x ticks for the final plot
     list_of_x_positions = []
+    colors = plt.cm.plasma(np.linspace(0,len(list_of_time_windows)))
 
     # Fill lists with info for each plate
     for i_window in range(len(list_of_time_windows)):
@@ -378,8 +379,8 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 
             # Pick a random time to look at, cannot be before window_size otherwise not enough past for avg food
             for i_resample in range(nb_resamples):
+
                 #TODO correct this interval, it should be between last frame and first frame that is at least window size
-                #TODO try to debug the random time picker, seems theres sth weird?
                 random_time = random.randint(window_size, len(current_traj)-1)
 
                 # Only take current times such as the worm is inside a patch
@@ -431,14 +432,18 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
             # Once the bin is over, fill stat info for global plot
             binned_avg_speeds[i_bin] = np.mean(list_curr_speed_this_bin)
             errors = bottestrop_ci(list_curr_speed_this_bin, 1000)
-            errorbars_inf.append(errors[0])
-            errorbars_sup.append(errors[1])
+            errorbars_inf.append(binned_avg_speeds[i_bin] - errors[0])
+            errorbars_sup.append(errors[1] - binned_avg_speeds[i_bin])
             # and plot individual points
             plt.scatter([2 * i_window + list_of_food_bins[i_bin] for _ in range(len(list_curr_speed_this_bin))],
                         list_curr_speed_this_bin, zorder=2, color="gray")
             # Plot violins in the bgd
             try:
-                plt.violinplot(list_curr_speed_this_bin, positions=[2 * i_window + list_of_food_bins[i_bin]])
+                violins = plt.violinplot(list_curr_speed_this_bin, positions=[2 * i_window + list_of_food_bins[i_bin]], showextrema=False)
+                # Setting the color of the violins using dark magic
+                for pc in violins['bodies']:
+                    pc.set_facecolor('gray')
+
             except ValueError:
                 pass
             # Indicate on graph the nb of points in each bin
@@ -451,7 +456,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
         x_positions = [2 * i_window + list_of_food_bins[i] for i in range(len(list_of_food_bins))]  # for the bars
         list_of_x_positions += x_positions  # for the final plot
         plt.bar(x_positions, binned_avg_speeds, width=min(0.1, 1/len(list_of_food_bins)), label=str(window_size))
-        plt.errorbar(x_positions, binned_avg_speeds, [errorbars_inf, errorbars_sup], fmt='.k', capsize=5)
+        plt.errorbar(x_positions, binned_avg_speeds, [errorbars_inf, errorbars_sup], fmt='.k', capsize=5, color=colors[i_window])
 
     ax = plt.gca()
     ax.set_xticks(list_of_x_positions)
@@ -883,7 +888,7 @@ else:  # Windows path
 ####### "results_per_plate.csv":
 ####### "clean_results.csv":
 # Will regenerate the dataset from the first True boolean
-regenerate_trajectories = False
+regenerate_trajectories = True
 regenerate_results_per_id = False
 regenerate_results_per_plate = False
 regenerate_clean_results = False
@@ -907,7 +912,7 @@ elif regenerate_clean_results:
     gr.generate_clean_results(path)
 
 # Retrieve results from what generate_and_save has saved
-trajectories = pd.read_csv(path + "trajectories.csv")
+trajectories = pd.read_csv(path + "clean_trajectories.csv")
 results = pd.read_csv(path + "clean_results.csv")
 
 print("finished retrieving stuff")
@@ -915,11 +920,12 @@ print("finished retrieving stuff")
 # plot_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
 # plot_data_coverage(trajectories)
-# plot_traj(trajectories, 7, n_max=4, is_plot_patches=True, show_composite=False, plot_in_patch=True, plot_continuity=False, plot_speed=False, plot_time=False)
-plot_graphs(plot_visit_duration_analysis=True)
-# plot_speed_time_window_list(trajectories, [100, 1000, 10000], 1, out_patch=True)
+plot_traj(trajectories, 11, n_max=4, is_plot_patches=True, show_composite=False, plot_in_patch=True, plot_continuity=False, plot_speed=False, plot_time=False)
+# plot_graphs(plot_speed=True)
+# plot_speed_time_window_list(trajectories, [1, 100, 1000], 1, out_patch=True)
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=False, past_speed=True)
-# binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 11], [1], [0, 1], 1)
+
+# binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [1, 100, 1000], [0, 0.8, 1], 1)
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
