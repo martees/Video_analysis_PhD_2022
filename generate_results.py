@@ -16,9 +16,9 @@ def spline_value(angular_position, spline_breaks, spline_coefs):
     while i < len(spline_breaks) - 1 and angular_position >= spline_breaks[i]:
         i += 1
     # invert coef order
-    coefficients = [spline_coefs[i-1][j] for j in range(len(spline_coefs[i-1])-1, -1, -1)]
+    coefficients = [spline_coefs[i - 1][j] for j in range(len(spline_coefs[i - 1]) - 1, -1, -1)]
     local_polynomial = np.polynomial.polynomial.Polynomial(coefficients)
-    return local_polynomial(angular_position - spline_breaks[i-1])
+    return local_polynomial(angular_position - spline_breaks[i - 1])
 
 
 def in_patch(position, patch_center, spline_breaks, spline_coefs):
@@ -27,7 +27,7 @@ def in_patch(position, patch_center, spline_breaks, spline_coefs):
     uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
     """
     # Compute radial coordinates
-    angular_position = np.arctan2((position[1] - patch_center[1]),(position[0] - patch_center[0]))
+    angular_position = np.arctan2((position[1] - patch_center[1]), (position[0] - patch_center[0]))
     distance_from_center = np.sqrt((position[0] - patch_center[0]) ** 2 + (position[1] - patch_center[1]) ** 2)
 
     # Compute the local radius of the patch spline
@@ -78,13 +78,15 @@ def in_patch_list(traj):
 
             # In case the worm is in the same patch, don't try all the patches (doesn't work if worm is out):
             if patch_where_it_was != -1:
-                if in_patch([list_x[time], list_y[time]], patch_centers[patch_where_it_was], patch_spline_breaks[patch_where_it_was], patch_spline_coefs[patch_where_it_was]):
+                if in_patch([list_x[time], list_y[time]], patch_centers[patch_where_it_was],
+                            patch_spline_breaks[patch_where_it_was], patch_spline_coefs[patch_where_it_was]):
                     patch_where_it_is = patch_where_it_was
 
             # If the worm is out or changed patch, then look for it
             else:
                 for i_patch in range(len(patch_centers)):  # for every patch
-                    if in_patch([list_x[time], list_y[time]], patch_centers[i_patch], patch_spline_breaks[i_patch], patch_spline_coefs[i_patch]):  # check if the worm is in it:
+                    if in_patch([list_x[time], list_y[time]], patch_centers[i_patch], patch_spline_breaks[i_patch],
+                                patch_spline_coefs[i_patch]):  # check if the worm is in it:
                         patch_where_it_is = i_patch  # if it's in it, keep that in mind
 
             # Update list accordingly
@@ -93,13 +95,16 @@ def in_patch_list(traj):
     return list_of_patches
 
 
-def trajectory_speed(traj):
+def trajectory_distances(traj):
     """
     Function that takes in our trajectories dataframe, and returns a column with the distance covered by the worm since
     last timestep, in order to compute speed
     """
+    # Slice the traj file depending on the folder, because we only want to compare one worm to itself
     folder_list = np.unique(traj["folder"])
     list_of_distances = []
+
+    # For each folder, array operation to compute distance
     for folder in folder_list:
         current_traj = traj[traj["folder"] == folder].reset_index()
 
@@ -108,25 +113,56 @@ def trajectory_speed(traj):
         array_y_r = np.array(current_traj["y"].iloc[1:])
         array_x_l = np.array(current_traj["x"].iloc[:-1])
         array_y_l = np.array(current_traj["y"].iloc[:-1])
-
         # Do the computation
         current_list_of_distances = np.sqrt((array_x_l - array_x_r) ** 2 + (array_y_l - array_y_r) ** 2)
-
         # Add 0 in the beginning because the first point has no speed
         current_list_of_distances = np.insert(current_list_of_distances, 0, 0)
+        # Fill the lists that are to be returned
         list_of_distances += list(current_list_of_distances)
+
     return list_of_distances
+
+
+def trajectory_speeds(traj):
+    """
+    Requires the distances to have been computed!
+    Will compute speeds from the distances and frame numbers in the trajectories columns
+    """
+    # Slice the traj file depending on the folder, because we only want to compare one worm to itself
+    folder_list = np.unique(traj["folder"])
+    list_of_speeds = []
+    # For each folder, array operation to compute speed
+    # NOTE: distance and speed should be equal almost all the time, exceptions = points where the tracking is
+    #       interrupted, because there can be multiple frames between to consecutive tracked positions
+    for folder in folder_list:
+        current_traj = traj[traj["folder"] == folder].reset_index()
+        current_list_of_distances = current_traj["distances"]
+
+        # Generate shifted versions of our position columns, either shifted leftwards or rightwards
+        array_frame_r = np.array(current_traj["frame"].iloc[1:])
+        array_frame_l = np.array(current_traj["frame"].iloc[:-1])
+
+        # Compute the number of frames elapsed between each two lines
+        current_list_of_time_steps = array_frame_r - array_frame_l
+        # Add 1 in the beginning because the first point isn't relevant (not zero to avoid division issues)
+        current_list_of_time_steps = np.insert(current_list_of_time_steps, 0, 1)
+        # Compute speeds
+        list_of_speeds += list(current_list_of_distances / current_list_of_time_steps)
+
+    return list_of_speeds
 
 
 def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
     """
     Parameters:
         - the patch where a worm is at each timestep
-        - the speed at which it's runnin'
+        - the list of frame numbers corresponding to each timestep
+        - the distance it has crawled for at each timestep
     Returns:
         - the average speed when inside a patch
         - the average speed when outside a patch
     """
+    # Concept: sum time inside and outside, distance inside and outside, and then DIVIDE (it's an ancient technique)
     which_patch_list = which_patch_list.reset_index()["patch"]
     list_of_frames = list_of_frames.reset_index()["frame"]
     distance_list = distance_list.reset_index()["distances"]
@@ -239,7 +275,8 @@ def mvt_patch_visits(list_of_timestamps, order_of_visits, patch_centers):
                     previous_patch = order_of_visits[i_visit - 2]
                     if current_patch != previous_patch:  # if the worm changed career patch
                         adjusted_list_of_durations[previous_patch].append(0)  # close previous visit
-                adjusted_list_of_durations[current_patch][-1] += current_duration  # in any case add duration to relevant patch
+                adjusted_list_of_durations[current_patch][
+                    -1] += current_duration  # in any case add duration to relevant patch
     # Clean the adjusted durations
     for i_patch in range(len(adjusted_list_of_durations)):
         adjusted_list_of_durations[i_patch] = [nonzero for nonzero in adjusted_list_of_durations[i_patch] if
@@ -248,6 +285,7 @@ def mvt_patch_visits(list_of_timestamps, order_of_visits, patch_centers):
     return adjusted_list_of_durations
 
 
+# Same as before but probably new visit structure?
 def new_mvt_patch_visits(list_of_timestamps, patch_centers):
     """
     Takes a list of time stamps as spitted by single_traj_analysis and returns an adjusted version of those visits
@@ -360,8 +398,7 @@ def make_results_per_id_table(data):
         adjusted_raw_visits = mvt_patch_visits(raw_visit_timestamps, order_of_visits, patch_list)
         # Computing global variables
         duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_duration_sum, adjusted_nb_of_visits = analyse_patch_visits(
-            raw_visit_timestamps, adjusted_raw_visits, \
-            patch_list, first_pos)
+            raw_visit_timestamps, adjusted_raw_visits, patch_list, first_pos)
 
         # Computing average speed
         average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch"], current_data["frame"],
@@ -373,17 +410,22 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "track_id"] = current_track
         results_table.loc[i_track, "total_tracked_time"] = len(current_list_x)  # number of tracked time steps
         results_table.loc[i_track, "raw_visits"] = str(raw_visit_timestamps)  # all visits of all patches
-        results_table.loc[i_track, "better_raw_visits"] = str(better_visit_structure(raw_visit_timestamps))  # all visits of all patches
+        results_table.loc[i_track, "better_raw_visits"] = str(
+            better_visit_structure(raw_visit_timestamps))  # all visits of all patches
         results_table.loc[i_track, "order_of_visits"] = str(order_of_visits)  # patch order of visits
         results_table.loc[i_track, "total_visit_time"] = duration_sum  # total duration of visits
         results_table.loc[i_track, "nb_of_visits"] = nb_of_visits  # total nb of visits
         results_table.loc[i_track, "list_of_visited_patches"] = str(list_of_visited_patches)  # index of patches visited
-        results_table.loc[i_track, "first_recorded_position"] = str(first_pos)  # first position for the whole plate (used to check trajectories)
+        results_table.loc[i_track, "first_recorded_position"] = str(
+            first_pos)  # first position for the whole plate (used to check trajectories)
         results_table.loc[i_track, "first_frame"] = current_data["frame"][0]
-        results_table.loc[i_track, "first_tracked_position_patch"] = current_data["patch"][0]  # patch where the worm is when tracking starts (-1 = outside): one value per id
+        results_table.loc[i_track, "first_tracked_position_patch"] = current_data["patch"][
+            0]  # patch where the worm is when tracking starts (-1 = outside): one value per id
         results_table.loc[i_track, "last_frame"] = current_data["frame"].iloc[-1]
-        results_table.loc[i_track, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[-1]])  # last position for the current worm (used to check tracking)
-        results_table.loc[i_track, "last_tracked_position_patch"] = current_data["patch"].iloc[-1]  # patch where the worm is when tracking stops (-1 = outside)
+        results_table.loc[i_track, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[
+            -1]])  # last position for the current worm (used to check tracking)
+        results_table.loc[i_track, "last_tracked_position_patch"] = current_data["patch"].iloc[
+            -1]  # patch where the worm is when tracking stops (-1 = outside)
         results_table.loc[i_track, "furthest_patch_position"] = str(furthest_patch_position)
         results_table.loc[i_track, "adjusted_raw_visits"] = str(adjusted_raw_visits)
         results_table.loc[i_track, "adjusted_total_visit_time"] = adjusted_duration_sum
@@ -409,7 +451,7 @@ def nb_bad_events(data):
     return nb_of_bad_events
 
 
-#TODO change visit structure in results_per_id already, and adapt analyse_patch_visits function
+# TODO change visit structure in results_per_id already, and adapt analyse_patch_visits function
 def better_visit_structure(list_of_visits):
     """
     So... it's a shame but to fill the holes it would be better to have lists in a chronological order, with the third
@@ -453,7 +495,8 @@ def fill_holes(data_per_id):
     # should not affect aggregation of visits.
     # However, we do not want to remove tracks that do not have visits, because we need to know in which track we are
     # to access variables like the last frame or the position of the worm at the end of a track.
-    list_of_visits = [json.loads(data_per_id["raw_visits"][i_track]) for i_track in range(len(data_per_id["raw_visits"]))]
+    list_of_visits = [json.loads(data_per_id["raw_visits"][i_track]) for i_track in
+                      range(len(data_per_id["raw_visits"]))]
     better_list_of_visits = [better_visit_structure(list_of_visits[i_track]) for i_track in range(len(list_of_visits))]
     for i in range(len(better_list_of_visits)):
         list_of_visits[i] = [nonempty for nonempty in better_list_of_visits[i] if nonempty != []]
@@ -488,15 +531,18 @@ def fill_holes(data_per_id):
 
             # If this visit is the last of a track, and not of the last track, then we might have to aggregate it to the next
             is_last_visit = i_visit == nb_of_visits - 1
-            is_last_nonempty_track = (i_track == nb_of_tracks - 1) or ((i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
+            is_last_nonempty_track = (i_track == nb_of_tracks - 1) or (
+                        (i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
 
             # We look for the next visit start and end
             if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
-                while not list_of_visits[i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
+                while not list_of_visits[
+                    i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
                     i_next_track += 1
                     skipped_empty_tracks = True
                 if list_of_visits[i_next_track]:  # if a non-empty track was found in the end
-                    next_visit_start = list_of_visits[i_next_track][0][0]  # next visit is first visit of next non-empty track
+                    next_visit_start = list_of_visits[i_next_track][0][
+                        0]  # next visit is first visit of next non-empty track
                     next_visit_end = list_of_visits[i_next_track][0][1]
                     # Find next next visit (for updating transit durations in case of visit aggregation)
                     if len(list_of_visits[i_next_track]) >= 2:  # if there is a next next visit in the next track
@@ -514,10 +560,12 @@ def fill_holes(data_per_id):
             # Otherwise, it's the last visit of the last track we won't need a next_visit to be defined
 
             # Update this
-            is_last_nonempty_track = (i_track == nb_of_tracks - 1) or ((i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
+            is_last_nonempty_track = (i_track == nb_of_tracks - 1) or (
+                        (i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
 
             # Fill the transits list
-            if not (is_last_visit and is_last_nonempty_track):  # if we're not in the last visit of the last non-empty track
+            if not (
+                    is_last_visit and is_last_nonempty_track):  # if we're not in the last visit of the last non-empty track
                 # If it's the last visit of not-the-last-track
                 if is_last_visit:
                     # Case where the tracking stops when the worm is out (so after end of last patch visit), and the worm is still out when it restarts
@@ -528,12 +576,14 @@ def fill_holes(data_per_id):
                         # BAD HOLES: IF THE TRACKING ENDS OUT IT SHOULD NOT START ELSEWHERE
                         # So if the tracking restarts elsewhere, just end current transit at last frame
                         else:
-                            corrected_list_of_transits.append([current_visit_end, data_per_id["last_frame"][i_next_track - 1], -1])
+                            corrected_list_of_transits.append(
+                                [current_visit_end, data_per_id["last_frame"][i_next_track - 1], -1])
                     # Case where the tracking stops when the worm is inside, and it's not the last hole
                     if current_visit_end == data_per_id["last_frame"][i_track]:
                         # Case where the next track starts while the worm is still in, and we didn't have sneaky empty tracks in the middle
                         # We also check that there is indeed a next next visit otherwise this line makes no sense
-                        if data_per_id["first_tracked_position_patch"][i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
+                        if data_per_id["first_tracked_position_patch"][
+                            i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
                             # In this case we take the transit for the next visit now because the visit list loop will skip
                             # this value for the next loop
                             corrected_list_of_transits.append([next_visit_end, next_next_visit_start, -1])
@@ -551,7 +601,8 @@ def fill_holes(data_per_id):
             # If this is the end of this track, and not the last track, and the tracking stops during the visit
             if is_last_visit and not is_last_nonempty_track and current_visit_end == data_per_id["last_frame"][i_track]:
                 # Check if the hole in the tracking is valid (ends and then starts in the same patch)
-                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][i_track + 1]:
+                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][
+                    i_track + 1]:
                     # We increase i_track by 2, to not look at next visit as it has already been counted
                     init_visit_at_one = True
                     # Then the current visit in fact ends at the end of the first visit of the next track
@@ -577,11 +628,11 @@ def fill_holes(data_per_id):
         if data_per_id["first_tracked_position_patch"][0] == -1:  # if worm starts the first track outside
             # Initialize first transit at first frame and end it at the beginning of the first visit
             corrected_list_of_transits = [[data_per_id["first_frame"][0],
-                                          corrected_list_of_visits[0][0], -1]] + corrected_list_of_transits
+                                           corrected_list_of_visits[0][0], -1]] + corrected_list_of_transits
         if data_per_id["last_tracked_position_patch"].iloc[-1] == -1:  # if worm ends last track outside
             # Initialize last transit at the end of the last visit and end it at last frame
             corrected_list_of_transits = corrected_list_of_transits + [[corrected_list_of_visits[-1][1],
-                                                                       data_per_id["last_frame"].iloc[-1], -1]]
+                                                                        data_per_id["last_frame"].iloc[-1], -1]]
 
     return corrected_list_of_visits, corrected_list_of_transits
 
@@ -618,32 +669,35 @@ def make_results_per_plate(data_per_id, trajectories):
 
         # Loading visit info from data_per_id
         patch_list = current_metadata["patch_centers"]
-        order_of_visits = [json.loads(current_data["order_of_visits"][i]) for i in range(len(current_data["order_of_visits"]))]
-        order_of_visits = [visit for tracklist in order_of_visits for visit in tracklist]
-        order_of_visits = [i[0] for i in groupby(order_of_visits)]
-        # NOTE: for now order of visits does not take into account whether transitions between tracks are good or not
 
         # Aggregating visits when worm disappears and then reappears in the same place
         aggregated_visit_timestamps, aggregated_transit_timestamps = fill_holes(current_data)
-        # Removing visits that
 
         # Adjusting it for MVT analyses
         adjusted_raw_durations = new_mvt_patch_visits(aggregated_visit_timestamps, patch_list)
 
         # Computing average speed by doing a weighted average of the average speeds in each track (weight is relative tracking time)
-        average_speed_in = np.sum((current_data["average_speed_inside"] * current_data["total_tracked_time"]) / np.sum(current_data["total_tracked_time"]))
-        average_speed_out = np.sum((current_data["average_speed_outside"] * current_data["total_tracked_time"]) / np.sum(current_data["total_tracked_time"]))
+        # Doing it like this allows us to avoid the "holes in tracking" issues because they are excluded from the "id" slicing
+        average_speed_in = np.sum((current_data["average_speed_inside"] * current_data["total_tracked_time"]) / np.sum(
+            current_data["total_tracked_time"]))
+        average_speed_out = np.sum(
+            (current_data["average_speed_outside"] * current_data["total_tracked_time"]) / np.sum(
+                current_data["total_tracked_time"]))
 
         # Fill up the table
         results_per_plate.loc[i_plate, "folder"] = current_folder
         results_per_plate.loc[i_plate, "condition"] = current_data["condition"][0]
-        results_per_plate.loc[i_plate, "total_video_time"] = np.max(current_data["last_frame"]) - np.min(current_data["first_frame"])
+        results_per_plate.loc[i_plate, "total_video_time"] = np.max(current_data["last_frame"]) - np.min(
+            current_data["first_frame"])
         results_per_plate.loc[i_plate, "total_tracked_time"] = np.sum(current_data["total_tracked_time"])
         results_per_plate.loc[i_plate, "nb_of_holes"] = len(current_data)
         results_per_plate.loc[i_plate, "nb_of_bad_events"] = nb_bad_events(current_data)
-        results_per_plate.loc[i_plate, "avg_proportion_double_frames"] = (len(current_trajectory["frame"]) / len(np.unique(current_trajectory["frame"]))) - 1
-        results_per_plate.loc[i_plate, "total_visit_time"] = np.sum([pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
-        results_per_plate.loc[i_plate, "total_transit_time"] = np.sum([pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
+        results_per_plate.loc[i_plate, "avg_proportion_double_frames"] = (len(current_trajectory["frame"]) / len(
+            np.unique(current_trajectory["frame"]))) - 1
+        results_per_plate.loc[i_plate, "total_visit_time"] = np.sum(
+            [pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
+        results_per_plate.loc[i_plate, "total_transit_time"] = np.sum(
+            [pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
         results_per_plate.loc[i_plate, "aggregated_raw_visits"] = str(aggregated_visit_timestamps)
         results_per_plate.loc[i_plate, "aggregated_raw_transits"] = str(aggregated_transit_timestamps)
         results_per_plate.loc[i_plate, "nb_of_visits"] = len(aggregated_visit_timestamps)
@@ -668,12 +722,12 @@ def exclude_invalid_videos(trajectories, results_per_plate):
 def generate_trajectories(path):
     trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))  # run this to retrieve trajectories
     print("Finished retrieving trajectories")
-    print("Computing distances...")
-    trajectories["distances"] = trajectory_speed(trajectories)
     print("Finished computing distance covered by the worm at each time step")
     print("Computing where the worm is...")
     trajectories["patch"] = in_patch_list(trajectories)
     print("Finished computing in which patch the worm is at each time step")
+    print("Computing distances...")
+    trajectories["distances"] = trajectory_distances(trajectories)
     trajectories.to_csv(path + "trajectories.csv")
     return 0
 
@@ -699,12 +753,14 @@ def generate_results_per_plate(path):
     return 0
 
 
-def generate_clean_results(path):
+def generate_clean_tables_and_speed(path):
     print("Retrieving results and trajectories...")
     results_per_plate = pd.read_csv(path + "results_per_plate.csv")
     trajectories = pd.read_csv(path + "trajectories.csv")
     print("Cleaning results...")
     clean_trajectories, clean_results = exclude_invalid_videos(trajectories, results_per_plate)
     clean_results.to_csv(path + "clean_results.csv")
+    print("Computing speeds...")
+    trajectories["speeds"] = trajectory_speeds(clean_trajectories)
     clean_trajectories.to_csv(path + "clean_trajectories.csv")
     return 0
