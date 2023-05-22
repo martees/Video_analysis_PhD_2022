@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.linear_model import LinearRegression
+import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import matplotlib.colors as mplcolors
 import random
@@ -522,9 +522,17 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
         # for axis limits control, add range= [[x0,xmax],[y0,ymax]] in arguments
 
         # Plotting a linear regression on the thing
-        coef = np.polyfit(full_variable_list[i_cond], full_visit_list[i_cond], 1)
-        line_function = np.poly1d(coef)  # function which takes in x and returns an estimate for y
+        coeff = np.polyfit(full_variable_list[i_cond], full_visit_list[i_cond], 1)
+        line_function = np.poly1d(coeff)  # function which takes in x and returns an estimate for y
+        reg = LinearRegression()
+        model = reg.fit(np.array(full_variable_list[i_cond]).reshape((1, -1)), np.array(full_visit_list[i_cond]))
+        r_sq = model.score(np.array(full_variable_list[i_cond]).reshape((-1, 1)), np.array(full_visit_list[i_cond]))
+        plt.annotate(str(r_sq), [1000, 1000])
+
+        # https://www.statology.org/simple-linear-regression-in-python/
+
         plt.plot(full_variable_list[i_cond], line_function(full_variable_list[i_cond]))
+
 
     # Displaying everything with a nice size
     fig = plt.gcf()
