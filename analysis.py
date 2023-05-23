@@ -229,7 +229,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
             full_variable_list[i_condition] += list_of_previous_transit_lengths
 
     else:
-        for i_plate in range(2):
+        for i_plate in range(len(folder_list)):
             time_start = time.time()
             # Initialization
             # Slice to one plate
