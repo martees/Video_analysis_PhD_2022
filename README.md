@@ -23,11 +23,26 @@ pyparsing	3.0.9
 python-dateutil	2.8.2  
 pytz	2022.2.1  
 scipy	1.9.1  
+seaborn	0.12.2  
 setuptools	60.2.0  
 six	1.16.0  
 wheel	0.37.1  
 zipp	3.10.0  
-zope.interface	5.4.0  
+zope.interface	5.4.0
+
+## Data structure
+
+Each replicate of our experiment is stored in one folder, and our tracking software saves the 
+following information in this folder:
+- a "traj.csv" file containing the following columns:
+  - id_conservative: one id for every different object that the tracking detected. When the tracking lost an object and 
+caught it again, this id will have been incremented. This means we have to do some work to put those different tracks back together.
+  - frame: the video frame at which the object was detected by the tracking (note: in our case 1 frame = 0.8 sec)
+  - x: column with x coordinates
+  - y: column with y coordinates
+- a "foodpatches.mat" which contains information about the density of each patch, and the experimental condition
+- a "foodpatches_new.mat" which contains a spline 
+
 
 ## Project structure
 ### param.py
@@ -35,6 +50,7 @@ Contains global parameters, for easier editing.
 
 ### find_data.py
 Contains the auxiliary functions related to finding the data in a specific path, and reformatting it to dataframes.  
+
 The output data should be a pandas dataframe, containing tracking ID, trajectory, and folder name.  
 Trajectories are in the following format: [[x0, x1, ..., xN], [y0, y1, ..., yN]] (xi and yi being respectively the x and y coordinates 
 of the individual at time i).  
@@ -53,7 +69,7 @@ Contains functions to:
 - derive statistics from the results returned by generate_results.py
 - plot these statistics using mostly badly written functions
 
-### Data structure
+### Output structure
 #### results_per_id.csv
 
 - **folder** = folder from which the worm comes (so plate identifier)  
