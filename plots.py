@@ -1,15 +1,19 @@
 import numpy as np
-import statsmodels.api as sm
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mplcolors
 import random
+import seaborn as sns
+import json
 
 import analysis as ana
+import generate_results as gr
+import find_data as fd
 
 
 # Sanity check functions
 
-def plot_data_coverage(traj):
+def data_coverage(traj):
     """
     Takes a dataframe with the trajectories implemented as in our trajectories.csv folder.
     Returns a plot with plates in y, time in x, and a color depending on whether:
@@ -38,7 +42,7 @@ def plot_data_coverage(traj):
     plt.show()
 
 
-def plot_patches(folder_list, show_composite=True, is_plot=True):
+def patches(folder_list, show_composite=True, is_plot=True):
     """
     Function that takes a folder list, and for each folder, will either:
     - plot the patch positions on the composite patch image, to check if our metadata matches our actual data (is_plot = True)
@@ -55,10 +59,10 @@ def plot_patches(folder_list, show_composite=True, is_plot=True):
             fig, ax = plt.subplots()
             if show_composite:
                 composite = plt.imread(folder + "composite_patches.tif")
-                composite = ax.imshow(composite)
+                ax.imshow(composite)
             else:
                 background = plt.imread(folder + "background.tif")
-                background = ax.imshow(background, cmap='gray')
+                ax.imshow(background, cmap='gray')
 
         patch_centers = metadata["patch_centers"]
         patch_densities = metadata["patch_densities"]
@@ -103,8 +107,8 @@ def plot_patches(folder_list, show_composite=True, is_plot=True):
             return x_list, y_list
 
 
-def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
-              plot_continuity=False, plot_speed=False, plot_time=False, plate_list=[]):
+def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
+                            plot_continuity=False, plot_speed=False, plot_time=False, plate_list=[]):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -159,7 +163,7 @@ def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=
             if is_plot_patches:
                 patch_densities = metadata["patch_densities"]
                 patch_centers = metadata["patch_centers"]
-                x_list, y_list = plot_patches([current_folder], is_plot=False)
+                x_list, y_list = patches([current_folder], is_plot=False)
                 for i_patch in range(len(patch_centers)):
                     ax.plot(x_list[i_patch], y_list[i_patch], color='yellow')
                     # to show density, add this to previous call: , alpha=patch_densities[i_patch][0]
@@ -170,7 +174,7 @@ def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=
         if plot_speed:
             distance_list = current_traj.reset_index()["distances"]
             normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
-            plt.scatter(current_list_x, current_list_y, c=distance_list, cmap="hot", norm=normalize, s=1)
+            plt.scatter(current_list_x, current_list_y, c=distance_list, cmap="hot", norm=normalize, s=1, zorder=1.3)
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                 plt.colorbar()
 
@@ -179,9 +183,9 @@ def plot_traj(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=
             nb_of_timepoints = len(current_list_x)
             bin_size = 100
             # colors = plt.cm.jet(np.linspace(0, 1, nb_of_timepoints//bin_size))
-            for bin in range(nb_of_timepoints // bin_size):
-                lower_bound = bin * bin_size
-                upper_bound = min((bin + 1) * bin_size, len(current_list_x))
+            for current_bin in range(nb_of_timepoints // bin_size):
+                lower_bound = current_bin * bin_size
+                upper_bound = min((current_bin + 1) * bin_size, len(current_list_x))
                 plt.scatter(current_list_x[lower_bound:upper_bound], current_list_y[lower_bound:upper_bound],
                             c=range(lower_bound, upper_bound), cmap="hot", s=0.5)
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
@@ -422,7 +426,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
                 i_food += 1
             # Once the bin is over, fill stat info for global plot
             binned_avg_speeds[i_bin] = np.mean(list_curr_speed_this_bin)
-            errors = bottestrop_ci(list_curr_speed_this_bin, 1000)
+            errors = ana.bottestrop_ci(list_curr_speed_this_bin, 1000)
             errorbars_inf.append(binned_avg_speeds[i_bin] - errors[0])
             errorbars_sup.append(errors[1] - binned_avg_speeds[i_bin])
             # and plot individual points
@@ -464,16 +468,18 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
     return 0
 
 
-def plot_selected_data(results, plot_title, condition_list, column_name, condition_names, divided_by="", mycolor="blue"):
+def plot_selected_data(results, plot_title, condition_list, condition_names, column_name, divided_by="",
+                       mycolor="blue"):
     """
-    This function will plot a selected part of the data. Selection is described as follows:
-    - condition_low, condition_high: bounds on the conditions (0,3 => function will plot conditions 0, 1, 2, 3)
-    - column_name:
+    This function will make a bar plot from the selected part of the data. Selection is described as follows:
+    - condition_list: list of conditions you want to plot (each condition = one bar)
+    - column_name: column to plot from the results (y-axis)
+    - divided_by: name of a column
     """
     # Getting results
     list_of_conditions, list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results,
-                                                                                                         column_name,
-                                                                                                         divided_by)
+                                                                                                             column_name,
+                                                                                                             divided_by)
 
     # Slicing to get condition we're interested in (only take indexes from condition_list)
     list_of_conditions = [list_of_conditions[i] for i in condition_list]
@@ -503,41 +509,39 @@ def plot_selected_data(results, plot_title, condition_list, column_name, conditi
 
 
 def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names):
-
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
     full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable)
 
     # Plot the thing
     nb_cond = len(condition_list)
+    #fig, axes = plt.subplots(1, nb_cond, figsize=(5 * nb_cond, 6), sharey=True)
+    #fig.suptitle(plot_title)
+    #fig.set_tight_layout(True)
+
     for i_cond in range(nb_cond):
-        plt.subplot(1, nb_cond, i_cond + 1)
-        fig = plt.gcf()
-        ax = fig.gca()
-        fig.set_tight_layout(True)
-        ax.set_title(str(condition_names[i_cond]))
-        ax.set_xlabel(variable)
-        ax.set_ylabel("Visit duration")
-        plt.hist2d(full_variable_list[i_cond], full_visit_list[i_cond], range=[[0,2000],[0,2000]],
-                   bins=[100, 100], norm=mplcolors.LogNorm(), cmap="viridis")
+        #ax = axes[i_cond]
+        #ax.set_title(str(condition_names[i_cond]))
+        #ax.set_xlabel(variable)
+        #ax.set_ylabel("Visit duration")
+        # plt.hist2d(full_variable_list[i_cond], full_visit_list[i_cond], range=[[0, 2000], [0, 2000]], bins=[100, 100], norm=mplcolors.LogNorm(), cmap="viridis")
         # for axis limits control, add range= [[x0,xmax],[y0,ymax]] in arguments
 
         # Plotting a linear regression on the thing
-        coeff = np.polyfit(full_variable_list[i_cond], full_visit_list[i_cond], 1)
-        line_function = np.poly1d(coeff)  # function which takes in x and returns an estimate for y
-        reg = LinearRegression()
-        model = reg.fit(np.array(full_variable_list[i_cond]).reshape((1, -1)), np.array(full_visit_list[i_cond]))
-        r_sq = model.score(np.array(full_variable_list[i_cond]).reshape((-1, 1)), np.array(full_visit_list[i_cond]))
-        plt.annotate(str(r_sq), [1000, 1000])
+        data = pd.DataFrame()
+        data["Visit duration"] = full_visit_list[i_cond]
+        data[variable] = full_variable_list[i_cond]
 
-        # https://www.statology.org/simple-linear-regression-in-python/
+        sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100), marginal_ticks=True)
+        fig = plt.gcf()
+        ax = fig.gca()
+        max_y = ax.get_ylim()[1]
+        max_x = ax.get_xlim()[1]
 
-        plt.plot(full_variable_list[i_cond], line_function(full_variable_list[i_cond]))
-
+        fig.suptitle(plot_title + ": " + condition_names[i_cond])
+        ax.annotate("R2 = "+str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)), [max_x//2, max_y*3/4])
 
     # Displaying everything with a nice size
-    fig = plt.gcf()
-    fig.set_size_inches(5 * nb_cond, 6)
-    plt.suptitle(plot_title)
+
 
     # Plot legend with every label just once
     # handles, labels = plt.gca().get_legend_handles_labels()
@@ -547,8 +551,35 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     plt.show()
 
 
+def plot_variable_distribution(results, column_name):
+    """
+    Will plot a
+    """
+    list_of_values = []
+
+    if column_name == "transit_duration":
+        for i_plate in range(len(results)):
+            current_transit_list = results["aggregated_raw_transits"][i_plate]
+            list_of_transits = json.loads(current_transit_list)
+            list_of_values += ana.convert_to_durations(list_of_transits)
+
+    if column_name == "visit_duration":
+        for i_plate in range(len(results)):
+            current_transit_list = results["aggregated_raw_visits"][i_plate]
+            list_of_transits = json.loads(current_transit_list)
+            list_of_values += ana.convert_to_durations(list_of_transits)
+
+    plt.title(column_name+" distribution")
+    plt.xlabel(column_name+" value")
+    plt.ylabel("occurrences")
+    plt.xscale("log")
+    bins = list(np.logspace(1, 15, base=2, num=100, endpoint=True))
+    print(bins)
+    plt.hist(list_of_values, bins=bins, edgecolor="black")
+    plt.show()
+
+
 def plot_test(results):
     full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, [0], "visit_start")
     plt.scatter(full_visit_list, full_variable_list)
     plt.show()
-
