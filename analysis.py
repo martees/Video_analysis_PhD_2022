@@ -1,10 +1,18 @@
 import numpy as np
 import random
 import json
+from scipy import stats
+import time
 
 # My code
 from param import *
+
 import find_data as fd
+
+
+def r2(x, y):
+    return stats.pearsonr(x, y)[0] ** 2
+
 
 def bottestrop_ci(data, nb_resample):
     """
@@ -57,7 +65,9 @@ def results_per_condition(result_table, column_name, divided_by=""):
         for i_plate in range(len(list_of_plates)):
             # Take only one plate
             current_plate = current_data[current_data["folder"] == list_of_plates[i_plate]]
-            if divided_by != "":  # In this case, we want to divide column name by another one
+
+            # When we want to divide column name by another one
+            if divided_by != "":
                 if np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
                 else:
@@ -66,9 +76,11 @@ def results_per_condition(result_table, column_name, divided_by=""):
                 #    if list_of_values[i_plate]>800:
                 #        print(list_of_plates[i_plate])
                 #        print(list_of_values[i_plate])
-            else:  # No division has to be made
+
+            # When no division has to be made
+            else:
                 if column_name == "average_speed_inside" or column_name == "average_speed_outside":
-                    # Exclude the 0's which are the cases were the worm didnt go to a patch / out of a patch for a full track
+                    # Exclude the 0's which are the cases were the worm didn't go to a patch / out of a patch for a full track
                     list_speed_current_plate = [nonzero for nonzero in current_plate[column_name] if int(nonzero) != 0]
                     if list_speed_current_plate:  # If any non-zero speed was recorded for that plate
                         list_of_values[i_plate] = np.average(list_speed_current_plate)
@@ -81,8 +93,8 @@ def results_per_condition(result_table, column_name, divided_by=""):
                         list_of_values[i_plate] = len(np.unique(list_of_visited_patches))
                     else:
                         list_total_patch = [52, 24, 7, 25, 52, 24, 7, 25, 24, 24, 24, 24]
-                        list_of_values[i_plate] = len(np.unique(list_of_visited_patches)) \
-                                                  / list_total_patch[i_condition]
+                        list_of_values[i_plate] = len(np.unique(list_of_visited_patches)) / list_total_patch[
+                            i_condition]
                 elif column_name == "furthest_patch_distance":  # in this case we want the maximal value and not the average
                     list_of_values[i_plate] = np.max(current_plate[column_name])
                 else:  # in any other case
@@ -123,7 +135,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
 
     # Fill up the lists depending on the variable specified as an argument
 
-    if variable == "last_travel_time":
+    if variable == "Last travel time":
         starts_with_visit = False
         for i_plate in range(len(folder_list)):
             # Initialization
@@ -217,7 +229,8 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
             full_variable_list[i_condition] += list_of_previous_transit_lengths
 
     else:
-        for i_plate in range(len(folder_list)):
+        for i_plate in range(2):
+            time_start = time.time()
             # Initialization
             # Slice to one plate
             current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
@@ -229,12 +242,44 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
             for i_visit in range(len(list_of_visits)):
                 current_visit = list_of_visits[i_visit]
                 full_visit_list[i_condition].append(current_visit[1] - current_visit[0] + 1)
-                if variable == "visit_start":
+                if variable == "Visit start":
                     full_variable_list[i_condition].append(current_visit[0])
-                if variable == "speed_when_entering":
-                    speed_when_entering = traj[traj["folder"] == current_plate]["speeds"][0]
+                if variable == "Speed when entering":
+                    current_traj = traj[traj["folder"] == folder_list[i_plate]]
+                    visit_start = current_traj[current_traj["frame"] == current_visit[0]].reset_index()
+                    speed_when_entering = visit_start["speeds"][0]
                     full_variable_list[i_condition].append(speed_when_entering)
+            print("It took ", time.time() - time_start, " sec to analyse plate ", i_plate, " / ", len(folder_list))
 
     return full_visit_list, full_variable_list
 
 
+def convert_to_durations(list_of_time_stamps):
+    """
+    Function that takes a list of timestamps in the format [[t0,t1,...],[t0,t1,...],...] (uses t0 and t1 only)
+    And will return the corresponding list of durations [d0,d1,...]
+    """
+    nb_of_events = len(list_of_time_stamps)
+    list_of_durations = np.zeros(nb_of_events)
+    for i_event in range(nb_of_events):
+        list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
+    return list(list_of_durations)
+
+
+def first(iterable, condition=lambda x: True):
+    """
+    Returns the first item in the `iterable` that satisfies the `condition`.
+    If the condition is not given, returns the first item of the iterable.
+    Raises `StopIteration` if no item satysfing the condition is found.
+
+    >> first( (1,2,3), condition=lambda x: x % 2 == 0)
+    2
+    >> first(range(3, 100))
+    3
+    >> first( () )
+    Traceback (most recent call last):
+    ...
+    StopIteration
+    """
+
+    return next(x for x in iterable if condition(x))
