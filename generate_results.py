@@ -50,7 +50,7 @@ def in_patch_list(traj):
 
     for i_plate in range(nb_of_plates):  # for every plate
         # Handmade progress bar
-        if i_plate % 10 == 0 or i_plate == nb_of_plates:
+        if i_plate % 20 == 0 or i_plate == nb_of_plates:
             print("patch_position for plate ", i_plate, "/", nb_of_plates)
 
         # Extract patch information
@@ -98,7 +98,8 @@ def in_patch_list(traj):
 def trajectory_distances(traj):
     """
     Function that takes in our trajectories dataframe, and returns a column with the distance covered by the worm since
-    last timestep, in order to compute speed
+    last timestep, for each time step. It should put 0 for the first point of every folder, but record distance even
+    when there's a tracking hole.
     """
     # Slice the traj file depending on the folder, because we only want to compare one worm to itself
     folder_list = np.unique(traj["folder"])
@@ -146,6 +147,18 @@ def trajectory_speeds(traj):
         current_list_of_time_steps = array_frame_r - array_frame_l
         # Add 1 in the beginning because the first point isn't relevant (not zero to avoid division issues)
         current_list_of_time_steps = np.insert(current_list_of_time_steps, 0, 1)
+
+        if verbose:
+            nb_double_frames = np.count_nonzero(current_list_of_time_steps - np.maximum(current_list_of_time_steps,
+                                                                                        0.1 * np.ones(
+                                                                                            len(current_list_of_time_steps))))
+            if nb_double_frames > 0:
+                print("number of double frames:", str(nb_double_frames))
+
+        # Remove the zeros and replace them by 0.1
+        current_list_of_time_steps = np.maximum(current_list_of_time_steps,
+                                                0.1 * np.ones(len(current_list_of_time_steps)))
+
         # Compute speeds
         list_of_speeds += list(current_list_of_distances / current_list_of_time_steps)
 
@@ -185,7 +198,6 @@ def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
                                                                                      time_outside_sum)  # the max is to prevent division by zero
 
 
-# @njit(parallel=True)
 def single_traj_analysis(which_patch_list, list_of_frames, patch_centers):
     """
     Takes a list containing the patch where the worm is at each timestep, a list of frames to which each data point
@@ -509,9 +521,6 @@ def fill_holes(data_per_id):
     i_next_track = 1
     init_visit_at_one = False
 
-    if data_per_id["folder"][0] == "":
-        print("hey")
-
     while i_track < nb_of_tracks:  # for each track
         # print("==== i_track = ", i_track, " / ", nb_of_tracks)
         nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
@@ -532,7 +541,7 @@ def fill_holes(data_per_id):
             # If this visit is the last of a track, and not of the last track, then we might have to aggregate it to the next
             is_last_visit = i_visit == nb_of_visits - 1
             is_last_nonempty_track = (i_track == nb_of_tracks - 1) or (
-                        (i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
+                    (i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
 
             # We look for the next visit start and end
             if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
@@ -561,7 +570,7 @@ def fill_holes(data_per_id):
 
             # Update this
             is_last_nonempty_track = (i_track == nb_of_tracks - 1) or (
-                        (i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
+                    (i_next_track == nb_of_tracks - 1) and len(list_of_visits[i_next_track]) == 0)
 
             # Fill the transits list
             if not (
@@ -582,8 +591,7 @@ def fill_holes(data_per_id):
                     if current_visit_end == data_per_id["last_frame"][i_track]:
                         # Case where the next track starts while the worm is still in, and we didn't have sneaky empty tracks in the middle
                         # We also check that there is indeed a next next visit otherwise this line makes no sense
-                        if data_per_id["first_tracked_position_patch"][
-                            i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
+                        if data_per_id["first_tracked_position_patch"][i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
                             # In this case we take the transit for the next visit now because the visit list loop will skip
                             # this value for the next loop
                             corrected_list_of_transits.append([next_visit_end, next_next_visit_start, -1])
@@ -601,8 +609,7 @@ def fill_holes(data_per_id):
             # If this is the end of this track, and not the last track, and the tracking stops during the visit
             if is_last_visit and not is_last_nonempty_track and current_visit_end == data_per_id["last_frame"][i_track]:
                 # Check if the hole in the tracking is valid (ends and then starts in the same patch)
-                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][
-                    i_track + 1]:
+                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][i_track + 1]:
                     # We increase i_track by 2, to not look at next visit as it has already been counted
                     init_visit_at_one = True
                     # Then the current visit in fact ends at the end of the first visit of the next track
@@ -635,6 +642,13 @@ def fill_holes(data_per_id):
                                                                         data_per_id["last_frame"].iloc[-1], -1]]
 
     return corrected_list_of_visits, corrected_list_of_transits
+
+
+def add_visit_start_speed(list_of_visits):
+    """
+    Takes a list of visit and will return the same list but adding a value in the end of every visit, corresponding to
+    the speed of the worm in the timestep
+    """
 
 
 def make_results_per_plate(data_per_id, trajectories):
@@ -720,15 +734,22 @@ def exclude_invalid_videos(trajectories, results_per_plate):
 
 
 def generate_trajectories(path):
-    trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))  # run this to retrieve trajectories
+    # Retrieve trajectories from the folder path and save them in one dataframe
+    trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))
     print("Finished retrieving trajectories")
-    print("Finished computing distance covered by the worm at each time step")
+    # Add a column with
     print("Computing where the worm is...")
     trajectories["patch"] = in_patch_list(trajectories)
     print("Finished computing in which patch the worm is at each time step")
     print("Computing distances...")
+    # Add a column with the distance the worm crawled since last time step, for each time step
+    # It should put 0 for the first point of every folder, but record distance even when there's a tracking hole
+    # Distances are computed now because they are used for average speed analysis in results_per_id.
+    # Doing speed analysis later is tiring because of the tracking holes that are not in the results_per_plate
+    # table anymore.
     trajectories["distances"] = trajectory_distances(trajectories)
     trajectories.to_csv(path + "trajectories.csv")
+    print("Finished computing distance covered by the worm at each time step")
     return 0
 
 
@@ -761,6 +782,42 @@ def generate_clean_tables_and_speed(path):
     clean_trajectories, clean_results = exclude_invalid_videos(trajectories, results_per_plate)
     clean_results.to_csv(path + "clean_results.csv")
     print("Computing speeds...")
-    trajectories["speeds"] = trajectory_speeds(clean_trajectories)
+    # For faster execution, we only compute speeds here (and not at the same time as distances), when invalid
+    # trajectories have been excluded
+    clean_trajectories["speeds"] = trajectory_speeds(clean_trajectories)
     clean_trajectories.to_csv(path + "clean_trajectories.csv")
     return 0
+
+
+def generate(starting_from=""):
+    """
+    Will generate the data tables starting more or less from scratch.
+    Argument = from which level to regenerate stuff.
+    Returns path.
+    """
+
+    # Data path
+    if fd.is_linux():  # Linux path
+        path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/"
+    else:  # Windows path
+        path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
+
+    if starting_from == "trajectories":
+        generate_trajectories(path)
+        generate_results_per_id(path)
+        generate_results_per_plate(path)
+        generate_clean_tables_and_speed(path)
+
+    elif starting_from == "results_per_id":
+        generate_results_per_id(path)
+        generate_results_per_plate(path)
+        generate_clean_tables_and_speed(path)
+
+    elif starting_from == "results_per_plate":
+        generate_results_per_plate(path)
+        generate_clean_tables_and_speed(path)
+
+    elif starting_from == "clean":
+        generate_clean_tables_and_speed(path)
+
+    return path
