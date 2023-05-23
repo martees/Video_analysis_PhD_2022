@@ -112,24 +112,6 @@ def folder_to_metadata(path):
     return metadata
 
 
-#useless functions
-def reformat_trajectories(bad_trajectory):
-    """
-    Very specific to our file format. Removes NaN lines, and reformats the trajectory file
-    From [x0 x1 ... xN] [y0 ... yN]
-    To [x0 y0] [x1 y1] ... [xN yN]
-    This format is a bit less convenient for plotting but a bit more convenient for calling a position
-    """
-    cleaned_trajectories = []
-    for i_traj in range(len(bad_trajectory)):
-        current_trajectory = bad_trajectory[i_traj]
-        reformatted_trajectory = list(zip(current_trajectory[0], current_trajectory[1]))
-        cleaned_trajectory = [tuple for tuple in reformatted_trajectory if
-                              not np.isnan(tuple[0]) and not np.isnan(tuple[1])]
-        cleaned_trajectories.append(cleaned_trajectory)
-    return cleaned_trajectories
-
-
 def return_folder_list_one_condition(full_folder_list, condition):
     condition_folders = []
     for folder in full_folder_list:
