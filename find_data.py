@@ -112,11 +112,11 @@ def folder_to_metadata(path):
     return metadata
 
 
-def return_folder_list_one_condition(full_folder_list, condition):
+def return_folders_condition_list(full_folder_list, condition_list):
     condition_folders = []
     for folder in full_folder_list:
         current_condition = folder_to_metadata(folder).reset_index()["condition"][0]
-        if current_condition == condition:
+        if current_condition in condition_list:
             condition_folders.append(folder)
     return condition_folders
 
