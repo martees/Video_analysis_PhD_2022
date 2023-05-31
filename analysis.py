@@ -125,17 +125,15 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
     """
 
     # Fill the folder list up (list of folders corresponding to the conditions in condition_list)
-    folder_list = []
-    for condition in condition_list:
-        folder_list += fd.return_folder_list_one_condition(results["folder"], condition)
+    folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
 
     # Initialize the lists that will be returned
     full_visit_list = [[] for _ in range(len(condition_list))]
     full_variable_list = [[] for _ in range(len(condition_list))]
 
     # Fill up the lists depending on the variable specified as an argument
-
     if variable == "Last travel time":
+        # TODO if we ever use this again, switch it to a much simpler version where we fuse visit and transit lists, sort by time, and then look at each element
         starts_with_visit = False
         for i_plate in range(len(folder_list)):
             # Initialization
@@ -264,6 +262,58 @@ def convert_to_durations(list_of_time_stamps):
     for i_event in range(nb_of_events):
         list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
     return list(list_of_durations)
+
+
+def select_transits(list_of_transits, list_of_visits, to_same_patch=False, to_different_patch=False):
+    """
+    Function that will take a transit and visit list, and return a new transit list following some property.
+        to_same_patch: will return transits that go from a patch to itself
+        to_different_patch: will return transits that go from a patch to another
+    """
+    # Event structure = [x,y,z] with x start of event, y end of event and z patch where the worm is (-1 for outside)
+    # Sometimes there are multiple successive visits / transits, so I use while loop to go through them.
+
+    # Fuse the two lists, and sort them depending on the time when they begin
+    list_of_events = list_of_transits + list_of_visits
+    list_of_events.sort(key=lambda x: x[0])
+    new_list_of_transits = []
+    current_transit_index = 0
+
+    # If the list starts with a transit, skip it
+    if list_of_events[0][2] == -1:
+        while list_of_events[current_transit_index][2] == -1 and current_transit_index < len(list_of_events) - 1:
+            current_transit_index += 1
+        # At this point current_transit_index should be pointing to a visit but it's okay
+
+    # Then go through the whole list
+    while current_transit_index < len(list_of_events) - 1:
+        # Look for a transit
+        while current_transit_index < len(list_of_events) - 1 and list_of_events[current_transit_index][2] != -1:
+            current_transit_index += 1
+
+        # If a transit was found
+        if list_of_events[current_transit_index][2] == -1:
+            # Current_transit_index is the first transit found, so it its preceded by a visit
+            previous_visit_location = list_of_events[current_transit_index - 1][2]
+            # Look for the next visit
+            next_visit_index = current_transit_index + 1
+            while next_visit_index < len(list_of_events) and list_of_events[next_visit_index][2] == -1:
+                next_visit_index += 1
+            # If a visit was found
+            if next_visit_index != len(list_of_events):
+                # Check where this next visit is happening
+                next_visit_location = list_of_events[next_visit_index][2]
+                # Fill the new transit list accordingly
+                if to_same_patch and previous_visit_location == next_visit_location:
+                    new_list_of_transits += list_of_events[current_transit_index:next_visit_index]
+                if to_different_patch and previous_visit_location != next_visit_location:
+                    new_list_of_transits += list_of_events[current_transit_index:next_visit_index]
+            # Next transit is at least after the next visit
+            current_transit_index = next_visit_index + 1
+
+        # Else if no transit was found it means it's over so do nothin'
+
+    return new_list_of_transits
 
 
 def first(iterable, condition=lambda x: True):
