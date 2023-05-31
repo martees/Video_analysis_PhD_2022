@@ -127,7 +127,7 @@ def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, s
         folder_list = np.unique(folder_list)
     # Otherwise take all the plates of the condition
     else:
-        folder_list = fd.return_folder_list_one_condition(np.unique(traj["folder"]), i_condition)
+        folder_list = fd.return_folders_condition_list(np.unique(traj["folder"]), [i_condition])
     nb_of_folders = len(folder_list)
     colors = plt.cm.jet(np.linspace(0, 1, nb_of_folders))
     previous_folder = 0
@@ -349,10 +349,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
     FOR NOW, WILL TAKE nb_resamples RANDOM TIMES IN EACH PLATE
     """
     # Prepare plate list
-    full_plate_list = np.unique(traj["folder"])
-    plate_list = []
-    for condition in condition_list:
-        plate_list += fd.return_folder_list_one_condition(full_plate_list, condition)
+    plate_list = fd.return_folders_condition_list(np.unique(traj["folder"]), condition_list)
     nb_of_plates = len(plate_list)
 
     # This is for x ticks for the final plot
@@ -508,15 +505,13 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     plt.show()
 
 
-def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names):
+def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
     full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable)
 
     # Plot the thing
     nb_cond = len(condition_list)
-    #fig, axes = plt.subplots(1, nb_cond, figsize=(5 * nb_cond, 6), sharey=True)
-    #fig.suptitle(plot_title)
-    #fig.set_tight_layout(True)
+    data = pd.DataFrame()
 
     for i_cond in range(nb_cond):
         #ax = axes[i_cond]
@@ -527,18 +522,25 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
         # for axis limits control, add range= [[x0,xmax],[y0,ymax]] in arguments
 
         # Plotting a linear regression on the thing
-        data = pd.DataFrame()
-        data["Visit duration"] = full_visit_list[i_cond]
-        data[variable] = full_variable_list[i_cond]
+        if split_conditions:
+            data = pd.DataFrame()
+            data["Visit duration"] = full_visit_list[i_cond]
+            data[variable] = full_variable_list[i_cond]
 
-        sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100), marginal_ticks=True)
-        fig = plt.gcf()
-        ax = fig.gca()
-        max_y = ax.get_ylim()[1]
-        max_x = ax.get_xlim()[1]
+            sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100), marginal_ticks=True)
+            fig = plt.gcf()
+            ax = fig.gca()
+            max_y = ax.get_ylim()[1]
+            max_x = ax.get_xlim()[1]
 
-        fig.suptitle(plot_title + ": " + condition_names[i_cond])
-        ax.annotate("R2 = "+str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)), [max_x//2, max_y*3/4])
+            fig.suptitle(plot_title + ": " + condition_names[i_cond])
+            ax.annotate("R2 = "+str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)), [max_x//2, max_y*3/4])
+        else:
+            data["Visit duration"].append(full_visit_list[i_cond])
+            data[variable].append(full_variable_list[i_cond])
+
+    print("finish this teehee")
+    caca
 
     # Displaying everything with a nice size
 
@@ -551,31 +553,60 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     plt.show()
 
 
-def plot_variable_distribution(results, column_name):
+def plot_variable_distribution(results, column_name, condition_list, ylim=0, frequency=False, only_same_patch_transits=False, only_cross_patch_transits=False):
     """
-    Will plot a
+    Will plot a histogram with the distribution of values of column_name in results, for condition_list.
+    ylim: set an upper limit for the y-axis of the graph
+    frequency: FALSE => y-axis will be the number of occurrences of each value of the x-axis
+               TRUE => y-axis will be the nb of occurrences divided by (total nb of events * bin width)
+    to_same_patch: if False, will only plot transits that go from one patch to another
+    to_different_patch: if False, will only plot transits that leave and come back to the same patch
     """
     list_of_values = []
+    folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
+    label = ""
 
     if column_name == "transit_duration":
-        for i_plate in range(len(results)):
-            current_transit_list = results["aggregated_raw_transits"][i_plate]
-            list_of_transits = json.loads(current_transit_list)
-            list_of_values += ana.convert_to_durations(list_of_transits)
+        for i_plate in range(len(folder_list)):
+            current_plate = folder_list[i_plate]
+            current_results = results[results["folder"] == current_plate].reset_index()
+            if only_same_patch_transits:
+                current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
+                current_visit_list = json.loads(current_results["aggregated_raw_visits"][0])
+                current_transit_list = ana.select_transits(current_transit_list, current_visit_list, to_same_patch=True)
+                label = "Only same patch transits"
+            elif only_cross_patch_transits:
+                current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
+                current_visit_list = current_results["aggregated_raw_visits"][0]
+                current_visit_list = json.loads(current_visit_list)
+                current_transit_list = ana.select_transits(current_transit_list, current_visit_list, to_different_patch=True)
+                label = "Only cross patch transits"
+            else:
+                current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
+            list_of_values += ana.convert_to_durations(current_transit_list)
 
     if column_name == "visit_duration":
-        for i_plate in range(len(results)):
-            current_transit_list = results["aggregated_raw_visits"][i_plate]
-            list_of_transits = json.loads(current_transit_list)
-            list_of_values += ana.convert_to_durations(list_of_transits)
+        for i_plate in range(len(folder_list)):
+            current_plate = folder_list[i_plate]
+            current_results = results[results["folder"] == current_plate].reset_index()
+            current_visit_list = current_results["aggregated_raw_visits"][0]
+            list_of_visits = json.loads(current_visit_list)
+            list_of_values += ana.convert_to_durations(list_of_visits)
 
-    plt.title(column_name+" distribution")
+    plt.title(column_name+" distribution for conditions "+str(condition_list))
     plt.xlabel(column_name+" value")
-    plt.ylabel("occurrences")
+    if frequency:
+        plt.ylabel("frequency")
+        plt.yscale("log")
+    else:
+        plt.ylabel("occurrences")
+    if ylim != 0:
+        plt.ylim(0, ylim)
     plt.xscale("log")
-    bins = list(np.logspace(1, 15, base=2, num=100, endpoint=True))
+    bins = list(np.logspace(1, 15, base=2, num=40, endpoint=True))
     print(bins)
-    plt.hist(list_of_values, bins=bins, edgecolor="black")
+    plt.hist(list_of_values, bins=bins, edgecolor="black", density=frequency, label=label)
+    plt.legend()
     plt.show()
 
 
