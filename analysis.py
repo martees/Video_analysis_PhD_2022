@@ -327,6 +327,13 @@ def return_value_list(results, condition_list, column_name):
     list_of_values = []
     folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
 
+    if column_name == "transits":
+        for i_plate in range(len(folder_list)):
+            current_plate = folder_list[i_plate]
+            current_results = results[results["folder"] == current_plate].reset_index()
+            current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
+            list_of_values += convert_to_durations(current_transit_list)
+
     if column_name == "same transits":
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
@@ -356,24 +363,49 @@ def return_value_list(results, condition_list, column_name):
     return list_of_values
 
 
-def transit_properties(results, condition_list):
+def transit_properties(results, condition_list, split_conditions):
     """
     Take a condition or a list of conditions, and look at the transits to compute, for each condition:
         - the probability of coming back to a patch when the worm exits it (same patch transits / total transits)
         - the average duration of same patch transits
         - the average duration of cross patch transits
     """
-    revisit_probability = np.zeros(len(condition_list))
-    average_same_patch = np.zeros(len(condition_list))
-    average_cross_patch = np.zeros(len(condition_list))
-    for i_cond in range(len(condition_list)):
-        condition = condition_list[i_cond]
-        same_transits = return_value_list(results, [condition], "same transits")
-        cross_transits = return_value_list(results, [condition], "cross transits")
-        revisit_probability[i_cond] = len(same_transits)/len(cross_transits)
-        average_same_patch[i_cond] = np.mean(same_transits)
-        average_cross_patch[i_cond] = np.mean(cross_transits)
-    return revisit_probability, average_same_patch, average_cross_patch
+    if split_conditions:
+        revisit_probability = np.zeros(len(condition_list))
+        cross_transit_probability = np.zeros(len(condition_list))
+        exponential_leaving_probability = np.zeros(len(condition_list))
+        min_visit = np.zeros(len(condition_list))
+        average_visit = np.zeros(len(condition_list))
+        average_same_patch = np.zeros(len(condition_list))
+        average_cross_patch = np.zeros(len(condition_list))
+        for i_cond in range(len(condition_list)):
+            condition = condition_list[i_cond]
+            all_visits = return_value_list(results, [condition], "visits")
+            all_transits = return_value_list(results, [condition], "transits")
+            same_transits = return_value_list(results, [condition], "same transits")
+            cross_transits = return_value_list(results, [condition], "cross transits")
+            revisit_probability[i_cond] = len(same_transits)/len(all_transits)
+            cross_transit_probability[i_cond] = len(cross_transits)/len(all_transits)
+            exponential_leaving_probability[i_cond] = 1/np.mean(all_visits)
+            min_visit[i_cond] = np.percentile(all_visits, 15)
+            average_visit[i_cond] = np.mean(all_visits)
+            average_same_patch[i_cond] = np.mean(same_transits)
+            average_cross_patch[i_cond] = np.mean(cross_transits)
+
+    else:
+        all_visits = return_value_list(results, condition_list, "visits")
+        all_transits = return_value_list(results, condition_list, "transits")
+        same_transits = return_value_list(results, condition_list, "same transits")
+        cross_transits = return_value_list(results, condition_list, "cross transits")
+        revisit_probability = len(same_transits) / len(all_transits)
+        cross_transit_probability = len(cross_transits) / len(all_transits)
+        exponential_leaving_probability = 1 / np.mean(all_visits)
+        min_visit = np.percentile(all_visits, 15)
+        average_visit = np.mean(all_visits)
+        average_same_patch = np.mean(same_transits)
+        average_cross_patch = np.mean(cross_transits)
+
+    return revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch
 
 
 def first(iterable, condition=lambda x: True):
