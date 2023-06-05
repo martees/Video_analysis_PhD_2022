@@ -4,6 +4,7 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import pandas as pd
 
+import analysis
 # My code
 import plots
 import generate_results as gr
@@ -68,7 +69,8 @@ def plot_graphs(plot, densities="all", include_control=False):
                                  divided_by="nb_of_visits", mycolor="orange")
 
     if "visit_duration_vs_previous_transit" in plot:
-        plots.plot_visit_time(results, trajectories, "Visit duration vs. previous transit in " + densities + " densities",
+        plots.plot_visit_time(results, trajectories,
+                              "Visit duration vs. previous transit in " + densities + " densities",
                               condition_list, "Last travel time", condition_names, split_conditions=False)
         plots.plot_visit_time(results, trajectories, "Visit duration vs. previous transit in control",
                               [11], "Last travel time", ["control"])
@@ -150,11 +152,41 @@ def plot_graphs(plot, densities="all", include_control=False):
         # plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
 
     if "distribution" in plot:
-        plots.plot_variable_distribution(results, condition_list=condition_list, condition_names=condition_names,  pool_by="density", plot_cumulative=False)
-        plots.plot_variable_distribution(results, condition_list=condition_list, condition_names=condition_names, pool_by="density")
-        plots.plot_variable_distribution(results, condition_list=condition_list, condition_names=condition_names, pool_by="distance", plot_cumulative=False)
-        plots.plot_variable_distribution(results, condition_list=condition_list, condition_names=condition_names, pool_by="distance")
+        plots.plot_variable_distribution(results, condition_list=condition_list, condition_names=condition_names,
+                                         pool_by="density", plot_cumulative=False)
+        plots.plot_variable_distribution(results, condition_list=condition_list, condition_names=condition_names,
+                                         pool_by="density")
+        plots.plot_variable_distribution(results, condition_list=condition_list, condition_names=condition_names,
+                                         pool_by="distance", plot_cumulative=False)
+        plots.plot_variable_distribution(results, condition_list=condition_list, condition_names=condition_names,
+                                         pool_by="distance")
 
+    if "transit_properties" in plot:
+        revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
+                                                                                            results, condition_list, split_conditions=True)
+        for i_cond in range(len(condition_list)):
+            print("Transit properties for condition ", condition_names[i_cond])
+            print("Revisit probability: ", revisit_probability[i_cond])
+            print("Cross-patch probability: ", cross_transit_probability[i_cond])
+            print("Exponential leaving probability: ", exponential_leaving_probability[i_cond])
+            print("Minimal duration of visits: ", min_visit[i_cond])
+            print("Average duration of visits: ", average_visit[i_cond])
+            print("Average duration of same patch transits: ", average_same_patch[i_cond])
+            print("Average duration of cross patch transits: ", average_cross_patch[i_cond])
+            print("-----")
+
+        revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
+            results, condition_list, split_conditions=False)
+
+        print("Transit properties for conditions ", condition_names)
+        print("Revisit probability: ", revisit_probability)
+        print("Cross-patch probability: ", cross_transit_probability)
+        print("Exponential leaving probability: ", exponential_leaving_probability)
+        print("Minimal duration of visits: ", min_visit)
+        print("Average duration of visits: ", average_visit)
+        print("Average duration of same patch transits: ", average_same_patch)
+        print("Average duration of cross patch transits: ", average_cross_patch)
+        print("-----")
 
 
 #   Saves the results in a path that is returned:
@@ -192,10 +224,10 @@ print("Finished retrieving stuff")
 # plot_speed_time_window_continuous(trajectories, 1, 120, 1, 100, current_speed=False, speed_history=False, past_speed=True)
 # binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [1, 100, 1000], [0, 1], 1)
 
-plot_graphs(plot="distribution", densities="low")
+plot_graphs(plot="transit_properties", densities="all")
 
 # Variable distributions
-#plots.plot_variable_distribution(results, "transit_duration", condition_list=[0, 4], only_same_patch_transits=True)
+# plots.plot_variable_distribution(results, "transit_duration", condition_list=[0, 4], only_same_patch_transits=True)
 # plots.plot_test(results)
 
 
