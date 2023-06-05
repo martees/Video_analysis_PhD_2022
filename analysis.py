@@ -4,6 +4,7 @@ import json
 from scipy import stats
 import time
 
+import param
 # My code
 from param import *
 
@@ -314,6 +315,65 @@ def select_transits(list_of_transits, list_of_visits, to_same_patch=False, to_di
         # Else if no transit was found it means it's over so do nothin'
 
     return new_list_of_transits
+
+
+def return_value_list(results, condition_list, column_name):
+    """
+    Will return a list of values of column_name in results, pooled for all conditions in condition_list.
+    For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
+    to_same_patch: if False, will only plot transits that go from one patch to another
+    to_different_patch: if False, will only plot transits that leave and come back to the same patch
+    """
+    list_of_values = []
+    folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
+
+    if column_name == "same transits":
+        for i_plate in range(len(folder_list)):
+            current_plate = folder_list[i_plate]
+            current_results = results[results["folder"] == current_plate].reset_index()
+            current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
+            current_visit_list = json.loads(current_results["aggregated_raw_visits"][0])
+            current_transit_list = select_transits(current_transit_list, current_visit_list, to_same_patch=True)
+            list_of_values += convert_to_durations(current_transit_list)
+
+    if column_name == "cross transits":
+        for i_plate in range(len(folder_list)):
+            current_plate = folder_list[i_plate]
+            current_results = results[results["folder"] == current_plate].reset_index()
+            current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
+            current_visit_list = json.loads(current_results["aggregated_raw_visits"][0])
+            current_transit_list = select_transits(current_transit_list, current_visit_list, to_different_patch=True)
+            list_of_values += convert_to_durations(current_transit_list)
+
+    if column_name == "visits":
+        for i_plate in range(len(folder_list)):
+            current_plate = folder_list[i_plate]
+            current_results = results[results["folder"] == current_plate].reset_index()
+            current_visit_list = current_results["aggregated_raw_visits"][0]
+            list_of_visits = json.loads(current_visit_list)
+            list_of_values += convert_to_durations(list_of_visits)
+
+    return list_of_values
+
+
+def transit_properties(results, condition_list):
+    """
+    Take a condition or a list of conditions, and look at the transits to compute, for each condition:
+        - the probability of coming back to a patch when the worm exits it (same patch transits / total transits)
+        - the average duration of same patch transits
+        - the average duration of cross patch transits
+    """
+    revisit_probability = np.zeros(len(condition_list))
+    average_same_patch = np.zeros(len(condition_list))
+    average_cross_patch = np.zeros(len(condition_list))
+    for i_cond in range(len(condition_list)):
+        condition = condition_list[i_cond]
+        same_transits = return_value_list(results, [condition], "same transits")
+        cross_transits = return_value_list(results, [condition], "cross transits")
+        revisit_probability[i_cond] = len(same_transits)/len(cross_transits)
+        average_same_patch[i_cond] = np.mean(same_transits)
+        average_cross_patch[i_cond] = np.mean(cross_transits)
+    return revisit_probability, average_same_patch, average_cross_patch
 
 
 def first(iterable, condition=lambda x: True):
