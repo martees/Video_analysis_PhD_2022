@@ -512,100 +512,85 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     # Plot the thing
     nb_cond = len(condition_list)
     data = pd.DataFrame()
+    data["Visit duration"] = []
+    data[variable] = []
 
-    for i_cond in range(nb_cond):
-        #ax = axes[i_cond]
-        #ax.set_title(str(condition_names[i_cond]))
-        #ax.set_xlabel(variable)
-        #ax.set_ylabel("Visit duration")
-        # plt.hist2d(full_variable_list[i_cond], full_visit_list[i_cond], range=[[0, 2000], [0, 2000]], bins=[100, 100], norm=mplcolors.LogNorm(), cmap="viridis")
-        # for axis limits control, add range= [[x0,xmax],[y0,ymax]] in arguments
-
-        # Plotting a linear regression on the thing
-        if split_conditions:
+    if split_conditions:
+        for i_cond in range(nb_cond):
+            # Plotting a linear regression on the thing
             data = pd.DataFrame()
             data["Visit duration"] = full_visit_list[i_cond]
             data[variable] = full_variable_list[i_cond]
 
-            sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100), marginal_ticks=True)
+            sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100),
+                          marginal_ticks=True)
             fig = plt.gcf()
             ax = fig.gca()
             max_y = ax.get_ylim()[1]
             max_x = ax.get_xlim()[1]
 
             fig.suptitle(plot_title + ": " + condition_names[i_cond])
-            ax.annotate("R2 = "+str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)), [max_x//2, max_y*3/4])
-        else:
-            data["Visit duration"].append(full_visit_list[i_cond])
-            data[variable].append(full_variable_list[i_cond])
+            ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)),
+                        [max_x // 2, max_y * 3 / 4])
 
-    print("finish this teehee")
-    caca
-
-    # Displaying everything with a nice size
-
-
-    # Plot legend with every label just once
-    # handles, labels = plt.gca().get_legend_handles_labels()
-    # by_label = dict(zip(labels, handles))
-    # plt.legend(by_label.values(), by_label.keys())
+    if not split_conditions:
+        data["Visit duration"] = pd.DataFrame([full_visit_list[i_cond][i] for i_cond in range(len(full_visit_list)) for i in range(len(full_visit_list[i_cond]))])
+        data[variable] = pd.DataFrame([full_variable_list[i_cond][i] for i_cond in range(len(full_variable_list)) for i in range(len(full_variable_list[i_cond]))])
+        sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100),
+                      marginal_ticks=True)
+        fig = plt.gcf()
+        ax = fig.gca()
+        max_y = ax.get_ylim()[1]
+        max_x = ax.get_xlim()[1]
+        fig.suptitle(plot_title + ": " + str(condition_list))
+        ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)),
+                    [max_x // 2, max_y * 3 / 4])
 
     plt.show()
 
 
-def plot_variable_distribution(results, column_name, condition_list, ylim=0, frequency=False, only_same_patch_transits=False, only_cross_patch_transits=False):
+def plot_variable_distribution(results, condition_list, condition_names, pool_by="nothing", variable_list=None, scale_list=None, plot_cumulative=True):
     """
-    Will plot a histogram with the distribution of values of column_name in results, for condition_list.
-    ylim: set an upper limit for the y-axis of the graph
-    frequency: FALSE => y-axis will be the number of occurrences of each value of the x-axis
-               TRUE => y-axis will be the nb of occurrences divided by (total nb of events * bin width)
+    Will return a list of values of column_name in results, pooled for all conditions in condition_list.
+    For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
     to_same_patch: if False, will only plot transits that go from one patch to another
     to_different_patch: if False, will only plot transits that leave and come back to the same patch
     """
-    list_of_values = []
-    folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
-    label = ""
+    if scale_list is None:
+        scale_list = ["linear", "log"]
+    if variable_list is None:
+        variable_list = ["visits", "same transits", "cross transits"]
 
-    if column_name == "transit_duration":
-        for i_plate in range(len(folder_list)):
-            current_plate = folder_list[i_plate]
-            current_results = results[results["folder"] == current_plate].reset_index()
-            if only_same_patch_transits:
-                current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
-                current_visit_list = json.loads(current_results["aggregated_raw_visits"][0])
-                current_transit_list = ana.select_transits(current_transit_list, current_visit_list, to_same_patch=True)
-                label = "Only same patch transits"
-            elif only_cross_patch_transits:
-                current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
-                current_visit_list = current_results["aggregated_raw_visits"][0]
-                current_visit_list = json.loads(current_visit_list)
-                current_transit_list = ana.select_transits(current_transit_list, current_visit_list, to_different_patch=True)
-                label = "Only cross patch transits"
-            else:
-                current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
-            list_of_values += ana.convert_to_durations(current_transit_list)
+    if pool_by == "distance":
+        condition_list = [[0, 4], [1, 5, 8], [2, 6], [3, 7], [11]]
+        condition_names = ["close", "med", "far", "cluster", "control"]
+    if pool_by == "density":
+        condition_list = [[0, 1, 2, 3], [4, 5, 6, 7], [8], [11]]
+        condition_names = ["0.2", "0.5", "1.25", "0"]
+    if pool_by == "nothing":
+        condition_list = [[condition_list[i]] for i in range(len(condition_list))]
 
-    if column_name == "visit_duration":
-        for i_plate in range(len(folder_list)):
-            current_plate = folder_list[i_plate]
-            current_results = results[results["folder"] == current_plate].reset_index()
-            current_visit_list = current_results["aggregated_raw_visits"][0]
-            list_of_visits = json.loads(current_visit_list)
-            list_of_values += ana.convert_to_durations(list_of_visits)
+    fig, axs = plt.subplots(len(scale_list), len(variable_list))
+    colors = plt.cm.viridis(np.linspace(0, 1, len(condition_list)))
 
-    plt.title(column_name+" distribution for conditions "+str(condition_list))
-    plt.xlabel(column_name+" value")
-    if frequency:
-        plt.ylabel("frequency")
-        plt.yscale("log")
-    else:
-        plt.ylabel("occurrences")
-    if ylim != 0:
-        plt.ylim(0, ylim)
-    plt.xscale("log")
-    bins = list(np.logspace(1, 15, base=2, num=40, endpoint=True))
-    print(bins)
-    plt.hist(list_of_values, bins=bins, edgecolor="black", density=frequency, label=label)
+    for i_variable in range(len(variable_list)):
+        variable = variable_list[i_variable]
+        if variable == "cross transits":
+            bins = np.linspace(0, 25000, 60)
+        else:
+            bins = np.linspace(0, 8500, 60)
+        for i_scale in range(len(scale_list)):
+            ax = axs[i_scale, i_variable]
+            if i_variable == 0:
+                ax.set(ylabel="normalized "+scale_list[i_scale]+" occurrences")
+            if i_scale == 0:
+                ax.set_title(str(variable) + " values")
+            ax.set_yscale(scale_list[i_scale])
+            for i_cond in range(len(condition_list)):
+                cond = condition_list[i_cond]
+                name = condition_names[i_cond]
+                values = ana.return_value_list(results, cond, variable)
+                ax.hist(values, bins=bins, density=True, cumulative=plot_cumulative, label=name, histtype="step", color=colors[i_cond])
     plt.legend()
     plt.show()
 
