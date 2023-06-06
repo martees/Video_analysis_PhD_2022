@@ -57,54 +57,99 @@ def is_revisit(revisit_probability):
         return False
 
 
-def sim_mvt(n_time_steps, t1, t2, t_min, optimal_leaving_rate, revisit_probability, time_constant):
+def mvt_avg_feeding_rate(t1, t2, leaving_threshold, revisit_probability, time_constant):
     """
-    Simulation for an MVT agent leaving patches when feeding rate reaches optimal_leaving_rate,
-    and adding a certain revisit probability.
+    Compute numerically the average feeding rate given the parameters of the null mvt model, where revisits have a length of 0.
+    """
+    avg_duration_of_visits = exponential_visit_length(leaving_threshold, time_constant)
+    avg_feeding_rate_in_a_patch = exponential_visit_feeding_rate(avg_duration_of_visits, time_constant)
+    avg_nb_of_revisits = 1/revisit_probability
+    return avg_duration_of_visits*avg_feeding_rate_in_a_patch / (t1 + avg_nb_of_revisits*t2)
 
+
+def simulation_visit_length(leaving_threshold, time_constant, time_already_spent=0):
+    """
+    Will return the visit length for a given leaving_threshold, and a feeding rate that decays exponentially with a
+    given time_constant ( f(t) = exp(-t/constant) ). Optionally, will take the time already spent in the patch as
+    an argument, and remove that from output.
+    """
+    duration_of_visit = 0
+    f_rate = feeding_rate(time_already_spent, time_constant)
+    while f_rate > leaving_threshold:
+        duration_of_visit += 1
+        f_rate = feeding_rate(duration_of_visit, time_constant)
+    return duration_of_visit
+
+
+def exponential_visit_length(leaving_threshold, time_constant, time_already_spent=0):
+    """
+    Will return the visit length for a given leaving_threshold, and a feeding rate that decays exponentially with a
+    given time_constant ( f(t) = exp(-t/constant) ). Optionally, will take the time already spent in the patch as
+    an argument, and remove that from output.
+    """
+    return int(-time_constant*log(leaving_threshold) - time_already_spent)
+
+
+def exponential_visit_feeding_rate(duration_of_visit, time_constant, time_already_spent=0):
+    """
+    Will return the avg amount of food gathered per time step over a visit in a patch, with exponential decay
+    f(t) = exp(-t/constant). Optionally, will take the time already spent in the patch as an argument, and remove
+    that from output.
+    """
+    return time_constant*(exp(-time_already_spent/time_constant)-exp(-duration_of_visit/time_constant))/max(1, duration_of_visit)
+
+
+def simulation(n_time_steps, t1, t2, t_min, leaving_threshold, revisit_probability, time_constant):
+    """
+    Simulation for an agent leaving patches when feeding rate reaches leaving_threshold,
+    and adding a certain revisit probability.
     """
     t = 0
     list_of_durations = []
     feeding_rate_list = -1 * np.ones(n_time_steps + 1)
+    duration_of_first_visits = exponential_visit_length(leaving_threshold, time_constant)
     while t < n_time_steps:
 
         # Travel to the next patch
         travel = travel_time(t1)
+        # Update global time counter
         t += travel  # travel to next patch
         # Add 0 feeding_rate for the whole travel time
         feeding_rate_list[t - travel:t] = [0 for _ in range(travel - abs(min(0, n_time_steps - t + 1)))]
 
-        # Initialize visit and feeding rate
-        duration_of_visit = 0
-        f_rate = feeding_rate(duration_of_visit, time_constant)  # update feeding rate
-
-        # While the agent stays in the patch
-        while t + duration_of_visit < n_time_steps and not is_leave(f_rate, optimal_leaving_rate, duration_of_visit, t_min):
-            f_rate = feeding_rate(duration_of_visit, time_constant)  # update feeding rate
-            feeding_rate_list[t + duration_of_visit] = f_rate  # add it to the list
-            duration_of_visit += 1  # update duration of visit
-
+        # Visit it
+        duration_of_visit = duration_of_first_visits
         # Update global time counter
         t += duration_of_visit
+        # Add average feeding rate during visit * time of visit to the feeding_rate list (NO DYNAMICS)
+        avg_f_rate = exponential_visit_feeding_rate(duration_of_visit, time_constant)
+        feeding_rate_list[t - duration_of_visit:t] = [avg_f_rate for _ in range(duration_of_visit - abs(min(0, n_time_steps - t + 1)))]
         # Update list of visits
         list_of_durations.append(duration_of_visit)
 
         # Visit is over, now will there be a revisit?
         # If there is a revisit
+        time_already_spent = duration_of_visit
         while t < n_time_steps and is_revisit(revisit_probability):
             # Travel to same patch
-            travel = revisit_time(t2)
+            travel = revisit_time(t2)  # revisit travel
+            # Update global time counter
             t += travel
-
             # Add it to feeding rate list. Weird shit is because travel < travel when t reaches n_time_steps
             feeding_rate_list[t - travel:t] = [0 for _ in range(travel - abs(min(0, n_time_steps - t + 1)))]
 
             # Revisit it
-            duration_of_revisit = 0
-            while t + duration_of_revisit < n_time_steps and not is_leave(f_rate, optimal_leaving_rate, duration_of_revisit, t_min):
-                duration_of_revisit += 1
-                f_rate = feeding_rate(duration_of_visit + duration_of_revisit, time_constant)
-                feeding_rate_list[t + duration_of_revisit] = f_rate  # add it to the list
+            duration_of_revisit = exponential_visit_length(leaving_threshold, time_constant, time_already_spent=time_already_spent)
+            # Update global time counter
+            t += duration_of_revisit
+            # Add average feeding rate during revisit * time of visit to the feeding_rate list (NO DYNAMICS)
+            avg_f_rate = exponential_visit_feeding_rate(duration_of_revisit, time_constant, time_already_spent=time_already_spent)
+            feeding_rate_list[t - duration_of_revisit:t] = [avg_f_rate for _ in range(duration_of_revisit - abs(min(0, n_time_steps - t + 1)))]
+
+            # Update list of visits
+            list_of_durations.append(duration_of_revisit)
+            # Update time already spent in patch
+            time_already_spent += duration_of_revisit
 
     return list_of_durations, feeding_rate_list, np.mean(feeding_rate_list), np.mean(list_of_durations)
 
@@ -120,14 +165,16 @@ def opt_mvt(condition_name, nb_of_points, nb_of_time_steps, max_leaving_rate, pa
     """
     avg_feeding_rate_list = []
     avg_visit_length_list = []
+    mvt_avg_feeding_rate_list = []
     t1, t2, t_min, p_rev, constant = parameter_list
     leaving_rate_list = np.linspace(0.0001, max_leaving_rate, nb_of_points)
 
     # Run simulations for all leaving_rates
     for leaving_rate in leaving_rate_list:
-        _, _, avg_feeding_rate, avg_visit_length = sim_mvt(nb_of_time_steps, t1, t2, t_min, leaving_rate, p_rev, constant)
+        _, _, avg_feeding_rate, avg_visit_length = simulation(nb_of_time_steps, t1, t2, t_min, leaving_rate, p_rev, constant)
         avg_feeding_rate_list.append(avg_feeding_rate)
         avg_visit_length_list.append(avg_visit_length)
+        mvt_avg_feeding_rate_list.append(mvt_avg_feeding_rate(t1, t2, leaving_rate, p_rev, constant))
 
     # From there, compute the leaving rate where the maximum is reached
     opt_index = np.argmax(avg_feeding_rate_list)
@@ -141,6 +188,7 @@ def opt_mvt(condition_name, nb_of_points, nb_of_time_steps, max_leaving_rate, pa
         ax1.set_xlabel("Leaving rate f*")
         ax1.set_ylabel("Average feeding rate <f>")
         ax1.plot(leaving_rate_list, avg_feeding_rate_list, color="orange")
+        #ax1.plot(leaving_rate_list, mvt_avg_feeding_rate_list, color="red")
         ax1.tick_params(axis='y', labelcolor="orange")
 
         ax2 = ax1.twinx()
@@ -184,7 +232,7 @@ def print_opt_mvt(nb_of_points, nb_of_time_steps, parameter_list):
 
     print("-----")
     # Example of feeding rate evolution
-    plot_f_rate(sim_mvt(10*t_travel, t_travel, t_revisit, t_minimal, optimal_rate, p_revisit, time_constant)[1])
+    plot_f_rate(simulation(10 * t_travel, t_travel, t_revisit, t_minimal, optimal_rate, p_revisit, time_constant)[1])
 
     return optimal_rate
 
@@ -201,7 +249,7 @@ param_far05 = [2038, 29, 0, 0.96, 92]
 param_cluster05 = [236, 22, 0, 0.92, 92]
 
 nb_of_leaving_rates_to_test = 100
-nb_of_time_steps_per_leaving_rate = 500000
+nb_of_time_steps_per_leaving_rate = 100000000
 
 opt_mvt("param_close02", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.4, param_close02)
 opt_mvt("param_med02", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.2, param_med02)
