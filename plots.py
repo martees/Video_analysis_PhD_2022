@@ -466,24 +466,20 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 
 
 def plot_selected_data(results, plot_title, condition_list, condition_names, column_name, divided_by="",
-                       mycolor="blue"):
+                       mycolor="blue", plot_model=False):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
     - column_name: column to plot from the results (y-axis)
-    - divided_by: name of a column
+    - divided_by: name of a column whose values will divide column name
+    eg : if column_name="total_visit_time" and divided_by="nb_of_visits", it will output the average visit time
     """
     # Getting results
-    list_of_conditions, list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results,
-                                                                                                             column_name,
-                                                                                                             divided_by)
+    list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list, column_name, divided_by)
 
-    # Slicing to get condition we're interested in (only take indexes from condition_list)
-    list_of_conditions = [list_of_conditions[i] for i in condition_list]
-    list_of_avg_each_plate = [list_of_avg_each_plate[i] for i in condition_list]
-    average_per_condition = [average_per_condition[i] for i in condition_list]
-    errorbars[0] = [errorbars[0][i] for i in condition_list]
-    errorbars[1] = [errorbars[1][i] for i in condition_list]
+    # Model results
+    if plot_model:
+        model_per_condition = ana.model_per_condition(results, condition_list, column_name, divided_by)
 
     # Plotttt
     plt.title(plot_title)
@@ -492,18 +488,22 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     fig.set_size_inches(5, 6)
 
     # Plot condition averages as a bar plot
-    ax.bar(range(len(list_of_conditions)), average_per_condition, color=mycolor)
-    ax.set_xticks(range(len(list_of_conditions)))
+    ax.bar(range(len(condition_list)), average_per_condition, color=mycolor)
+    ax.set_xticks(range(len(condition_list)))
     ax.set_xticklabels(condition_names, rotation=45)
     ax.set(xlabel="Condition number")
 
     # Plot plate averages as scatter on top
-    for i in range(len(list_of_conditions)):
-        ax.scatter([range(len(list_of_conditions))[i] for _ in range(len(list_of_avg_each_plate[i]))],
+    for i in range(len(condition_list)):
+        ax.scatter([range(len(condition_list))[i] for _ in range(len(list_of_avg_each_plate[i]))],
                    list_of_avg_each_plate[i], color="red", zorder=2)
-    ax.errorbar(range(len(list_of_conditions)), average_per_condition, errorbars, fmt='.k', capsize=5)
-    plt.show()
+    ax.errorbar(range(len(condition_list)), average_per_condition, errorbars, fmt='.k', capsize=5)
 
+    # Plot model as a dashed line on top
+    if plot_model:
+        ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
+
+    plt.show()
 
 def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
