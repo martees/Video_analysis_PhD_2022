@@ -63,8 +63,18 @@ def mvt_avg_feeding_rate(t1, t2, leaving_threshold, revisit_probability, time_co
     """
     avg_duration_of_visits = exponential_visit_length(leaving_threshold, time_constant)
     avg_feeding_rate_in_a_patch = exponential_visit_feeding_rate(avg_duration_of_visits, time_constant)
-    avg_nb_of_revisits = 1/revisit_probability
-    return avg_duration_of_visits*avg_feeding_rate_in_a_patch / (t1 + avg_nb_of_revisits*t2)
+    avg_nb_of_revisits = revisit_probability/(1-revisit_probability)
+    return avg_duration_of_visits*avg_feeding_rate_in_a_patch / (avg_duration_of_visits + t1 + avg_nb_of_revisits*t2)
+
+
+def mvt_avg_visit_length(leaving_threshold, revisit_probability, time_constant):
+    """
+    Compute numerically the average visit length given the parameters of the null mvt model, where revisits have a length of 0.
+    """
+    avg_duration_of_visits = exponential_visit_length(leaving_threshold, time_constant)
+    avg_nb_of_revisits = revisit_probability/(1-revisit_probability)
+    #return avg_duration_of_visits / (1 + avg_nb_of_revisits)
+    return avg_duration_of_visits
 
 
 def simulation_visit_length(leaving_threshold, time_constant, time_already_spent=0):
@@ -87,7 +97,8 @@ def exponential_visit_length(leaving_threshold, time_constant, time_already_spen
     given time_constant ( f(t) = exp(-t/constant) ). Optionally, will take the time already spent in the patch as
     an argument, and remove that from output.
     """
-    return int(-time_constant*log(leaving_threshold) - time_already_spent)
+    # Return max between answer and 0, because the calculus can give negative visit durations
+    return max(0, int(-time_constant*log(leaving_threshold) - time_already_spent))
 
 
 def exponential_visit_feeding_rate(duration_of_visit, time_constant, time_already_spent=0):
@@ -107,7 +118,7 @@ def simulation(n_time_steps, t1, t2, t_min, leaving_threshold, revisit_probabili
     t = 0
     list_of_durations = []
     feeding_rate_list = -1 * np.ones(n_time_steps + 1)
-    duration_of_first_visits = exponential_visit_length(leaving_threshold, time_constant)
+    duration_of_first_visits = simulation_visit_length(leaving_threshold, time_constant)
     while t < n_time_steps:
 
         # Travel to the next patch
@@ -163,60 +174,96 @@ def opt_mvt(condition_name, nb_of_points, nb_of_time_steps, max_leaving_rate, pa
     """
     Will compute the average feeding rate of the environment for a range of thresholds to leave a patch.
     """
-    avg_feeding_rate_list = []
-    avg_visit_length_list = []
-    mvt_avg_feeding_rate_list = []
+    sim_avg_feeding_rate_list = []
+    sim_avg_visit_length_list = []
+    mvt_feeding_rate_list = []
+    mvt_visit_length_list = []
     t1, t2, t_min, p_rev, constant = parameter_list
-    leaving_rate_list = np.linspace(0.0001, max_leaving_rate, nb_of_points)
+    leaving_rate_list = np.linspace(0.001, max_leaving_rate, nb_of_points)
 
     # Run simulations for all leaving_rates
     for leaving_rate in leaving_rate_list:
         _, _, avg_feeding_rate, avg_visit_length = simulation(nb_of_time_steps, t1, t2, t_min, leaving_rate, p_rev, constant)
-        avg_feeding_rate_list.append(avg_feeding_rate)
-        avg_visit_length_list.append(avg_visit_length)
-        mvt_avg_feeding_rate_list.append(mvt_avg_feeding_rate(t1, t2, leaving_rate, p_rev, constant))
+        sim_avg_feeding_rate_list.append(avg_feeding_rate)
+        sim_avg_visit_length_list.append(avg_visit_length)
+        mvt_feeding_rate_list.append(mvt_avg_feeding_rate(t1, t2, leaving_rate, p_rev, constant))
+        mvt_visit_length_list.append(mvt_avg_visit_length(leaving_rate, p_rev, constant))
 
-    # From there, compute the leaving rate where the maximum is reached
-    opt_index = np.argmax(avg_feeding_rate_list)
-    opt_leaving_rate = leaving_rate_list[opt_index]
-    opt_avg_feeding_rate = avg_feeding_rate_list[opt_index]
-    opt_avg_visit_length = avg_visit_length_list[opt_index]
+    # From there, compute the leaving rate and visit length where the maximum is reached
+    # FOR SIMULATED NUMBERS
+    opt_index = np.argmax(sim_avg_feeding_rate_list)  # Find index of maximal average feeding rate
+    opt_avg_feeding_rate = sim_avg_feeding_rate_list[opt_index]  # Store how much it is
+    opt_leaving_rate = leaving_rate_list[opt_index]  # Find corresponding leaving rate
+    opt_avg_visit_length = sim_avg_visit_length_list[opt_index]  # Find corresponding visit length
+    # FOR ANALYTICAL SOLUTION
+    opt_index_mvt = np.argmax(mvt_feeding_rate_list)  # Find index of maximal average feeding rate
+    opt_avg_feeding_rate_mvt = sim_avg_feeding_rate_list[opt_index_mvt]  # Store how much it is
+    opt_leaving_rate_mvt = leaving_rate_list[opt_index_mvt]  # Find corresponding leaving rate
+    opt_avg_visit_length_mvt = mvt_visit_length_list[opt_index_mvt]  # Find corresponding visit length
 
     if is_plot:
+
+        # Plot average feeding_rate for every leaving rate (both in simulations and analytical solution)
         fig, ax1 = plt.subplots()
+
+        # General parameters for the figure
+        fig.set_size_inches(9, 7)
         fig.suptitle("Nb_of_time_steps: "+str(nb_of_time_steps)+" for condition "+condition_name+", tau ="+str(constant))
+
+        # Plotting the average
         ax1.set_xlabel("Leaving rate f*")
         ax1.set_ylabel("Average feeding rate <f>")
-        ax1.plot(leaving_rate_list, avg_feeding_rate_list, color="orange")
-        #ax1.plot(leaving_rate_list, mvt_avg_feeding_rate_list, color="red")
+        ax1.plot(leaving_rate_list, sim_avg_feeding_rate_list, color="orange", label="Simulated average feeding rate")
+        ax1.plot(leaving_rate_list, mvt_feeding_rate_list, color="red", label="Analytic average feeding rate")
         ax1.tick_params(axis='y', labelcolor="orange")
 
+        # Plot the list of average visit lengths
         ax2 = ax1.twinx()
         ax2.set_ylabel("Average visit length")
-        ax2.plot(leaving_rate_list, avg_visit_length_list, color="blue")
+        ax2.plot(leaving_rate_list, sim_avg_visit_length_list, color="blue", label="Average visit length")
+        ax2.plot(leaving_rate_list, mvt_visit_length_list, color="green", label="MVT visit length")
         ax2.tick_params(axis='y', labelcolor="blue")
 
-        # Vertical line to indicate our computed optimal
-        ax1.axvline(opt_leaving_rate, color="blue", linestyle="dotted")
+        # Vertical line to indicate the simulation optimal (leaving rate that yields the maximal average feeding rate)
+        ax1.axvline(opt_leaving_rate, color="orange", linestyle="dotted", label="Simulated maximum")
         # Write the corresponding visit length
-        ax2.annotate("model="+str(np.round(opt_avg_visit_length, 1)), [1.1*opt_leaving_rate, 1.1*opt_avg_visit_length], color="blue")
+        ax2.annotate("sim_max="+str(np.round(opt_avg_visit_length, 1)), [1.1*opt_leaving_rate_mvt, 4*opt_avg_visit_length_mvt], color="orange")
 
-        # x = y line: should cross the feeding rate curve at its peak (MVT result)
-        ax1.plot(avg_feeding_rate_list, avg_feeding_rate_list, label="y=x curve", color="grey", linestyle="dashed")
+        # Vertical line to indicate the analytical optimal (leaving rate that yields the maximal average feeding rate)
+        ax1.axvline(opt_leaving_rate_mvt, color="red", linestyle="dotted", label="Analytical maximum")
+        # Write the corresponding visit length
+        ax2.annotate("math_max="+str(np.round(opt_avg_visit_length_mvt, 1)), [1.1*opt_leaving_rate_mvt, 3*opt_avg_visit_length_mvt], color="red")
+
+        # Plot the x = y line
+        ax1.plot(sim_avg_feeding_rate_list, sim_avg_feeding_rate_list, label="y=x curve", color="grey", linestyle="dashed")
+
+        # Vertical line for the intercept between SIMULATED avg_feeding_rate and x=y line (MVT-like simulated optimal)
         # Find the point where the x=y curve intersects our avg_feeding_rate curve
-        index = np.min(np.argwhere(np.diff(np.sign(avg_feeding_rate_list - leaving_rate_list))).flatten())
-        ax1.axvline(leaving_rate_list[index], color="grey", linestyle="dotted")
-        ax2.annotate("mvt=" + str(np.round(avg_visit_length_list[index], 1)), [1.1*opt_leaving_rate, 1.3*opt_avg_visit_length])
+        # In theory, the x = y line should cross the feeding rate curve at its peak (MVT result)
+        index = np.min(np.argwhere(np.diff(np.sign(sim_avg_feeding_rate_list - leaving_rate_list))).flatten())
+        ax1.axvline(leaving_rate_list[index], color="orange", linestyle="dashdot", label="Simulation x=y-intercept")
+        ax2.annotate("sim_intercept=" + str(np.round(sim_avg_visit_length_list[index], 1)), [1.1*opt_leaving_rate_mvt, 2*opt_avg_visit_length_mvt], color="orange")
 
-        ax1.legend()
+        # Vertical line for the intercept between ANALYTICAL avg_feeding_rate and x=y line (MVT theoretical optimal)
+        # Find the point where the x=y curve intersects our avg_feeding_rate curve
+        index = np.min(np.argwhere(np.diff(np.sign(mvt_feeding_rate_list - leaving_rate_list))).flatten())
+        ax1.axvline(leaving_rate_list[index], color="red", linestyle="dashdot", label="Analytical x=y-intercept")
+        ax2.annotate("math_intercept=" + str(np.round(mvt_visit_length_list[index], 1)), [1.1*opt_leaving_rate_mvt, 1*opt_avg_visit_length_mvt], color="red")
+
+        ax1.legend(loc='upper left')
         plt.show()
 
     if is_print:
+        print("SIMULATION RESULTS")
         print("Optimal is reached for a leaving rate of: ", opt_leaving_rate)
         print("Which corresponds to an average feeding rate of: ", opt_avg_feeding_rate)
         print("And an average visit length of: ", opt_avg_visit_length)
+        print("ANALYTICAL RESULTS")
+        print("Optimal is reached for a leaving rate of: ", opt_leaving_rate_mvt)
+        print("Which corresponds to an average feeding rate of: ", opt_avg_feeding_rate_mvt)
+        print("And an average visit length of: ", opt_avg_visit_length_mvt)
 
-    return opt_leaving_rate
+    return opt_avg_visit_length_mvt
 
 
 def print_opt_mvt(nb_of_points, nb_of_time_steps, parameter_list):
@@ -238,23 +285,26 @@ def print_opt_mvt(nb_of_points, nb_of_time_steps, parameter_list):
 
 
 # TODO save those in a csv in analysis with a "generate_model_parameters" function
-param_all = [303, 26, 0, 0.91, 92]
-param_close02 = [81, 16, 0, 0.80, 92]
-param_med02 = [413, 27, 0, 0.92, 92]
-param_far02 = [1870, 34, 0, 0.94, 92]
-param_cluster02 = [267, 24, 0, 0.89, 92]
-param_close05 = [137, 20, 0, 0.91, 92]
-param_med05 = [382, 29, 0, 0.95, 92]
-param_far05 = [2038, 29, 0, 0.96, 92]
-param_cluster05 = [236, 22, 0, 0.92, 92]
+tauu = 92
+
+#[t1, t2, t_min, revisit_probability, time_constant]
+param_all = [303, 26, 0, 0.91, tauu]
+param_close02 = [81, 16, 0, 0.80, tauu]
+param_med02 = [413, 27, 0, 0.92, tauu]
+param_far02 = [1870, 34, 0, 0.94, tauu]
+param_cluster02 = [267, 24, 0, 0.89, tauu]
+param_close05 = [137, 20, 0, 0.91, tauu]
+param_med05 = [382, 29, 0, 0.95, tauu]
+param_far05 = [2038, 29, 0, 0.96, tauu]
+param_cluster05 = [236, 22, 0, 0.92, tauu]
 
 nb_of_leaving_rates_to_test = 100
-nb_of_time_steps_per_leaving_rate = 100000000
+nb_of_time_steps_per_leaving_rate = 1000000
 
-opt_mvt("param_close02", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.4, param_close02)
-opt_mvt("param_med02", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.2, param_med02)
-opt_mvt("param_far02", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.2, param_far02)
-opt_mvt("param_close05", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.2, param_close05)
-opt_mvt("param_med05", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.2, param_med05)
-opt_mvt("param_far05", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.2, param_far05)
+#opt_mvt("param_close02", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 1, param_close02)
+#opt_mvt("param_med02", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.5, param_med02)
+#opt_mvt("param_far02", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.5, param_far02)
+#opt_mvt("param_close05", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.5, param_close05)
+#opt_mvt("param_med05", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.5, param_med05)
+#opt_mvt("param_far05", nb_of_leaving_rates_to_test, nb_of_time_steps_per_leaving_rate, 0.5, param_far05)
 #print_opt_mvt(20, 1000, param_close05)
