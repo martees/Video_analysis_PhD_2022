@@ -7,6 +7,7 @@ import time
 import param
 # My code
 from param import *
+import model
 
 import find_data as fd
 
@@ -31,18 +32,14 @@ def bottestrop_ci(data, nb_resample):
     return [np.percentile(bootstrapped_means, 5), np.percentile(bootstrapped_means, 95)]
 
 
-def results_per_condition(result_table, column_name, divided_by=""):
+def results_per_condition(result_table, list_of_conditions, column_name, divided_by=""):
     """
-    Function that takes our result table and a column name (as a string)
+    Function that takes our result table, a list of conditions, and a column name (as a string)
     Returns the list of values of that column pooled by condition, a list of the average value for each condition, and a
     bootstrap confidence interval for each value.
     Can take in a third argument, column name by which you want to divide the main column, plate by plate
     eg: divide duration sum by nb of visits for each plate to get average visit duration for each plate
     """
-
-    # Initializing a list
-    list_of_conditions = np.unique(result_table["condition"])
-    list_of_plates = np.unique(result_table["folder"])
 
     # Full list
     full_list_of_values = [list(i) for i in np.zeros((len(list_of_conditions), 1), dtype='int')]
@@ -117,8 +114,36 @@ def results_per_condition(result_table, column_name, divided_by=""):
         errors_inf[i_condition] = list_of_avg_values[i_condition] - bootstrap_ci[0]
         errors_sup[i_condition] = bootstrap_ci[1] - list_of_avg_values[i_condition]
 
-    return list_of_conditions, full_list_of_values, list_of_avg_values, [list(errors_inf), list(errors_sup)]
+    return full_list_of_values, list_of_avg_values, [list(errors_inf), list(errors_sup)]
 
+
+def model_per_condition(result_table, list_of_conditions, column_name, divided_by=""):
+    """
+    Function that should return model predictions for column name values (divided by divided_by values), pooled for
+    each condition in condition_list.
+    """
+    revisit_probability, _, _, _, _, average_same_patch, average_cross_patch = transit_properties(result_table, list_of_conditions, split_conditions=True)
+
+    if column_name == "total_visit_time" and divided_by == "nb_of_visits":
+        model_avg_visit_length_list = np.zeros(len(list_of_conditions))
+        for i_condition in range(len(list_of_conditions)):
+            t1 = int(average_cross_patch[i_condition])
+            t2 = int(average_same_patch[i_condition])
+            t_min = 0
+            p_rev = revisit_probability[i_condition]
+            time_constant = model.tauu
+
+            parameter_list = [t1, t2, t_min, p_rev, time_constant]
+
+            resolution = model.nb_of_leaving_rates_to_test
+            nb_of_time_steps = model.nb_of_time_steps_per_leaving_rate
+
+            model_avg_visit_length_list[i_condition] = model.opt_mvt("", resolution, nb_of_time_steps, 1, parameter_list, is_plot=False, is_print=False)
+
+        return model_avg_visit_length_list
+    else:
+        print("We have no model for that yet darling.")
+        return np.zeros(len(list_of_conditions))
 
 def visit_time_as_a_function_of(results, traj, condition_list, variable):
     """
