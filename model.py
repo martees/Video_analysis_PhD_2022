@@ -285,7 +285,7 @@ def print_opt_mvt(nb_of_points, nb_of_time_steps, parameter_list):
 
 
 # TODO save those in a csv in analysis with a "generate_model_parameters" function
-tauu = 92
+tauu = 2000
 
 #[t1, t2, t_min, revisit_probability, time_constant]
 param_all = [303, 26, 0, 0.91, tauu]
