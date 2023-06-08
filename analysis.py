@@ -3,16 +3,19 @@ import random
 import json
 from scipy import stats
 import time
+import copy
 
 import param
 # My code
 from param import *
-import model
-
 import find_data as fd
+import model
 
 
 def r2(x, y):
+    """
+    R squared for linear regression between x and y vectors
+    """
     return stats.pearsonr(x, y)[0] ** 2
 
 
@@ -124,7 +127,7 @@ def model_per_condition(result_table, list_of_conditions, column_name, divided_b
     """
     revisit_probability, _, _, _, _, average_same_patch, average_cross_patch = transit_properties(result_table, list_of_conditions, split_conditions=True)
 
-    if column_name == "total_visit_time" and divided_by == "nb_of_visits":
+    if column_name == "total_visit_time" and (divided_by == "nb_of_visits" or divided_by == "mvt_nb_of_visits"):
         model_avg_visit_length_list = np.zeros(len(list_of_conditions))
         for i_condition in range(len(list_of_conditions)):
             t1 = int(average_cross_patch[i_condition])
@@ -144,6 +147,7 @@ def model_per_condition(result_table, list_of_conditions, column_name, divided_b
     else:
         print("We have no model for that yet darling.")
         return np.zeros(len(list_of_conditions))
+
 
 def visit_time_as_a_function_of(results, traj, condition_list, variable):
     """
@@ -351,13 +355,7 @@ def return_value_list(results, condition_list, column_name):
     """
     list_of_values = []
     folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
-
-    if column_name == "transits":
-        for i_plate in range(len(folder_list)):
-            current_plate = folder_list[i_plate]
-            current_results = results[results["folder"] == current_plate].reset_index()
-            current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
-            list_of_values += convert_to_durations(current_transit_list)
+    convert_to_duration = False
 
     if column_name == "same transits":
         for i_plate in range(len(folder_list)):
@@ -368,7 +366,7 @@ def return_value_list(results, condition_list, column_name):
             current_transit_list = select_transits(current_transit_list, current_visit_list, to_same_patch=True)
             list_of_values += convert_to_durations(current_transit_list)
 
-    if column_name == "cross transits":
+    elif column_name == "cross transits":
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
             current_results = results[results["folder"] == current_plate].reset_index()
@@ -377,13 +375,22 @@ def return_value_list(results, condition_list, column_name):
             current_transit_list = select_transits(current_transit_list, current_visit_list, to_different_patch=True)
             list_of_values += convert_to_durations(current_transit_list)
 
-    if column_name == "visits":
+    else:
+        if column_name == "visits":
+            column_name = "aggregated_raw_visits"
+            convert_to_duration = True
+        if column_name == "transits":
+            column_name = "aggregated_raw_transits"
+            convert_to_duration = True
+
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
             current_results = results[results["folder"] == current_plate].reset_index()
-            current_visit_list = current_results["aggregated_raw_visits"][0]
-            list_of_visits = json.loads(current_visit_list)
-            list_of_values += convert_to_durations(list_of_visits)
+            current_values = json.loads(current_results[column_name][0])
+            if convert_to_duration:
+                list_of_values += convert_to_durations(current_values)
+            else:
+                list_of_values += current_values
 
     return list_of_values
 
@@ -431,6 +438,46 @@ def transit_properties(results, condition_list, split_conditions):
         average_cross_patch = np.mean(cross_transits)
 
     return revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch
+
+
+def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
+    """
+    Takes a list of condition numbers ([c0,c1,c2]) and will pool them into sublist based on
+    variable in argument ([[c0],[c1,c2]]) and the corresponding names (["close", "med"]). Eg by distance or density.
+    If pool_conditions = True, then like what's on top.
+
+    """
+    if pool_by_variable == "distance":
+        pooled_conditions = [[0, 4], [1, 5, 8], [2, 6], [3, 7], [11]]
+        pool_names = ["close", "med", "far", "cluster", "control"]
+    elif pool_by_variable == "density":
+        pooled_conditions = [[0, 1, 2, 3], [4, 5, 6, 7], [8], [11]]
+        pool_names = ["0.2", "0.5", "1.25", "0"]
+    else:
+        pooled_conditions = [[condition_list[i]] for i in range(len(condition_list))]
+        pool_names = [[param.nb_to_name[condition_list[i]]] for i in range(len(condition_list))]
+
+    # We build a new list
+    new_condition_list = []
+    new_pool_names = []
+    # For every pool
+    for i_pool in range(len(pooled_conditions)):
+        pool = pooled_conditions[i_pool]
+        # We copy the pool otherwise iterations do random stuff when we remove elements from the iterable
+        new_pool = copy.copy(pool)
+        # For every condition
+        for cond in pool:
+            # Remove the elements that are not in condition_list
+            if cond not in condition_list:
+                new_pool.remove(cond)
+        # Add this new pool to the lists if there's something
+        if new_pool:
+            new_condition_list.append(new_pool)
+            new_pool_names.append(pool_names[i_pool])
+        # Else, the pool is empty, so we don't even want its name, booyah
+
+    return new_condition_list, new_pool_names
+
 
 
 def first(iterable, condition=lambda x: True):
