@@ -4,12 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mplcolors
 import random
 import seaborn as sns
-import json
 
 import analysis as ana
 import generate_results as gr
 import find_data as fd
-
 
 # Sanity check functions
 
@@ -505,6 +503,7 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
 
     plt.show()
 
+
 def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
     full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable)
@@ -549,10 +548,15 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     plt.show()
 
 
-def plot_variable_distribution(results, condition_list, condition_names, pool_by="nothing", variable_list=None, scale_list=None, plot_cumulative=True):
+def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None, plot_cumulative=True):
     """
-    Will return a list of values of column_name in results, pooled for all conditions in condition_list.
-    For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
+    Will plot a distribution of each variable from variable_list in results, for conditions in condition_list.
+        effect_of: if set to "nothing", will plot one curve for each condition in condition_list.
+                   if set to "density" will make one curve for each bacterial density, pooling conditions together
+                   if set to "distance" same but for distance
+        variable_list: can contain any argument that the return_value_list function can take
+        scale_list: say if you want to plot the y-axis linear scale, log scale or both
+        plot_cumulative: plot cumulative histograms or not
     to_same_patch: if False, will only plot transits that go from one patch to another
     to_different_patch: if False, will only plot transits that leave and come back to the same patch
     """
@@ -561,17 +565,10 @@ def plot_variable_distribution(results, condition_list, condition_names, pool_by
     if variable_list is None:
         variable_list = ["visits", "same transits", "cross transits"]
 
-    if pool_by == "distance":
-        condition_list = [[0, 4], [1, 5, 8], [2, 6], [3, 7], [11]]
-        condition_names = ["close", "med", "far", "cluster", "control"]
-    if pool_by == "density":
-        condition_list = [[0, 1, 2, 3], [4, 5, 6, 7], [8], [11]]
-        condition_names = ["0.2", "0.5", "1.25", "0"]
-    if pool_by == "nothing":
-        condition_list = [[condition_list[i]] for i in range(len(condition_list))]
+    condition_pools, condition_names = ana.pool_conditions_by(condition_list, effect_of)
 
     fig, axs = plt.subplots(len(scale_list), len(variable_list))
-    colors = plt.cm.viridis(np.linspace(0, 1, len(condition_list)))
+    colors = plt.cm.viridis(np.linspace(0, 1, len(condition_pools)))
 
     for i_variable in range(len(variable_list)):
         variable = variable_list[i_variable]
@@ -586,11 +583,12 @@ def plot_variable_distribution(results, condition_list, condition_names, pool_by
             if i_scale == 0:
                 ax.set_title(str(variable) + " values")
             ax.set_yscale(scale_list[i_scale])
-            for i_cond in range(len(condition_list)):
-                cond = condition_list[i_cond]
+            # For every condition pool in condition_list (
+            for i_cond in range(len(condition_pools)):
+                cond = condition_pools[i_cond]
                 name = condition_names[i_cond]
                 values = ana.return_value_list(results, cond, variable)
-                ax.hist(values, bins=bins, density=True, cumulative=plot_cumulative, label=name, histtype="step", color=colors[i_cond])
+                ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step", color=colors[i_cond])
     plt.legend()
     plt.show()
 
