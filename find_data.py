@@ -112,6 +112,31 @@ def folder_to_metadata(path):
     return metadata
 
 
+def perfect_square_parameters(x1, y1, x2, y2, x3, y3, x4, y4):
+    # Create numpy arrays for the points
+    points = np.array([[x1, y1], [x2, y2], [x3, y3], [x4, y4]])
+
+    # Calculate the centroid of the points
+    centroid = np.mean(points, axis=0)
+
+    # Translate the points so that the centroid is at the origin
+    translated_points = points - centroid
+
+    # Perform singular value decomposition (SVD) on the translated points
+    _, _, vh = np.linalg.svd(translated_points)
+
+    # Extract the rotation matrix from the right singular vectors
+    rotation_matrix = vh.T @ vh
+
+    # Calculate the scaling factor as the square root of the largest eigenvalue of the rotation matrix
+    scaling_factor = np.sqrt(np.max(np.linalg.eigvals(rotation_matrix)))
+
+    # Calculate the rotation angle from the rotation matrix
+    rotation_angle = np.arctan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
+
+    return scaling_factor, rotation_angle
+
+
 def return_folders_condition_list(full_folder_list, condition_list):
     condition_folders = []
     for folder in full_folder_list:
