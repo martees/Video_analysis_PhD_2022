@@ -423,7 +423,7 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "total_tracked_time"] = len(current_list_x)  # number of tracked time steps
         results_table.loc[i_track, "raw_visits"] = str(raw_visit_timestamps)  # all visits of all patches
         results_table.loc[i_track, "better_raw_visits"] = str(
-            better_visit_structure(raw_visit_timestamps))  # all visits of all patches
+            sort_visits_chronologically(raw_visit_timestamps))  # all visits of all patches
         results_table.loc[i_track, "order_of_visits"] = str(order_of_visits)  # patch order of visits
         results_table.loc[i_track, "total_visit_time"] = duration_sum  # total duration of visits
         results_table.loc[i_track, "nb_of_visits"] = nb_of_visits  # total nb of visits
@@ -464,7 +464,7 @@ def nb_bad_events(data):
 
 
 # TODO change visit structure in results_per_id already, and adapt analyse_patch_visits function
-def better_visit_structure(list_of_visits):
+def sort_visits_chronologically(by_patch_list_of_visits):
     """
     So... it's a shame but to fill the holes it would be better to have lists in a chronological order, with the third
     element being the patch. So I'll transform our list of visits into that here even though it would be better to actually
@@ -473,22 +473,37 @@ def better_visit_structure(list_of_visits):
     Returns a list [[v0,v1,p0],[v0,v1,p1],...] with all the visits' time stamps SORTED by starting time, and the patch to which they were made
     """
     # Add patch info to all the visits
-    for i_patch in range(len(list_of_visits)):
-        for i_visit in range(len(list_of_visits[i_patch])):
-            if list_of_visits[i_patch][i_visit]:  # if it's not empty
-                list_of_visits[i_patch][i_visit].append(i_patch)
+    for i_patch in range(len(by_patch_list_of_visits)):
+        for i_visit in range(len(by_patch_list_of_visits[i_patch])):
+            if by_patch_list_of_visits[i_patch][i_visit]:  # if it's not empty
+                by_patch_list_of_visits[i_patch][i_visit].append(i_patch)
 
     # Concatenate all patch sublists
-    better_list_of_visits = []
-    for i_patch in range(len(list_of_visits)):
-        for i_visit in range(len(list_of_visits[i_patch])):
-            if list_of_visits[i_patch][i_visit]:  # if it's not empty
-                better_list_of_visits.append(list_of_visits[i_patch][i_visit])
+    chrono_list_of_visits = []
+    for i_patch in range(len(by_patch_list_of_visits)):
+        for i_visit in range(len(by_patch_list_of_visits[i_patch])):
+            if by_patch_list_of_visits[i_patch][i_visit]:  # if it's not empty
+                chrono_list_of_visits.append(by_patch_list_of_visits[i_patch][i_visit])
 
     # Sort it according to first element
-    better_list_of_visits = sorted(better_list_of_visits, key=lambda x: x[0])
+    chrono_list_of_visits = sorted(chrono_list_of_visits, key=lambda x: x[0])
 
-    return better_list_of_visits
+    return chrono_list_of_visits
+
+
+def sort_visits_by_patch(chronological_list_of_visits, nb_of_patches):
+    """
+    Take a list of visits in the chronological format: [[t0, t1, p], [t0, ...], ...] (with t0 start of visit, t1 end of
+    visit, and visits sorted based on t0 values.
+    And return a list of visits in the sublist_by_patch format: [ [[t0,t1],[t0,t1]], [[t0,t1]], []] with one sub-list
+    per patch, and for each of those sublists the beginning (t0) and end (t1).
+    """
+    # Create one sublist per patch
+    bypatch_list_of_visits = [[] for _ in range(len(nb_of_patches))]
+    for visit in chronological_list_of_visits:
+        # Fill the right sublist with the start / end info
+        bypatch_list_of_visits[visit[2]].append([visit[0], visit[1]])
+    return bypatch_list_of_visits
 
 
 def fill_holes(data_per_id):
@@ -509,7 +524,7 @@ def fill_holes(data_per_id):
     # to access variables like the last frame or the position of the worm at the end of a track.
     list_of_visits = [json.loads(data_per_id["raw_visits"][i_track]) for i_track in
                       range(len(data_per_id["raw_visits"]))]
-    better_list_of_visits = [better_visit_structure(list_of_visits[i_track]) for i_track in range(len(list_of_visits))]
+    better_list_of_visits = [sort_visits_chronologically(list_of_visits[i_track]) for i_track in range(len(list_of_visits))]
     for i in range(len(better_list_of_visits)):
         list_of_visits[i] = [nonempty for nonempty in better_list_of_visits[i] if nonempty != []]
 
@@ -731,7 +746,6 @@ def exclude_invalid_videos(trajectories, results_per_plate):
     for plate in valid_folders:
         cleaned_traj = pd.concat([cleaned_traj, trajectories[trajectories["folder"] == plate]])
     return cleaned_traj, cleaned_results
-
 
 def generate_trajectories(path):
     # Retrieve trajectories from the folder path and save them in one dataframe
