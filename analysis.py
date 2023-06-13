@@ -5,6 +5,7 @@ from scipy import stats
 import time
 import copy
 
+import generate_results
 import param
 # My code
 from param import *
@@ -89,11 +90,11 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     current_plate = current_plate.reset_index()
                     list_of_visited_patches = [json.loads(current_plate["list_of_visited_patches"][i]) for i in
                                                range(len(current_plate["list_of_visited_patches"]))]
-                    list_of_visited_patches = [i for liste in list_of_visited_patches for i in liste]
+                    list_of_visited_patches = [i for sublist in list_of_visited_patches for i in sublist]
                     if column_name == "nb_of_visited_patches":
                         list_of_values[i_plate] = len(np.unique(list_of_visited_patches))
                     else:
-                        list_total_patch = [52, 24, 7, 25, 52, 24, 7, 25, 24, 24, 24, 24]
+                        list_total_patch = list(param.nb_to_nb_of_patches.values())  # total nb of patches for each cond
                         list_of_values[i_plate] = len(np.unique(list_of_visited_patches)) / list_total_patch[
                             i_condition]
                 elif column_name == "furthest_patch_distance":  # in this case we want the maximal value and not the average
@@ -479,6 +480,80 @@ def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
     return new_condition_list, new_pool_names
 
 
+def aggregate_visits(results, condition_list, aggregation_threshold, include_transits):
+    """
+    This will aggregate visits to the same patch that are spaced by a transit shorter than aggregation threshold.
+    If include_transits is True:
+        Will output time stamps for the beginning and end of each visit ([t0, t1, patch]), including whatever is in
+        between (so it's better to use it with short thresholds).
+    If include_transits is False:
+        Will output visit durations to each patch ([duration, patch]) for each visit, excluding the transits, but
+        losing the information of the start/end of the visit.
+    Note: with a very high aggregation threshold, you can get all visits to a patch to be pooled
+    Example:
+        INPUT: visit list = [[10, 20, 1], [22, 40, 1], [122, 200, 2], [210, 220, 1]]
+        (first element is visit start, second is visit end, third is visit patch)
+        OUTPUT:
+        - include_transits = TRUE
+            - aggregation threshold = 5: [[10, 40, 1], [122, 200, 2], [210, 220, 1]]
+            - aggregation threshold = 10000: [[10, 220, 1], [122, 200, 2]]
+        - include_transits = FALSE
+            - aggregation threshold = 5: [[20, 1], [21, 1], [79, 2]]
+            - aggregation threshold = 10000: [[41, 1], [79, 2]]
+    """
+
+    visits_per_patch = []
+    for condition in condition_list:
+        this_condition_visits = return_value_list(results, condition, "visits")
+        sorted_visits = generate_results.sort_visits_by_patch(this_condition_visits, param.nb_to_nb_of_patches[condition])
+        visits_per_patch.append(sorted_visits)
+        # At the end of this, all visits to a same patch in the same plate are in the same sublist of visits_per_patch
+        # [ [[t0,t1],[t0,t1]], [[t0,t1]], [], ... ]
+
+    if include_transits:
+        aggregated_visits = [[] for _ in range(len(visits_per_patch))]
+        for i_patch in range(len(visits_per_patch)):
+            current_visit_start = visits_per_patch[i_patch][0][0]
+            current_visit_end = visits_per_patch[i_patch][0][1]
+            for i_visit in range(len(visits_per_patch[i_patch]) - 1):  # -1 because the last visit of a sublist cannot be aggregated
+                next_visit_start = visits_per_patch[i_patch][i_visit + 1][0]
+                next_visit_end = visits_per_patch[i_patch][i_visit + 1][1]
+                # If we have to aggregate
+                if next_visit_start - current_visit_end < aggregation_threshold:
+                    current_visit_end = next_visit_end
+                # If we don't have to aggregate and this isn't the last next_visit
+                elif i_visit < len(visits_per_patch[i_patch]) - 1:
+                    aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
+                    current_visit_start = next_visit_start
+                    current_visit_end = next_visit_end
+                # If we don't have to aggregate, but the next visit is the last one
+                else:
+                    aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
+                    aggregated_visits[i_patch].append([next_visit_start, next_visit_end])
+
+    else:
+        aggregated_visits = [[] for _ in range(len(visits_per_patch))]
+        for i_patch in range(len(visits_per_patch)):
+            current_visit_start = visits_per_patch[i_patch][0][0]
+            current_visit_end = visits_per_patch[i_patch][0][1]
+            current_visit_duration = current_visit_end - current_visit_start + 1
+            for i_visit in range(len(visits_per_patch[i_patch]) - 1):  # -1 because the last visit of a sublist cannot be aggregated
+                next_visit_start = visits_per_patch[i_patch + 1][0]
+                next_visit_end = visits_per_patch[i_patch + 1][1]
+                next_visit_duration = next_visit_end - next_visit_start + 1
+                # If we have to aggregate
+                if next_visit_start - current_visit_end < aggregation_threshold:
+                    current_visit_duration += next_visit_duration
+                # If we don't have to aggregate and this isn't the last next_visit
+                elif i_visit < len(visits_per_patch[i_patch]) - 1:
+                    aggregated_visits[i_patch].append(current_visit_duration)
+                    current_visit_duration = next_visit_duration  # create a new visit with the next
+                # If we don't have to aggregate, but the next visit is the last one
+                else:
+                    aggregated_visits[i_patch].append(current_visit_duration)
+                    aggregated_visits[i_patch].append(next_visit_duration)
+
+    return aggregated_visits
 
 def first(iterable, condition=lambda x: True):
     """
