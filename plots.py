@@ -583,14 +583,16 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
             if i_scale == 0:
                 ax.set_title(str(variable) + " values")
             ax.set_yscale(scale_list[i_scale])
-            # For every condition pool in condition_list (
+            # For every condition pool in condition_list
             for i_cond in range(len(condition_pools)):
                 cond = condition_pools[i_cond]
                 name = condition_names[i_cond]
                 values = ana.return_value_list(results, cond, variable)
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step", color=colors[i_cond])
+
     plt.legend()
     plt.show()
+
 
 
 def plot_test(results):

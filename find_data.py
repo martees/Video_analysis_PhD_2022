@@ -3,6 +3,9 @@ from scipy.io import loadmat  # this is the SciPy module that loads mat-files
 import numpy as np
 import pandas as pd
 import glob
+import json
+
+# My code
 from param import *
 
 
@@ -145,3 +148,12 @@ def return_folders_condition_list(full_folder_list, condition_list):
             condition_folders.append(folder)
     return condition_folders
 
+
+def load_list(results, column_name):
+    """
+    For lists that are stored as strings in the results.csv table
+    """
+    return list(json.loads(results[column_name][0]))
+
+def load_condition(folder_name):
+    return folder_to_metadata(folder_name)["condition"][0]

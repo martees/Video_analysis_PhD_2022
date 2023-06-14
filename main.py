@@ -40,8 +40,9 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
         if condition_number in raw_condition_list:
             extra_list += [condition_number]
             extra_names += [condition_name]
-    condition_list.append(extra_list)
-    condition_names.append(extra_names)
+    if extra_list:  # only append it if there's something, otherwise you append an empty list
+        condition_list.append(extra_list)
+        condition_names.append(extra_names)
 
     if len(condition_list) > 1:  # for low+high or other combinations, put another color
         color = "blue"
@@ -228,6 +229,15 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                 print("Average duration of cross patch transits: ", average_cross_patch)
                 print("-----")
 
+            if "aggregated_visits" in plot:
+                # aggregated_visits_thresh_0, visits_per_patch = analysis.aggregate_visits(results, densities, aggregation_threshold=0, include_transits=False)
+                aggregated_visits_thresh_10, visits_per_patch = analysis.aggregate_visits(results, densities, aggregation_threshold=10, include_transits=False)
+                aggregated_visits_thresh_10_True, visits_per_patch = analysis.aggregate_visits(results, densities, aggregation_threshold=10, include_transits=True)
+                aggregated_visits_thresh_100, visits_per_patch = analysis.aggregate_visits(results, densities, aggregation_threshold=100, include_transits=False)
+                aggregated_visits_thresh_100_True, visits_per_patch = analysis.aggregate_visits(results, densities, aggregation_threshold=100, include_transits=True)
+                aggregated_visits_thresh_100000, visits_per_patch = analysis.aggregate_visits(results, densities, aggregation_threshold=100000, include_transits=False)
+                print("caca")
+
 
 #   Saves the results in a path that is returned:
 # "trajectories" will generate everything starting here ->
@@ -276,7 +286,8 @@ print("Finished retrieving stuff")
 #               - visit
 #               - visit
 #               - "distribution"
-#               - visit
+#               - "transit_properties"
+#               - "aggregated_visits"
 
 #plot_graphs(plot="distribution", densities_list=param.condition_to_nb["close"], include_control=False)
 # plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["med"])
@@ -286,6 +297,8 @@ print("Finished retrieving stuff")
 #plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["0.5"], include_control=False)
 
 
+#plots.trajectories_1condition(trajectories, 2, plate_list=["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111318_SmallPatches_C2-CAM2/traj.csv"])
+gr.add_aggregation(path, [10, 100, 100000])
 
 # Variable distributions
 # plots.plot_variable_distribution(results, "transit_duration", condition_list=[0, 4], only_same_patch_transits=True)

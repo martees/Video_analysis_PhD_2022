@@ -5,10 +5,8 @@ from scipy import stats
 import time
 import copy
 
-import generate_results
-import param
 # My code
-from param import *
+import param
 import find_data as fd
 import model
 
@@ -171,8 +169,8 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
             # Slice to one plate
             current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
             # Visit and transit lists
-            list_of_visits = list(json.loads(current_plate["aggregated_raw_visits"][0]))
-            list_of_transits = list(json.loads(current_plate["aggregated_raw_transits"][0]))
+            list_of_visits = fd.load_list(current_plate, "aggregated_raw_visits")
+            list_of_transits = fd.load_list(current_plate, "aggregated_raw_transits")
             # Lists that we'll fill up for this plate
             list_of_visit_lengths = []
             list_of_previous_transit_lengths = []
@@ -198,7 +196,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
                     current_transit = list_of_transits[i_transit]
 
                     # Debugging shit
-                    if verbose:
+                    if param.verbose:
                         print(current_plate["folder"][0])
                         print("Nb of visits = ", len(list_of_visits), ", nb of transits = ", len(list_of_transits),
                               ", i_visit = ", i_visit, "starts_with = ", starts_with_visit)
@@ -220,7 +218,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
                         while current_visit[0] > current_transit[1] and i_transit + 1 < len(list_of_transits):
                             # Compute next transit
                             current_transit = list_of_transits[i_transit + 1]
-                            if verbose:
+                            if param.verbose:
                                 print("additional transit : [", current_transit[0], ", ", current_transit[1], "]")
                             # IF this next transit ends before the current visit starts
                             # THEN it means there's really a double transit (otherwise it means there's a hole in the tracking)
@@ -241,7 +239,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
                         i_visit += 1
                         double_visits += 1
                         current_visit = list_of_visits[i_visit]
-                        if verbose:
+                        if param.verbose:
                             print("additional visit : [", current_visit[0], ", ", current_visit[1], "]")
                         # We add this extra transit to the previous transit length
                         list_of_visit_lengths[-1] += current_visit[1] - current_visit[0] + 1
@@ -249,7 +247,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
                     # Go to next visit!
                     i_visit += 1
 
-            condition = fd.folder_to_metadata(current_plate["folder"][0])["condition"][0]
+            condition = fd.load_condition(folder_list[i_plate])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
             # plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths, color=colors[i_condition], label=str(condition_names[i_condition]), zorder=i_condition)
 
@@ -264,9 +262,9 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
             # Slice to one plate
             current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
             # Visit and transit lists
-            list_of_visits = list(json.loads(current_plate["aggregated_raw_visits"][0]))
+            list_of_visits = fd.load_list(current_plate, "aggregated_raw_visits")
             # Information about condition
-            condition = fd.folder_to_metadata(current_plate["folder"][0])["condition"][0]
+            condition = fd.load_condition(folder_list[i_plate])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
             for i_visit in range(len(list_of_visits)):
                 current_visit = list_of_visits[i_visit]
@@ -347,47 +345,52 @@ def select_transits(list_of_transits, list_of_visits, to_same_patch=False, to_di
     return new_list_of_transits
 
 
-def return_value_list(results, condition_list, column_name):
+def return_value_list(results, column_name, condition_list=None, convert_to_duration=True):
     """
     Will return a list of values of column_name in results, pooled for all conditions in condition_list.
     For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
     to_same_patch: if False, will only plot transits that go from one patch to another
     to_different_patch: if False, will only plot transits that leave and come back to the same patch
+    convert_to_duration: by default, it will convert visits and transits to durations, but if set False it will return
+                         the list of visit / transit time stamps (same format as in results)
     """
-    list_of_values = []
-    folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
-    convert_to_duration = False
+    # If no condition_list was given, just take all folders from results
+    if condition_list is None:
+        folder_list = np.unique(results["folders"])
+    else:
+        if type(condition_list) == int:  # if there's just one condition, make it a list for the rest to work
+            condition_list = [condition_list]
+        list_of_values = []
+        folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
 
-    if column_name == "same transits":
+    if column_name == "same transits" or column_name == "cross transits":
         for i_plate in range(len(folder_list)):
-            current_plate = folder_list[i_plate]
-            current_results = results[results["folder"] == current_plate].reset_index()
-            current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
-            current_visit_list = json.loads(current_results["aggregated_raw_visits"][0])
-            current_transit_list = select_transits(current_transit_list, current_visit_list, to_same_patch=True)
-            list_of_values += convert_to_durations(current_transit_list)
-
-    elif column_name == "cross transits":
-        for i_plate in range(len(folder_list)):
-            current_plate = folder_list[i_plate]
-            current_results = results[results["folder"] == current_plate].reset_index()
-            current_transit_list = json.loads(current_results["aggregated_raw_transits"][0])
-            current_visit_list = json.loads(current_results["aggregated_raw_visits"][0])
-            current_transit_list = select_transits(current_transit_list, current_visit_list, to_different_patch=True)
-            list_of_values += convert_to_durations(current_transit_list)
+            plate_name = folder_list[i_plate]
+            plate_results = results[results["folder"] == plate_name].reset_index()
+            current_transit_list = fd.load_list(plate_results, "aggregated_raw_transits")
+            current_visit_list = fd.load_list(plate_results, "aggregated_raw_visits")
+            if column_name == "same transits":
+                current_transit_list = select_transits(current_transit_list, current_visit_list, to_same_patch=True)
+            if column_name == "cross transits":
+                current_transit_list = select_transits(current_transit_list, current_visit_list,
+                                                       to_different_patch=True)
+            if convert_to_duration:
+                list_of_values += convert_to_durations(current_transit_list)
+            else:
+                list_of_values.append(current_transit_list)
 
     else:
         if column_name == "visits":
             column_name = "aggregated_raw_visits"
-            convert_to_duration = True
+            convert_to_duration = convert_to_duration
         if column_name == "transits":
             column_name = "aggregated_raw_transits"
-            convert_to_duration = True
+            convert_to_duration = convert_to_duration
 
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
             current_results = results[results["folder"] == current_plate].reset_index()
-            current_values = json.loads(current_results[column_name][0])
+            current_values = fd.load_list(current_plate, column_name)
             if convert_to_duration:
                 list_of_values += convert_to_durations(current_values)
             else:
@@ -413,10 +416,10 @@ def transit_properties(results, condition_list, split_conditions):
         average_cross_patch = np.zeros(len(condition_list))
         for i_cond in range(len(condition_list)):
             condition = condition_list[i_cond]
-            all_visits = return_value_list(results, [condition], "visits")
-            all_transits = return_value_list(results, [condition], "transits")
-            same_transits = return_value_list(results, [condition], "same transits")
-            cross_transits = return_value_list(results, [condition], "cross transits")
+            all_visits = return_value_list(results, "visits", [condition])
+            all_transits = return_value_list(results, "transits", [condition])
+            same_transits = return_value_list(results, "same transits", [condition])
+            cross_transits = return_value_list(results, "cross transits", [condition])
             revisit_probability[i_cond] = len(same_transits)/len(all_transits)
             cross_transit_probability[i_cond] = len(cross_transits)/len(all_transits)
             exponential_leaving_probability[i_cond] = 1/np.mean(all_visits)
@@ -426,10 +429,10 @@ def transit_properties(results, condition_list, split_conditions):
             average_cross_patch[i_cond] = np.mean(cross_transits)
 
     else:
-        all_visits = return_value_list(results, condition_list, "visits")
-        all_transits = return_value_list(results, condition_list, "transits")
-        same_transits = return_value_list(results, condition_list, "same transits")
-        cross_transits = return_value_list(results, condition_list, "cross transits")
+        all_visits = return_value_list(results, "visits", condition_list)
+        all_transits = return_value_list(results, "transits", condition_list)
+        same_transits = return_value_list(results, "same transits", condition_list)
+        cross_transits = return_value_list(results, "cross transits", condition_list)
         revisit_probability = len(same_transits) / len(all_transits)
         cross_transit_probability = len(cross_transits) / len(all_transits)
         exponential_leaving_probability = 1 / np.mean(all_visits)
@@ -479,81 +482,6 @@ def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
 
     return new_condition_list, new_pool_names
 
-
-def aggregate_visits(results, condition_list, aggregation_threshold, include_transits):
-    """
-    This will aggregate visits to the same patch that are spaced by a transit shorter than aggregation threshold.
-    If include_transits is True:
-        Will output time stamps for the beginning and end of each visit ([t0, t1, patch]), including whatever is in
-        between (so it's better to use it with short thresholds).
-    If include_transits is False:
-        Will output visit durations to each patch ([duration, patch]) for each visit, excluding the transits, but
-        losing the information of the start/end of the visit.
-    Note: with a very high aggregation threshold, you can get all visits to a patch to be pooled
-    Example:
-        INPUT: visit list = [[10, 20, 1], [22, 40, 1], [122, 200, 2], [210, 220, 1]]
-        (first element is visit start, second is visit end, third is visit patch)
-        OUTPUT:
-        - include_transits = TRUE
-            - aggregation threshold = 5: [[10, 40, 1], [122, 200, 2], [210, 220, 1]]
-            - aggregation threshold = 10000: [[10, 220, 1], [122, 200, 2]]
-        - include_transits = FALSE
-            - aggregation threshold = 5: [[20, 1], [21, 1], [79, 2]]
-            - aggregation threshold = 10000: [[41, 1], [79, 2]]
-    """
-
-    visits_per_patch = []
-    for condition in condition_list:
-        this_condition_visits = return_value_list(results, condition, "visits")
-        sorted_visits = generate_results.sort_visits_by_patch(this_condition_visits, param.nb_to_nb_of_patches[condition])
-        visits_per_patch.append(sorted_visits)
-        # At the end of this, all visits to a same patch in the same plate are in the same sublist of visits_per_patch
-        # [ [[t0,t1],[t0,t1]], [[t0,t1]], [], ... ]
-
-    if include_transits:
-        aggregated_visits = [[] for _ in range(len(visits_per_patch))]
-        for i_patch in range(len(visits_per_patch)):
-            current_visit_start = visits_per_patch[i_patch][0][0]
-            current_visit_end = visits_per_patch[i_patch][0][1]
-            for i_visit in range(len(visits_per_patch[i_patch]) - 1):  # -1 because the last visit of a sublist cannot be aggregated
-                next_visit_start = visits_per_patch[i_patch][i_visit + 1][0]
-                next_visit_end = visits_per_patch[i_patch][i_visit + 1][1]
-                # If we have to aggregate
-                if next_visit_start - current_visit_end < aggregation_threshold:
-                    current_visit_end = next_visit_end
-                # If we don't have to aggregate and this isn't the last next_visit
-                elif i_visit < len(visits_per_patch[i_patch]) - 1:
-                    aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
-                    current_visit_start = next_visit_start
-                    current_visit_end = next_visit_end
-                # If we don't have to aggregate, but the next visit is the last one
-                else:
-                    aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
-                    aggregated_visits[i_patch].append([next_visit_start, next_visit_end])
-
-    else:
-        aggregated_visits = [[] for _ in range(len(visits_per_patch))]
-        for i_patch in range(len(visits_per_patch)):
-            current_visit_start = visits_per_patch[i_patch][0][0]
-            current_visit_end = visits_per_patch[i_patch][0][1]
-            current_visit_duration = current_visit_end - current_visit_start + 1
-            for i_visit in range(len(visits_per_patch[i_patch]) - 1):  # -1 because the last visit of a sublist cannot be aggregated
-                next_visit_start = visits_per_patch[i_patch + 1][0]
-                next_visit_end = visits_per_patch[i_patch + 1][1]
-                next_visit_duration = next_visit_end - next_visit_start + 1
-                # If we have to aggregate
-                if next_visit_start - current_visit_end < aggregation_threshold:
-                    current_visit_duration += next_visit_duration
-                # If we don't have to aggregate and this isn't the last next_visit
-                elif i_visit < len(visits_per_patch[i_patch]) - 1:
-                    aggregated_visits[i_patch].append(current_visit_duration)
-                    current_visit_duration = next_visit_duration  # create a new visit with the next
-                # If we don't have to aggregate, but the next visit is the last one
-                else:
-                    aggregated_visits[i_patch].append(current_visit_duration)
-                    aggregated_visits[i_patch].append(next_visit_duration)
-
-    return aggregated_visits
 
 def first(iterable, condition=lambda x: True):
     """

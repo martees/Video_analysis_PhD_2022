@@ -1,14 +1,13 @@
-import scipy.interpolate
-
 import find_data as fd
 import numpy as np
 from scipy.spatial import distance
 import pandas as pd
-from param import *
-from numba import njit
 from itertools import groupby
 import copy
 import json
+
+# My code
+import param
 
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
@@ -69,7 +68,7 @@ def in_patch_list(traj):
         patch_where_it_is = -1  # initializing variable with index of patch where the worm currently is
         # We go through the whole trajectory
         for time in range(len(list_x)):
-            if verbose and time % 100 == 0:
+            if param.verbose and time % 100 == 0:
                 print(time, "/", len(list_x))
 
             # First we figure out where the worm is
@@ -148,7 +147,7 @@ def trajectory_speeds(traj):
         # Add 1 in the beginning because the first point isn't relevant (not zero to avoid division issues)
         current_list_of_time_steps = np.insert(current_list_of_time_steps, 0, 1)
 
-        if verbose:
+        if param.verbose:
             nb_double_frames = np.count_nonzero(current_list_of_time_steps - np.maximum(current_list_of_time_steps,
                                                                                         0.1 * np.ones(
                                                                                             len(current_list_of_time_steps))))
@@ -368,6 +367,114 @@ def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_c
     return duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_duration_sum, adjusted_nb_of_visits
 
 
+def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_transits):
+    """
+    This will aggregate visits to the same patch that are spaced by a transit shorter than aggregation threshold.
+    If include_transits is True:
+        Will output time stamps for the beginning and end of each visit ([t0, t1, patch]), including whatever is in
+        between (so it's better to use it with short thresholds).
+    If include_transits is False:
+        Will output visit durations to each patch ([duration, patch]) for each visit, excluding the transits, but
+        losing the information of the start/end of the visit.
+    Note: with a very high aggregation threshold, you can get all visits to a patch to be pooled
+    Example:
+        INPUT: visit list = [[10, 20, 1], [22, 40, 1], [122, 200, 2], [210, 220, 1]]
+        (first element is visit start, second is visit end, third is visit patch)
+        OUTPUT:
+        - Will first convert to by_patch visit format: [ [[10,20], [22,40], [210,220]], [[122,200]] ]
+        - include_transits = TRUE
+            - aggregation threshold = 5: [[10, 40, 1], [122, 200, 2], [210, 220, 1]]
+            - aggregation threshold = 10000: [[10, 220, 1], [122, 200, 2]]
+        - include_transits = FALSE
+            - aggregation threshold = 5: [[20, 1], [21, 1], [79, 2]]
+            - aggregation threshold = 10000: [[41, 1], [79, 2]]
+    """
+    visits_per_patch = []
+    # We refactor visits from chronological to by_patch format (one sub-list per patch)
+    sorted_visits = sort_visits_by_patch(list_of_visits, param.nb_to_nb_of_patches[condition])
+    # We don't append because we want to pool all patches from all conditions in the same list (for now)
+    visits_per_patch += sorted_visits
+    # At the end of this, all visits to a same patch are in the same sublist of visits_per_patch
+    # [ [[t0,t1],[t0,t1]], [[t0,t1]], [], ... ]
+
+    aggregated_visits = [[] for _ in range(len(visits_per_patch))]
+    for i_patch in range(len(visits_per_patch)):
+        this_patch_visits = visits_per_patch[i_patch]
+        current_visit_start = 0
+        current_visit_end = 0
+        current_visit_duration = 0
+        # Initialization
+        if this_patch_visits:
+            current_visit_start = this_patch_visits[0][0]
+            current_visit_end = this_patch_visits[0][1]
+            current_visit_duration = current_visit_end - current_visit_start + 1
+        # Loopy loop
+        for i_visit in range(len(this_patch_visits) - 1):  # -1 because the last visit of a sublist cannot be aggregated
+            next_visit_start = this_patch_visits[i_visit + 1][0]
+            next_visit_end = this_patch_visits[i_visit + 1][1]
+            next_visit_duration = next_visit_end - next_visit_start + 1
+
+            if include_transits:
+                # If we have to aggregate
+                if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                    current_visit_end = next_visit_end
+                # If we don't have to aggregate and this isn't the last next_visit
+                elif i_visit < len(visits_per_patch[i_patch]) - 1:
+                    aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
+                    current_visit_start = next_visit_start
+                    current_visit_end = next_visit_end
+                # If we don't have to aggregate, but the next visit is the last one
+                else:
+                    aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
+                    aggregated_visits[i_patch].append([next_visit_start, next_visit_end])
+            else:
+                # If we have to aggregate
+                if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                    current_visit_duration += next_visit_duration
+                # If we don't have to aggregate and this isn't the last next_visit
+                elif i_visit < len(this_patch_visits) - 1:
+                    aggregated_visits[i_patch].append(current_visit_duration)
+                    current_visit_duration = next_visit_duration  # create a new visit with the next
+                # If we don't have to aggregate, but the next visit is the last one
+                else:
+                    aggregated_visits[i_patch].append(current_visit_duration)
+                    aggregated_visits[i_patch].append(next_visit_duration)
+
+    return aggregated_visits, visits_per_patch
+
+
+def add_aggregate_visits_to_results(results, threshold_list):
+    """
+    Will add one column in results for each threshold in threshold list, both including or excluding transits.
+    Will create new "aggregated visits", where visits are fused if separated by less than a temporal threshold.
+    See aggregate_visits function for examples.
+    """
+    columns = [[] for _ in
+               range(len(threshold_list) * 2)]  # two columns per threshold, one including and one excluding transits
+    # We run this for each plate separately to keep different patches separate
+    for i_plate in range(len(results)):
+        print(results["folder"][i_plate])
+        current_plate = results["folder"][i_plate]
+        current_results = results[results["folder"] == current_plate].reset_index()
+        this_plate_visits = fd.load_list(current_results, "aggregated_raw_visits")
+        this_plate_condition = current_results["condition"][0]
+        for i_thresh in range(len(threshold_list)):
+            thresh = threshold_list[i_thresh]
+            aggregated_visits_wo_transits = aggregate_visits(this_plate_visits, this_plate_condition, thresh,
+                                                             include_transits=False)
+            aggregated_visits_w_transits = aggregate_visits(this_plate_visits, this_plate_condition, thresh,
+                                                            include_transits=True)
+            columns[i_thresh * 2] += aggregated_visits_wo_transits
+            columns[i_thresh * 2 + 1] += aggregated_visits_w_transits
+    # Add it to results
+    for i_thresh in range(len(threshold_list)):
+        thresh = threshold_list[i_thresh]
+        results["aggregated_visits_thresh_" + str(thresh)] = str(columns[i_thresh * 2])
+        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = str(columns[i_thresh * 2 + 1])
+
+    return results
+
+
 def make_results_per_id_table(data):
     """
     Takes our data table and returns a series of analysis regarding patch visits, one line per "worm", which in fact
@@ -499,10 +606,15 @@ def sort_visits_by_patch(chronological_list_of_visits, nb_of_patches):
     per patch, and for each of those sublists the beginning (t0) and end (t1).
     """
     # Create one sublist per patch
-    bypatch_list_of_visits = [[] for _ in range(len(nb_of_patches))]
+    bypatch_list_of_visits = [[] for _ in range(nb_of_patches)]
     for visit in chronological_list_of_visits:
         # Fill the right sublist with the start / end info
+        if visit[2] > nb_of_patches - 1:
+            print("ayayay")
         bypatch_list_of_visits[visit[2]].append([visit[0], visit[1]])
+    for i_patch in range(len(bypatch_list_of_visits)):
+        # For each patch, sort the visits chronologically based on visit start
+        bypatch_list_of_visits[i_patch] = sorted(bypatch_list_of_visits[i_patch], key=lambda x: x[0])
     return bypatch_list_of_visits
 
 
@@ -524,7 +636,8 @@ def fill_holes(data_per_id):
     # to access variables like the last frame or the position of the worm at the end of a track.
     list_of_visits = [json.loads(data_per_id["raw_visits"][i_track]) for i_track in
                       range(len(data_per_id["raw_visits"]))]
-    better_list_of_visits = [sort_visits_chronologically(list_of_visits[i_track]) for i_track in range(len(list_of_visits))]
+    better_list_of_visits = [sort_visits_chronologically(list_of_visits[i_track]) for i_track in
+                             range(len(list_of_visits))]
     for i in range(len(better_list_of_visits)):
         list_of_visits[i] = [nonempty for nonempty in better_list_of_visits[i] if nonempty != []]
 
@@ -560,8 +673,7 @@ def fill_holes(data_per_id):
 
             # We look for the next visit start and end
             if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
-                while not list_of_visits[
-                    i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
+                while not list_of_visits[i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
                     i_next_track += 1
                     skipped_empty_tracks = True
                 if list_of_visits[i_next_track]:  # if a non-empty track was found in the end
@@ -606,7 +718,8 @@ def fill_holes(data_per_id):
                     if current_visit_end == data_per_id["last_frame"][i_track]:
                         # Case where the next track starts while the worm is still in, and we didn't have sneaky empty tracks in the middle
                         # We also check that there is indeed a next next visit otherwise this line makes no sense
-                        if data_per_id["first_tracked_position_patch"][i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
+                        if data_per_id["first_tracked_position_patch"][
+                            i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
                             # In this case we take the transit for the next visit now because the visit list loop will skip
                             # this value for the next loop
                             corrected_list_of_transits.append([next_visit_end, next_next_visit_start, -1])
@@ -624,7 +737,8 @@ def fill_holes(data_per_id):
             # If this is the end of this track, and not the last track, and the tracking stops during the visit
             if is_last_visit and not is_last_nonempty_track and current_visit_end == data_per_id["last_frame"][i_track]:
                 # Check if the hole in the tracking is valid (ends and then starts in the same patch)
-                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][i_track + 1]:
+                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][
+                    i_track + 1]:
                     # We increase i_track by 2, to not look at next visit as it has already been counted
                     init_visit_at_one = True
                     # Then the current visit in fact ends at the end of the first visit of the next track
@@ -747,6 +861,7 @@ def exclude_invalid_videos(trajectories, results_per_plate):
         cleaned_traj = pd.concat([cleaned_traj, trajectories[trajectories["folder"] == plate]])
     return cleaned_traj, cleaned_results
 
+
 def generate_trajectories(path):
     # Retrieve trajectories from the folder path and save them in one dataframe
     trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))
@@ -800,6 +915,14 @@ def generate_clean_tables_and_speed(path):
     # trajectories have been excluded
     clean_trajectories["speeds"] = trajectory_speeds(clean_trajectories)
     clean_trajectories.to_csv(path + "clean_trajectories.csv")
+    return 0
+
+
+def add_aggregation(path, threshold_list):
+    print("Retrieving results and trajectories...")
+    clean_results = pd.read_csv(path + "clean_results.csv")
+    new_results = add_aggregate_visits_to_results(clean_results, threshold_list)
+    new_results.to_csv(path + "clean_results")
     return 0
 
 
