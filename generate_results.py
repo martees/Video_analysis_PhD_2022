@@ -424,10 +424,11 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
                     current_visit_start = next_visit_start
                     current_visit_end = next_visit_end
                 # If we don't have to aggregate, but the next visit is the last one
-                else:
+                else:  # add current and next visit
                     aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
                     aggregated_visits[i_patch].append([next_visit_start, next_visit_end])
             else:
+                current_visit_end = this_patch_visits[i_visit][1]
                 # If we have to aggregate
                 if abs(next_visit_start - current_visit_end) < aggregation_threshold:
                     current_visit_duration += next_visit_duration
@@ -440,7 +441,7 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
                     aggregated_visits[i_patch].append(current_visit_duration)
                     aggregated_visits[i_patch].append(next_visit_duration)
 
-    return aggregated_visits, visits_per_patch
+    return aggregated_visits
 
 
 def add_aggregate_visits_to_results(results, threshold_list):
@@ -449,13 +450,16 @@ def add_aggregate_visits_to_results(results, threshold_list):
     Will create new "aggregated visits", where visits are fused if separated by less than a temporal threshold.
     See aggregate_visits function for examples.
     """
-    columns = [[] for _ in
-               range(len(threshold_list) * 2)]  # two columns per threshold, one including and one excluding transits
+    # Create the columns
+    for i_thresh in range(len(threshold_list)):
+        thresh = threshold_list[i_thresh]
+        results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = pd.DataFrame(np.zeros(len(results)))
+
     # We run this for each plate separately to keep different patches separate
     for i_plate in range(len(results)):
-        print(results["folder"][i_plate])
         current_plate = results["folder"][i_plate]
-        current_results = results[results["folder"] == current_plate].reset_index()
+        current_results = results[results["folder"] == current_plate].reset_index(drop=True)
         this_plate_visits = fd.load_list(current_results, "aggregated_raw_visits")
         this_plate_condition = current_results["condition"][0]
         for i_thresh in range(len(threshold_list)):
@@ -464,13 +468,12 @@ def add_aggregate_visits_to_results(results, threshold_list):
                                                              include_transits=False)
             aggregated_visits_w_transits = aggregate_visits(this_plate_visits, this_plate_condition, thresh,
                                                             include_transits=True)
-            columns[i_thresh * 2] += aggregated_visits_wo_transits
-            columns[i_thresh * 2 + 1] += aggregated_visits_w_transits
-    # Add it to results
-    for i_thresh in range(len(threshold_list)):
-        thresh = threshold_list[i_thresh]
-        results["aggregated_visits_thresh_" + str(thresh)] = str(columns[i_thresh * 2])
-        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = str(columns[i_thresh * 2 + 1])
+
+            # Sort them chronologically like other visits (works only with the ones that still have time stamps)
+            aggregated_visits_w_transits = sort_visits_chronologically(aggregated_visits_w_transits)
+
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh)] = str(aggregated_visits_wo_transits)
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = str(aggregated_visits_w_transits)
 
     return results
 
@@ -922,7 +925,7 @@ def add_aggregation(path, threshold_list):
     print("Retrieving results and trajectories...")
     clean_results = pd.read_csv(path + "clean_results.csv")
     new_results = add_aggregate_visits_to_results(clean_results, threshold_list)
-    new_results.to_csv(path + "clean_results")
+    new_results.to_csv(path + "clean_results.csv")
     return 0
 
 

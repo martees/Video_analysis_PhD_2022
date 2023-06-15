@@ -202,6 +202,9 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                 # plots.plot_variable_distribution(results, condition_list=condition_list,
                 #                                 effect_of="distance")
 
+            if "distribution aggregated":
+                pass
+
             if "transit_properties" in plot:
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
                     results, condition_list, split_conditions=True)
@@ -298,7 +301,7 @@ print("Finished retrieving stuff")
 
 
 #plots.trajectories_1condition(trajectories, 2, plate_list=["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111318_SmallPatches_C2-CAM2/traj.csv"])
-gr.add_aggregation(path, [10, 100, 100000])
+#gr.add_aggregation(path, [10, 100, 100000])
 
 # Variable distributions
 # plots.plot_variable_distribution(results, "transit_duration", condition_list=[0, 4], only_same_patch_transits=True)
