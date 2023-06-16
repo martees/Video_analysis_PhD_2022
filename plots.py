@@ -548,13 +548,14 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     plt.show()
 
 
-def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None, plot_cumulative=True, convert_to_duration=True):
+def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None, plot_cumulative=True, threshold_list=None):
     """
     Will plot a distribution of each variable from variable_list in results, for conditions in condition_list.
         effect_of: if set to "nothing", will plot one curve for each condition in condition_list.
                    if set to "density" will make one curve for each bacterial density, pooling conditions together
                    if set to "distance" same but for distance
                    if set to "food", will pool all food conditions together, apart from control w/o food
+                   if set to "aggregation"
         variable_list: can contain any argument that the return_value_list function can take
         scale_list: say if you want to plot the y-axis linear scale, log scale or both
         plot_cumulative: plot cumulative histograms or not
@@ -565,9 +566,18 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
         scale_list = ["log"]  # could also be "linear
     if variable_list is None:
         variable_list = ["visits", "same transits", "cross transits"]
+    if "aggregation" in variable_list:
+        # If aggregation is in variable list, we want to plot all the effects ("distance", "density", etc) but with
+        # one subplot per possible aggregation threshold
+        for i_thresh in range(len(threshold_list)):
+            column_name = "aggregated_visits_thresh_"+threshold_list[i_thresh]
+            if column_name not in results.columns:
+                # If the aggregated visits have not been generated yet for this threshold values
+                gr.generate_aggregated_visits(gr.generate(), threshold_list[i_thresh])  # add them to the results.csv table
+            variable_list.append(column_name)
 
+    # Pool conditions depending on the "effect_of" argument
     condition_pools, condition_names = ana.pool_conditions_by(condition_list, effect_of)
-
     fig, axs = plt.subplots(len(scale_list), len(variable_list))
     colors = plt.cm.jet(np.linspace(0, 1, len(condition_pools)))
 
@@ -591,14 +601,32 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
             for i_cond in range(len(condition_pools)):
                 cond = condition_pools[i_cond]
                 name = condition_names[i_cond]
-                values = ana.return_value_list(results, variable, cond, convert_to_duration=convert_to_duration)
-                if "aggregated" in variable and "transits" not in variable:  # this is because our aggregated visits are in sublists, but i think it wouldn't change anything to do that to a 1D list?
+                if "aggregated" in variable and "transits" not in variable:
+                    # This is because our aggregated visits not including transits are in sub-lists already containing durations
+                    values = ana.return_value_list(results, variable, cond, convert_to_duration=False)
                     values = [sublist[i] for sublist in values for i in range(len(sublist))]
+                else:
+                    values = ana.return_value_list(results, variable, cond, convert_to_duration=True)
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step", color=colors[i_cond])
 
     plt.legend()
     plt.show()
 
+
+def side_by_side_hists(data_list, errorbar_list, plot_title, x_label, y_label, color_list):
+    return 0
+
+
+def plot_aggregated_visits_duration(results, condition_list, threshold_list):
+    """
+    Will plot a
+    :param results: result table (will only access the no_hole_visit column)
+    :param condition_list: condition list that we'll look at
+    :param threshold_list: list of thresholds to try for visit aggregation (maximum transit length that will be
+                           considered as a "fake" transit, and either ignored in visit duration computation, either
+                           included in visit).
+    :param effect_of: see pool_conditions_by function in analysis.py
+    """
 
 
 def plot_test(results):
