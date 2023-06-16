@@ -31,17 +31,17 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
     if "low" in raw_condition_list:
         condition_pool_list.append([0, 1, 2, 3])
         condition_pool_names.append(["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"])
-        color = "brown"
+        color = "burlywood"
     if "med" in raw_condition_list:
         condition_pool_list.append([4, 5, 6, 7])
         condition_pool_names.append(["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"])
-        color = "orange"
+        color = "darkgoldenrod"
     if "all" in raw_condition_list:
         condition_pool_list.append([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         condition_pool_names.append(
             ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5",
              "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25"])
-        color = "green"
+        color = "yellowgreen"
 
     # Other conditions can be added as numbers in the densities list
     extra_list = []
@@ -55,7 +55,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
         condition_pool_names.append(extra_names)
 
     if len(condition_pool_list) > 1:  # for low+high or other combinations, put another color
-        color = "blue"
+        color = "lightseagreen"
 
     # Add control to every condition sublist
     if include_control:
@@ -197,57 +197,19 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                 # plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
 
             if "distribution" in plot:
-                plots.plot_variable_distribution(results, condition_list=condition_pool,
-                                                 effect_of="nothing", plot_cumulative=True)
-                # plots.plot_variable_distribution(results, condition_pool_list=condition_pool_list,
-                #                                 effect_of="density", plot_cumulative=False)
-                # plots.plot_variable_distribution(results, condition_pool_list=condition_pool_list,
-                #                                 effect_of="density")
-                # plots.plot_variable_distribution(results, condition_pool_list=condition_pool_list,
-                #                                 effect_of="distance", plot_cumulative=False)
-                # plots.plot_variable_distribution(results, condition_pool_list=condition_pool_list,
-                #                                 effect_of="distance")
+                plots.plot_variable_distribution(results, condition_list=condition_pool, effect_of="nothing")
+                plots.plot_variable_distribution(results, condition_list=condition_pool, effect_of="food")
+                plots.plot_variable_distribution(results, condition_list=condition_pool, effect_of="density")
+                plots.plot_variable_distribution(results, condition_list=condition_pool, effect_of="distance")
 
-            if "distribution_aggregated":
-                plots.plot_variable_distribution(results, condition_pool, effect_of="food",
-                                                 variable_list=["no_hole_visits"], convert_to_duration=True)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="food",
-                                                 variable_list=["aggregated_visits_thresh_10"],
-                                                 convert_to_duration=False)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="food",
-                                                 variable_list=["aggregated_visits_thresh_100000"],
-                                                 convert_to_duration=False)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="distance",
-                                                 variable_list=["no_hole_visits"], convert_to_duration=True)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="distance",
-                                                 variable_list=["aggregated_visits_thresh_10"],
-                                                 convert_to_duration=False)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="distance",
-                                                 variable_list=["aggregated_visits_thresh_100000"],
-                                                 convert_to_duration=False)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="density",
-                                                 variable_list=["no_hole_visits"], convert_to_duration=True)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="density",
-                                                 variable_list=["aggregated_visits_thresh_10"],
-                                                 convert_to_duration=False)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="density",
-                                                 variable_list=["aggregated_visits_thresh_100000"],
-                                                 convert_to_duration=False)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="nothing",
-                                                 variable_list=["no_hole_visits"], convert_to_duration=True)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="nothing",
-                                                 variable_list=["aggregated_visits_thresh_10"],
-                                                 convert_to_duration=False)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="nothing",
-                                                 variable_list=["aggregated_visits_thresh_100000"],
-                                                 convert_to_duration=False)
+            if "distribution_aggregated" in plot:
+                plots.plot_variable_distribution(results, condition_pool, effect_of="nothing", variable_list=["aggregation"], threshold_list=[10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="food", variable_list=["aggregation"], threshold_list=[10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="distance", variable_list=["aggregation"], threshold_list=[10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="density", variable_list=["aggregation"], threshold_list=[10, 100, 100000])
 
-                plots.plot_variable_distribution(results, condition_pool, effect_of="food",
-                                                 variable_list=["aggregated_visits_thresh_10_include_transits"],
-                                                 convert_to_duration=True)
-                plots.plot_variable_distribution(results, condition_pool, effect_of="food",
-                                                 variable_list=["aggregated_visits_thresh_100000_include_transits"],
-                                                 convert_to_duration=True)
+            if "leaving events" in plot:
+                pass
 
             if "transit_properties" in plot:
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
@@ -291,8 +253,9 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
 path = gr.generate(starting_from="")
 # Only generate the results in the beginning of your analysis!
 
-
 # Retrieve results from what generate_and_save has saved
+
+# REMOVE THIS ONCE YOU HAVE THE CLEAN TRAJECTORIES ON YOUR PC YOU AIRHEAD
 if fd.is_linux():  # Linux path
     trajectories = pd.read_csv(path + "clean_trajectories.csv")
 else:  # Windows path
@@ -307,17 +270,19 @@ print("Finished retrieving stuff")
 #               - "speed"
 #               - "visit_duration"
 #               - "visit_duration_mvt"
-#               -
-#               - visit
-#               - visit
-#               - visit
+#               - "transit_duration"
+#               - "visit_duration_vs_previous_transit"
+#               - "visit_duration_vs_visit_start"
+#               - "visit_duration_vs_entry_speed"
+#               - "visit_rate"
+#               - "proportion_of_time"
 #               - "distribution"
+#               - "distribution_aggregated"
 #               - "transit_properties"
 #               - "aggregated_visits"
-#               - "distribution_aggregated"
 
 
-plot_graphs(plot="distribution", densities_list=param.condition_to_nb["close"], include_control=False)
+plot_graphs(plot="distribution_aggregated", densities_list=param.condition_to_nb["close"], include_control=False)
 plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["med"])
 plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["far"], include_control=False)
 plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["cluster"], include_control=False)
