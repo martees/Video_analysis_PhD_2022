@@ -9,6 +9,7 @@ import copy
 import param
 import find_data as fd
 import model
+import generate_results as gr
 
 
 def r2(x, y):
@@ -124,7 +125,9 @@ def model_per_condition(result_table, list_of_conditions, column_name, divided_b
     Function that should return model predictions for column name values (divided by divided_by values), pooled for
     each condition in condition_list.
     """
-    revisit_probability, _, _, _, _, average_same_patch, average_cross_patch = transit_properties(result_table, list_of_conditions, split_conditions=True)
+    revisit_probability, _, _, _, _, average_same_patch, average_cross_patch = transit_properties(result_table,
+                                                                                                  list_of_conditions,
+                                                                                                  split_conditions=True)
 
     if column_name == "total_visit_time" and (divided_by == "nb_of_visits" or divided_by == "mvt_nb_of_visits"):
         model_avg_visit_length_list = np.zeros(len(list_of_conditions))
@@ -140,7 +143,8 @@ def model_per_condition(result_table, list_of_conditions, column_name, divided_b
             resolution = model.nb_of_leaving_rates_to_test
             nb_of_time_steps = model.nb_of_time_steps_per_leaving_rate
 
-            model_avg_visit_length_list[i_condition] = model.opt_mvt("", resolution, nb_of_time_steps, 1, parameter_list, is_plot=False, is_print=False)
+            model_avg_visit_length_list[i_condition] = model.opt_mvt("", resolution, nb_of_time_steps, 1,
+                                                                     parameter_list, is_plot=False, is_print=False)
 
         return model_avg_visit_length_list
     else:
@@ -420,9 +424,9 @@ def transit_properties(results, condition_list, split_conditions):
             all_transits = return_value_list(results, "transits", [condition])
             same_transits = return_value_list(results, "same transits", [condition])
             cross_transits = return_value_list(results, "cross transits", [condition])
-            revisit_probability[i_cond] = len(same_transits)/len(all_transits)
-            cross_transit_probability[i_cond] = len(cross_transits)/len(all_transits)
-            exponential_leaving_probability[i_cond] = 1/np.mean(all_visits)
+            revisit_probability[i_cond] = len(same_transits) / len(all_transits)
+            cross_transit_probability[i_cond] = len(cross_transits) / len(all_transits)
+            exponential_leaving_probability[i_cond] = 1 / np.mean(all_visits)
             min_visit[i_cond] = np.percentile(all_visits, 15)
             average_visit[i_cond] = np.mean(all_visits)
             average_same_patch[i_cond] = np.mean(same_transits)
@@ -451,7 +455,7 @@ def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
     If pool_conditions = True, then like what's on top.
 
     """
-    #TODO automate those pools using the dictionaries in param.py
+    # TODO automate those pools using the dictionaries in param.py
     if pool_by_variable == "distance":
         pooled_conditions = [[0, 4], [1, 5, 8], [2, 6], [3, 7], [11]]
         pool_names = ["close", "med", "far", "cluster", "control"]
@@ -485,6 +489,103 @@ def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
         # Else, the pool is empty, so we don't even want its name, booyah
 
     return new_condition_list, new_pool_names
+
+
+def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_transits, return_leaving_events=False):
+    """
+    This will aggregate visits to the same patch that are spaced by a transit shorter than aggregation threshold.
+    If include_transits is True:
+        Will output time stamps for the beginning and end of each visit ([t0, t1, patch]), including whatever is in
+        between (so it's better to use it with short thresholds).
+    If include_transits is False:
+        Will output visit durations to each patch ([duration, patch]) for each visit, excluding the transits, but
+        losing the information of the start/end of the visit.
+    Note: with a very high aggregation threshold, you can get all visits to a patch to be pooled
+    Example:
+        INPUT: visit list = [[10, 20, 1], [22, 40, 1], [122, 200, 2], [210, 220, 1]]
+        (first element is visit start, second is visit end, third is visit patch)
+        OUTPUT:
+        - Will first convert to by_patch visit format: [ [[10,20], [22,40], [210,220]], [[122,200]] ]
+        - if include_transits = TRUE, will return
+            - aggregation threshold = 5: [[10, 40, 1], [122, 200, 2], [210, 220, 1]]
+            - aggregation threshold = 10000: [[10, 220, 1], [122, 200, 2]]
+        - if include_transits = FALSE, will return
+            - aggregation threshold = 5: [[20, 1], [21, 1], [79, 2]]
+            - aggregation threshold = 10000: [[41, 1], [79, 2]]
+    """
+    visits_per_patch = []
+    # We refactor visits from chronological to by_patch format (one sub-list per patch)
+    sorted_visits = gr.sort_visits_by_patch(list_of_visits, param.nb_to_nb_of_patches[condition])
+    # We don't append because we want to pool all patches from all conditions in the same list (for now)
+    visits_per_patch += sorted_visits
+    # At the end of this, all visits to a same patch are in the same sublist of visits_per_patch
+    # [ [[t0,t1],[t0,t1]], [[t0,t1]], [], ... ]
+
+    aggregated_visits = [[] for _ in range(len(visits_per_patch))]
+    for i_patch in range(len(visits_per_patch)):
+        this_patch_visits = visits_per_patch[i_patch]
+        current_visit_start = 0
+        current_visit_end = 0
+        current_visit_duration = 0
+        ignored_transits_start = []
+
+        # Initialization
+        if this_patch_visits:
+            current_visit_start = this_patch_visits[0][0]
+            current_visit_end = this_patch_visits[0][1]
+            current_visit_duration = current_visit_end - current_visit_start + 1
+
+        # Loopy loop
+        for i_visit in range(len(this_patch_visits) - 1):  # -1 because the last visit of a sublist cannot be aggregated
+            next_visit_start = this_patch_visits[i_visit + 1][0]
+            next_visit_end = this_patch_visits[i_visit + 1][1]
+            next_visit_duration = next_visit_end - next_visit_start + 1
+
+            if include_transits:
+                # If this isn't the last next_visit
+                if i_visit < len(visits_per_patch[i_patch]) - 2:
+                    # If we have to aggregate
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        ignored_transits_start.append(current_visit_end)
+                        current_visit_end = next_visit_end
+                    # If we don't have to aggregate
+                    else:
+                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end, ignored_transits_start])
+                        current_visit_start = next_visit_start
+                        current_visit_end = next_visit_end
+                        ignored_transits_start = []
+                # If this is the last next_visit (so current visit is penultimate)
+                else:
+                    # If we have to aggregate with the last
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        ignored_transits_start.append(current_visit_end)
+                        aggregated_visits[i_patch].append([current_visit_start, next_visit_end, ignored_transits_start])
+                    # If we don't have to aggregate current and next visit
+                    else:
+                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end, ignored_transits_start])
+                        aggregated_visits[i_patch].append([next_visit_start, next_visit_end, []])
+            else:
+                current_visit_end = this_patch_visits[i_visit][1]
+                # If this isn't the last next_visit
+                if i_visit < len(this_patch_visits) - 2:
+                    # If we have to aggregate
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        current_visit_duration += next_visit_duration
+                    # If we don't have to aggregate
+                    else:
+                        aggregated_visits[i_patch].append(current_visit_duration)
+                        current_visit_duration = next_visit_duration  # create a new visit with the next
+                # If this is the last next_visit (so current visit is penultimate)
+                else:
+                    # If we have to aggregate with the last
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        aggregated_visits[i_patch].append(current_visit_duration + next_visit_duration)
+                    # If we don't have to aggregate current and next visit
+                    else:
+                        aggregated_visits[i_patch].append(current_visit_duration)
+                        aggregated_visits[i_patch].append(next_visit_duration)
+
+    return aggregated_visits
 
 
 def first(iterable, condition=lambda x: True):
