@@ -169,7 +169,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
             # Slice to one plate
             current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
             # Visit and transit lists
-            list_of_visits = fd.load_list(current_plate, "aggregated_raw_visits")
+            list_of_visits = fd.load_list(current_plate, "no_hole_visits")
             list_of_transits = fd.load_list(current_plate, "aggregated_raw_transits")
             # Lists that we'll fill up for this plate
             list_of_visit_lengths = []
@@ -262,7 +262,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
             # Slice to one plate
             current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
             # Visit and transit lists
-            list_of_visits = fd.load_list(current_plate, "aggregated_raw_visits")
+            list_of_visits = fd.load_list(current_plate, "no_hole_visits")
             # Information about condition
             condition = fd.load_condition(folder_list[i_plate])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
@@ -368,7 +368,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             plate_name = folder_list[i_plate]
             plate_results = results[results["folder"] == plate_name].reset_index()
             current_transit_list = fd.load_list(plate_results, "aggregated_raw_transits")
-            current_visit_list = fd.load_list(plate_results, "aggregated_raw_visits")
+            current_visit_list = fd.load_list(plate_results, "no_hole_visits")
             if column_name == "same transits":
                 current_transit_list = select_transits(current_transit_list, current_visit_list, to_same_patch=True)
             if column_name == "cross transits":
@@ -381,7 +381,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
 
     else:
         if column_name == "visits":
-            column_name = "aggregated_raw_visits"
+            column_name = "no_hole_visits"
             convert_to_duration = convert_to_duration
         if column_name == "transits":
             column_name = "aggregated_raw_transits"
@@ -390,7 +390,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
             current_results = results[results["folder"] == current_plate].reset_index()
-            current_values = fd.load_list(current_plate, column_name)
+            current_values = fd.load_list(current_results, column_name)
             if convert_to_duration:
                 list_of_values += convert_to_durations(current_values)
             else:
@@ -451,12 +451,16 @@ def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
     If pool_conditions = True, then like what's on top.
 
     """
+    #TODO automate those pools using the dictionaries in param.py
     if pool_by_variable == "distance":
         pooled_conditions = [[0, 4], [1, 5, 8], [2, 6], [3, 7], [11]]
         pool_names = ["close", "med", "far", "cluster", "control"]
     elif pool_by_variable == "density":
         pooled_conditions = [[0, 1, 2, 3], [4, 5, 6, 7], [8], [11]]
         pool_names = ["0.2", "0.5", "1.25", "0"]
+    elif pool_by_variable == "food":
+        pooled_conditions = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11]]
+        pool_names = ["food", "control"]
     else:
         pooled_conditions = [[condition_list[i]] for i in range(len(condition_list))]
         pool_names = [[param.nb_to_name[condition_list[i]]] for i in range(len(condition_list))]

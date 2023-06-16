@@ -548,12 +548,13 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     plt.show()
 
 
-def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None, plot_cumulative=True):
+def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None, plot_cumulative=True, convert_to_duration=True):
     """
     Will plot a distribution of each variable from variable_list in results, for conditions in condition_list.
         effect_of: if set to "nothing", will plot one curve for each condition in condition_list.
                    if set to "density" will make one curve for each bacterial density, pooling conditions together
                    if set to "distance" same but for distance
+                   if set to "food", will pool all food conditions together, apart from control w/o food
         variable_list: can contain any argument that the return_value_list function can take
         scale_list: say if you want to plot the y-axis linear scale, log scale or both
         plot_cumulative: plot cumulative histograms or not
@@ -561,14 +562,14 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
     to_different_patch: if False, will only plot transits that leave and come back to the same patch
     """
     if scale_list is None:
-        scale_list = ["linear", "log"]
+        scale_list = ["log"]  # could also be "linear
     if variable_list is None:
         variable_list = ["visits", "same transits", "cross transits"]
 
     condition_pools, condition_names = ana.pool_conditions_by(condition_list, effect_of)
 
     fig, axs = plt.subplots(len(scale_list), len(variable_list))
-    colors = plt.cm.viridis(np.linspace(0, 1, len(condition_pools)))
+    colors = plt.cm.jet(np.linspace(0, 1, len(condition_pools)))
 
     for i_variable in range(len(variable_list)):
         variable = variable_list[i_variable]
@@ -577,7 +578,10 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
         else:
             bins = np.linspace(0, 8500, 60)
         for i_scale in range(len(scale_list)):
-            ax = axs[i_scale, i_variable]
+            if len(scale_list) == 1 and len(variable_list) == 1:
+                ax = axs
+            else:
+                ax = axs[i_scale, i_variable]
             if i_variable == 0:
                 ax.set(ylabel="normalized "+scale_list[i_scale]+" occurrences")
             if i_scale == 0:
@@ -587,7 +591,9 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
             for i_cond in range(len(condition_pools)):
                 cond = condition_pools[i_cond]
                 name = condition_names[i_cond]
-                values = ana.return_value_list(results, cond, variable)
+                values = ana.return_value_list(results, variable, cond, convert_to_duration=convert_to_duration)
+                if "aggregated" in variable and "transits" not in variable:  # this is because our aggregated visits are in sublists, but i think it wouldn't change anything to do that to a 1D list?
+                    values = [sublist[i] for sublist in values for i in range(len(sublist))]
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step", color=colors[i_cond])
 
     plt.legend()

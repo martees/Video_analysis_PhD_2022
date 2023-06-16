@@ -415,31 +415,45 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
             next_visit_duration = next_visit_end - next_visit_start + 1
 
             if include_transits:
-                # If we have to aggregate
-                if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                    current_visit_end = next_visit_end
-                # If we don't have to aggregate and this isn't the last next_visit
-                elif i_visit < len(visits_per_patch[i_patch]) - 1:
-                    aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
-                    current_visit_start = next_visit_start
-                    current_visit_end = next_visit_end
-                # If we don't have to aggregate, but the next visit is the last one
-                else:  # add current and next visit
-                    aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
-                    aggregated_visits[i_patch].append([next_visit_start, next_visit_end])
+                # If this isn't the last next_visit
+                if i_visit < len(visits_per_patch[i_patch]) - 2:
+                    # If we have to aggregate
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        current_visit_end = next_visit_end
+                    # If we don't have to aggregate
+                    else:
+                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
+                        current_visit_start = next_visit_start
+                        current_visit_end = next_visit_end
+                # If this is the last next_visit (so current visit is penultimate)
+                else:
+                    # If we have to aggregate with the last
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        aggregated_visits[i_patch].append([current_visit_start, next_visit_end])
+                    # If we don't have to aggregate current and next visit
+                    else:
+                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
+                        aggregated_visits[i_patch].append([next_visit_start, next_visit_end])
             else:
                 current_visit_end = this_patch_visits[i_visit][1]
-                # If we have to aggregate
-                if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                    current_visit_duration += next_visit_duration
-                # If we don't have to aggregate and this isn't the last next_visit
-                elif i_visit < len(this_patch_visits) - 1:
-                    aggregated_visits[i_patch].append(current_visit_duration)
-                    current_visit_duration = next_visit_duration  # create a new visit with the next
-                # If we don't have to aggregate, but the next visit is the last one
+                # If this isn't the last next_visit
+                if i_visit < len(this_patch_visits) - 2:
+                    # If we have to aggregate
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        current_visit_duration += next_visit_duration
+                    # If we don't have to aggregate
+                    else:
+                        aggregated_visits[i_patch].append(current_visit_duration)
+                        current_visit_duration = next_visit_duration  # create a new visit with the next
+                # If this is the last next_visit (so current visit is penultimate)
                 else:
-                    aggregated_visits[i_patch].append(current_visit_duration)
-                    aggregated_visits[i_patch].append(next_visit_duration)
+                    # If we have to aggregate with the last
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        aggregated_visits[i_patch].append(current_visit_duration + next_visit_duration)
+                    # If we don't have to aggregate current and next visit
+                    else:
+                        aggregated_visits[i_patch].append(current_visit_duration)
+                        aggregated_visits[i_patch].append(next_visit_duration)
 
     return aggregated_visits
 
@@ -452,15 +466,19 @@ def add_aggregate_visits_to_results(results, threshold_list):
     """
     # Create the columns
     for i_thresh in range(len(threshold_list)):
+        # For visit list
         thresh = threshold_list[i_thresh]
         results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results)))
         results["aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = pd.DataFrame(np.zeros(len(results)))
+        # For visit numbers
+        results["aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
 
     # We run this for each plate separately to keep different patches separate
     for i_plate in range(len(results)):
         current_plate = results["folder"][i_plate]
         current_results = results[results["folder"] == current_plate].reset_index(drop=True)
-        this_plate_visits = fd.load_list(current_results, "aggregated_raw_visits")
+        this_plate_visits = fd.load_list(current_results, "no_hole_visits")
         this_plate_condition = current_results["condition"][0]
         for i_thresh in range(len(threshold_list)):
             thresh = threshold_list[i_thresh]
@@ -474,7 +492,9 @@ def add_aggregate_visits_to_results(results, threshold_list):
 
             results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh)] = str(aggregated_visits_wo_transits)
             results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = str(aggregated_visits_w_transits)
-
+            # Fill columns for number of visits
+            results[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = np.sum([len(sublist) for sublist in aggregated_visits_wo_transits])
+            results[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits_visit_nb"] = np.sum([len(sublist) for sublist in aggregated_visits_w_transits])
     return results
 
 
@@ -844,7 +864,7 @@ def make_results_per_plate(data_per_id, trajectories):
             [pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
         results_per_plate.loc[i_plate, "total_transit_time"] = np.sum(
             [pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
-        results_per_plate.loc[i_plate, "aggregated_raw_visits"] = str(aggregated_visit_timestamps)
+        results_per_plate.loc[i_plate, "no_hole_visits"] = str(aggregated_visit_timestamps)
         results_per_plate.loc[i_plate, "aggregated_raw_transits"] = str(aggregated_transit_timestamps)
         results_per_plate.loc[i_plate, "nb_of_visits"] = len(aggregated_visit_timestamps)
         results_per_plate.loc[i_plate, "mvt_raw_visits"] = str(adjusted_raw_durations)
@@ -921,11 +941,11 @@ def generate_clean_tables_and_speed(path):
     return 0
 
 
-def add_aggregation(path, threshold_list):
+def generate_aggregated_visits(path, threshold_list):
     print("Retrieving results and trajectories...")
     clean_results = pd.read_csv(path + "clean_results.csv")
     new_results = add_aggregate_visits_to_results(clean_results, threshold_list)
-    new_results.to_csv(path + "clean_results.csv")
+    new_results.to_csv(path + "clean_results.csv", index=False)
     return 0
 
 
@@ -947,17 +967,24 @@ def generate(starting_from=""):
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
+        add_aggregate_visits_to_results(path, [10, 100, 100000])
 
     elif starting_from == "results_per_id":
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
+        add_aggregate_visits_to_results(path, [10, 100, 100000])
 
     elif starting_from == "results_per_plate":
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
+        add_aggregate_visits_to_results(path, [10, 100, 100000])
 
     elif starting_from == "clean":
         generate_clean_tables_and_speed(path)
+        add_aggregate_visits_to_results(path, [10, 100, 100000])
+
+    elif starting_from == "visit_aggregation":
+        generate_aggregated_visits(path, [10, 100, 100000])
 
     return path
