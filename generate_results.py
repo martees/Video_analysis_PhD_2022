@@ -8,6 +8,7 @@ import json
 
 # My code
 import param
+import analysis as ana
 
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
@@ -367,137 +368,6 @@ def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_c
     return duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_duration_sum, adjusted_nb_of_visits
 
 
-def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_transits):
-    """
-    This will aggregate visits to the same patch that are spaced by a transit shorter than aggregation threshold.
-    If include_transits is True:
-        Will output time stamps for the beginning and end of each visit ([t0, t1, patch]), including whatever is in
-        between (so it's better to use it with short thresholds).
-    If include_transits is False:
-        Will output visit durations to each patch ([duration, patch]) for each visit, excluding the transits, but
-        losing the information of the start/end of the visit.
-    Note: with a very high aggregation threshold, you can get all visits to a patch to be pooled
-    Example:
-        INPUT: visit list = [[10, 20, 1], [22, 40, 1], [122, 200, 2], [210, 220, 1]]
-        (first element is visit start, second is visit end, third is visit patch)
-        OUTPUT:
-        - Will first convert to by_patch visit format: [ [[10,20], [22,40], [210,220]], [[122,200]] ]
-        - include_transits = TRUE
-            - aggregation threshold = 5: [[10, 40, 1], [122, 200, 2], [210, 220, 1]]
-            - aggregation threshold = 10000: [[10, 220, 1], [122, 200, 2]]
-        - include_transits = FALSE
-            - aggregation threshold = 5: [[20, 1], [21, 1], [79, 2]]
-            - aggregation threshold = 10000: [[41, 1], [79, 2]]
-    """
-    visits_per_patch = []
-    # We refactor visits from chronological to by_patch format (one sub-list per patch)
-    sorted_visits = sort_visits_by_patch(list_of_visits, param.nb_to_nb_of_patches[condition])
-    # We don't append because we want to pool all patches from all conditions in the same list (for now)
-    visits_per_patch += sorted_visits
-    # At the end of this, all visits to a same patch are in the same sublist of visits_per_patch
-    # [ [[t0,t1],[t0,t1]], [[t0,t1]], [], ... ]
-
-    aggregated_visits = [[] for _ in range(len(visits_per_patch))]
-    for i_patch in range(len(visits_per_patch)):
-        this_patch_visits = visits_per_patch[i_patch]
-        current_visit_start = 0
-        current_visit_end = 0
-        current_visit_duration = 0
-        # Initialization
-        if this_patch_visits:
-            current_visit_start = this_patch_visits[0][0]
-            current_visit_end = this_patch_visits[0][1]
-            current_visit_duration = current_visit_end - current_visit_start + 1
-        # Loopy loop
-        for i_visit in range(len(this_patch_visits) - 1):  # -1 because the last visit of a sublist cannot be aggregated
-            next_visit_start = this_patch_visits[i_visit + 1][0]
-            next_visit_end = this_patch_visits[i_visit + 1][1]
-            next_visit_duration = next_visit_end - next_visit_start + 1
-
-            if include_transits:
-                # If this isn't the last next_visit
-                if i_visit < len(visits_per_patch[i_patch]) - 2:
-                    # If we have to aggregate
-                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                        current_visit_end = next_visit_end
-                    # If we don't have to aggregate
-                    else:
-                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
-                        current_visit_start = next_visit_start
-                        current_visit_end = next_visit_end
-                # If this is the last next_visit (so current visit is penultimate)
-                else:
-                    # If we have to aggregate with the last
-                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                        aggregated_visits[i_patch].append([current_visit_start, next_visit_end])
-                    # If we don't have to aggregate current and next visit
-                    else:
-                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end])
-                        aggregated_visits[i_patch].append([next_visit_start, next_visit_end])
-            else:
-                current_visit_end = this_patch_visits[i_visit][1]
-                # If this isn't the last next_visit
-                if i_visit < len(this_patch_visits) - 2:
-                    # If we have to aggregate
-                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                        current_visit_duration += next_visit_duration
-                    # If we don't have to aggregate
-                    else:
-                        aggregated_visits[i_patch].append(current_visit_duration)
-                        current_visit_duration = next_visit_duration  # create a new visit with the next
-                # If this is the last next_visit (so current visit is penultimate)
-                else:
-                    # If we have to aggregate with the last
-                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                        aggregated_visits[i_patch].append(current_visit_duration + next_visit_duration)
-                    # If we don't have to aggregate current and next visit
-                    else:
-                        aggregated_visits[i_patch].append(current_visit_duration)
-                        aggregated_visits[i_patch].append(next_visit_duration)
-
-    return aggregated_visits
-
-
-def add_aggregate_visits_to_results(results, threshold_list):
-    """
-    Will add one column in results for each threshold in threshold list, both including or excluding transits.
-    Will create new "aggregated visits", where visits are fused if separated by less than a temporal threshold.
-    See aggregate_visits function for examples.
-    """
-    # Create the columns
-    for i_thresh in range(len(threshold_list)):
-        # For visit list
-        thresh = threshold_list[i_thresh]
-        results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results)))
-        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = pd.DataFrame(np.zeros(len(results)))
-        # For visit numbers
-        results["aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
-        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
-
-    # We run this for each plate separately to keep different patches separate
-    for i_plate in range(len(results)):
-        current_plate = results["folder"][i_plate]
-        current_results = results[results["folder"] == current_plate].reset_index(drop=True)
-        this_plate_visits = fd.load_list(current_results, "no_hole_visits")
-        this_plate_condition = current_results["condition"][0]
-        for i_thresh in range(len(threshold_list)):
-            thresh = threshold_list[i_thresh]
-            aggregated_visits_wo_transits = aggregate_visits(this_plate_visits, this_plate_condition, thresh,
-                                                             include_transits=False)
-            aggregated_visits_w_transits = aggregate_visits(this_plate_visits, this_plate_condition, thresh,
-                                                            include_transits=True)
-
-            # Sort them chronologically like other visits (works only with the ones that still have time stamps)
-            aggregated_visits_w_transits = sort_visits_chronologically(aggregated_visits_w_transits)
-
-            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh)] = str(aggregated_visits_wo_transits)
-            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = str(aggregated_visits_w_transits)
-            # Fill columns for number of visits
-            results[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = np.sum([len(sublist) for sublist in aggregated_visits_wo_transits])
-            results[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits_visit_nb"] = np.sum([len(sublist) for sublist in aggregated_visits_w_transits])
-    return results
-
-
 def make_results_per_id_table(data):
     """
     Takes our data table and returns a series of analysis regarding patch visits, one line per "worm", which in fact
@@ -606,7 +476,9 @@ def sort_visits_chronologically(by_patch_list_of_visits):
     for i_patch in range(len(by_patch_list_of_visits)):
         for i_visit in range(len(by_patch_list_of_visits[i_patch])):
             if by_patch_list_of_visits[i_patch][i_visit]:  # if it's not empty
-                by_patch_list_of_visits[i_patch][i_visit].append(i_patch)
+                by_patch_list_of_visits[i_patch][i_visit].insert(2, i_patch)  # add it in second position
+                # (here we use insert instead of append because for aggregated_visits including transits, the last
+                # element should not be the patch but the starting time of the transits that were included)
 
     # Concatenate all patch sublists
     chrono_list_of_visits = []
@@ -796,13 +668,6 @@ def fill_holes(data_per_id):
     return corrected_list_of_visits, corrected_list_of_transits
 
 
-def add_visit_start_speed(list_of_visits):
-    """
-    Takes a list of visit and will return the same list but adding a value in the end of every visit, corresponding to
-    the speed of the worm in the timestep
-    """
-
-
 def make_results_per_plate(data_per_id, trajectories):
     """
     Function that takes our results_per_id table as an input, and will output a table with info for each plate:
@@ -941,11 +806,53 @@ def generate_clean_tables_and_speed(path):
     return 0
 
 
+def add_aggregate_visits_to_results(results, threshold_list):
+    """
+    Will add one column in results for each threshold in threshold list, both including or excluding transits.
+    Will create new "aggregated visits", where visits are fused if separated by less than a temporal threshold.
+    See aggregate_visits function for examples.
+    """
+    # Create the columns
+    for i_thresh in range(len(threshold_list)):
+        # For visit list
+        thresh = threshold_list[i_thresh]
+        results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = pd.DataFrame(np.zeros(len(results)))
+        # For visit numbers
+        results["aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
+
+    # We run this for each plate separately to keep different patches separate
+    for i_plate in range(len(results)):
+        current_plate = results["folder"][i_plate]
+        current_results = results[results["folder"] == current_plate].reset_index(drop=True)
+        this_plate_visits = fd.load_list(current_results, "no_hole_visits")
+        this_plate_condition = current_results["condition"][0]
+        for i_thresh in range(len(threshold_list)):
+            thresh = threshold_list[i_thresh]
+            aggregated_visits_wo_transits = ana.aggregate_visits(this_plate_visits, this_plate_condition, thresh,
+                                                             include_transits=False)
+            aggregated_visits_w_transits = ana.aggregate_visits(this_plate_visits, this_plate_condition, thresh,
+                                                            include_transits=True)
+
+            # Sort them chronologically like other visits (works only with the ones that still have time stamps)
+            aggregated_visits_w_transits = sort_visits_chronologically(aggregated_visits_w_transits)
+
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh)] = str(aggregated_visits_wo_transits)
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = str(aggregated_visits_w_transits)
+            # Fill columns for number of visits
+            results[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = np.sum([len(sublist) for sublist in aggregated_visits_wo_transits])
+            results[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits_visit_nb"] = np.sum([len(sublist) for sublist in aggregated_visits_w_transits])
+    return results
+
+
 def generate_aggregated_visits(path, threshold_list):
     print("Retrieving results and trajectories...")
     clean_results = pd.read_csv(path + "clean_results.csv")
+    print("Adding aggregated visits info for thresholds "+str(threshold_list)+"...")
     new_results = add_aggregate_visits_to_results(clean_results, threshold_list)
     new_results.to_csv(path + "clean_results.csv", index=False)
+    print("Done!")
     return 0
 
 
@@ -967,24 +874,17 @@ def generate(starting_from=""):
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        add_aggregate_visits_to_results(path, [10, 100, 100000])
 
     elif starting_from == "results_per_id":
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        add_aggregate_visits_to_results(path, [10, 100, 100000])
 
     elif starting_from == "results_per_plate":
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        add_aggregate_visits_to_results(path, [10, 100, 100000])
 
     elif starting_from == "clean":
         generate_clean_tables_and_speed(path)
-        add_aggregate_visits_to_results(path, [10, 100, 100000])
-
-    elif starting_from == "visit_aggregation":
-        generate_aggregated_visits(path, [10, 100, 100000])
 
     return path
