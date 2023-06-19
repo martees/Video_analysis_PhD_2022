@@ -496,7 +496,7 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
     This will aggregate visits to the same patch that are spaced by a transit shorter than aggregation threshold.
     If include_transits is True:
         Will output time stamps for the beginning and end of each visit ([t0, t1, patch]), including whatever is in
-        between (so it's better to use it with short thresholds).
+        between (so it's better to use it with short thresholds). Third element will be a list of info for the transits.
     If include_transits is False:
         Will output visit durations to each patch ([duration, patch]) for each visit, excluding the transits, but
         losing the information of the start/end of the visit.
@@ -506,12 +506,13 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
         (first element is visit start, second is visit end, third is visit patch)
         OUTPUT:
         - Will first convert to by_patch visit format: [ [[10,20], [22,40], [210,220]], [[122,200]] ]
+          because we want to work on visits patch by patch.
         - if include_transits = TRUE, will return
-            - aggregation threshold = 5: [[10, 40, 1], [122, 200, 2], [210, 220, 1]]
-            - aggregation threshold = 10000: [[10, 220, 1], [122, 200, 2]]
+            - aggregation threshold = 5: [ [ [10, 40, [[20, 22]]], [210, 220, [[]] ], [ [122, 200, []] ] ]
+            - aggregation threshold = 10000: [ [ [10, 220, [[20,22], [40, 210]] ], [ [210, 200, [IT]] ] ]
         - if include_transits = FALSE, will return
-            - aggregation threshold = 5: [[20, 1], [21, 1], [79, 2]]
-            - aggregation threshold = 10000: [[41, 1], [79, 2]]
+            - aggregation threshold = 5: [[30, 21], [79]]
+            - aggregation threshold = 10000: [[51], [79]]
     """
     visits_per_patch = []
     # We refactor visits from chronological to by_patch format (one sub-list per patch)
@@ -527,7 +528,7 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
         current_visit_start = 0
         current_visit_end = 0
         current_visit_duration = 0
-        ignored_transits_start = []
+        ignored_transits = []
 
         # Initialization
         if this_patch_visits:
@@ -536,7 +537,7 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
             current_visit_duration = current_visit_end - current_visit_start + 1
 
         # Loopy loop
-        for i_visit in range(len(this_patch_visits) - 1):  # -1 because the last visit of a sublist cannot be aggregated
+        for i_visit in range(len(this_patch_visits) - 1):  # -1 because we look at i_visit and the next, last visit has no next
             next_visit_start = this_patch_visits[i_visit + 1][0]
             next_visit_end = this_patch_visits[i_visit + 1][1]
             next_visit_duration = next_visit_end - next_visit_start + 1
@@ -546,23 +547,23 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
                 if i_visit < len(visits_per_patch[i_patch]) - 2:
                     # If we have to aggregate
                     if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                        ignored_transits_start.append(current_visit_end)
+                        ignored_transits.append([current_visit_end, next_visit_start])
                         current_visit_end = next_visit_end
                     # If we don't have to aggregate
                     else:
-                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end, ignored_transits_start])
+                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end, ignored_transits])
                         current_visit_start = next_visit_start
                         current_visit_end = next_visit_end
-                        ignored_transits_start = []
+                        ignored_transits = []
                 # If this is the last next_visit (so current visit is penultimate)
                 else:
                     # If we have to aggregate with the last
                     if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                        ignored_transits_start.append(current_visit_end)
-                        aggregated_visits[i_patch].append([current_visit_start, next_visit_end, ignored_transits_start])
+                        ignored_transits.append([current_visit_end, next_visit_start])
+                        aggregated_visits[i_patch].append([current_visit_start, next_visit_end, ignored_transits])
                     # If we don't have to aggregate current and next visit
                     else:
-                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end, ignored_transits_start])
+                        aggregated_visits[i_patch].append([current_visit_start, current_visit_end, ignored_transits])
                         aggregated_visits[i_patch].append([next_visit_start, next_visit_end, []])
             else:
                 current_visit_end = this_patch_visits[i_visit][1]
@@ -586,6 +587,14 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
                         aggregated_visits[i_patch].append(next_visit_duration)
 
     return aggregated_visits
+
+
+def leaving_events(list_of_visits_with_transit_info):
+    """
+    Takes
+    aggregation threshold = 5: [ [ [10, 40, [[20, 22]]], [210, 220, [[]] ], [ [122, 200, []] ] ]
+
+    """
 
 
 def first(iterable, condition=lambda x: True):

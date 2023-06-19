@@ -242,7 +242,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
 #   Saves the results in a path that is returned:
 # "trajectories" will generate everything starting here ->
 #       "trajectories.csv": raw trajectories, one line per tracked point
-# "results_per id" will generate everything starting here ->
+# "results_per_id" will generate everything starting here ->
 #       "results_per_id.csv": one line per id_conservative in the tracking, ie one line per continuous tracking track
 # "results_per_plate" will generate everything starting here ->
 #       "results_per_plate.csv": one line per plate in the tracking, so hopefully one line per worm :p
@@ -281,13 +281,14 @@ print("Finished retrieving stuff")
 #               - "transit_properties"
 #               - "aggregated_visits"
 
+#gr.add_aggregate_visits_to_results(results, [1, 2, 4, 8, 16, 100000])
 
-plot_graphs(plot="distribution_aggregated", densities_list=param.condition_to_nb["close"], include_control=False)
-plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["med"])
-plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["far"], include_control=False)
-plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["cluster"], include_control=False)
-plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["0.2"], include_control=False)
-plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["0.5"], include_control=False)
+plot_graphs(plot="distribution_aggregated", raw_condition_list=param.condition_to_nb["close"], include_control=False)
+plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["med"])
+plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["far"], include_control=False)
+plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["cluster"], include_control=False)
+plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["0.2"], include_control=False)
+plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["0.5"], include_control=False)
 
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top => for speed analysis
