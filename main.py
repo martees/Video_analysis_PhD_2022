@@ -203,40 +203,55 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                 plots.plot_variable_distribution(results, condition_list=condition_pool, effect_of="distance")
 
             if "distribution_aggregated" in plot:
-                plots.plot_variable_distribution(results, condition_pool, effect_of="nothing", variable_list=["aggregation"], threshold_list=[10, 100, 100000])
-                plots.plot_variable_distribution(results, condition_pool, effect_of="food", variable_list=["aggregation"], threshold_list=[10, 100, 100000])
-                plots.plot_variable_distribution(results, condition_pool, effect_of="distance", variable_list=["aggregation"], threshold_list=[10, 100, 100000])
-                plots.plot_variable_distribution(results, condition_pool, effect_of="density", variable_list=["aggregation"], threshold_list=[10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="nothing",
+                                                 variable_list=["aggregated_visits"], threshold_list=[0, 10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="food",
+                                                 variable_list=["aggregated_visits"], threshold_list=[0, 10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="distance",
+                                                 variable_list=["aggregated_visits"], threshold_list=[0, 10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="density",
+                                                 variable_list=["aggregated_visits"], threshold_list=[0, 10, 100, 100000])
 
-            if "leaving events" in plot:
-                pass
+            if "leaving_events" in plot:
+                plots.plot_variable_distribution(results, condition_pool, effect_of="nothing",
+                                                 variable_list=["aggregated_leaving_events"],
+                                                 threshold_list=[0, 10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="food",
+                                                 variable_list=["aggregated_leaving_events"],
+                                                 threshold_list=[0, 10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="distance",
+                                                 variable_list=["aggregated_leaving_events"],
+                                                 threshold_list=[0, 10, 100, 100000])
+                plots.plot_variable_distribution(results, condition_pool, effect_of="density",
+                                                 variable_list=["aggregated_leaving_events"],
+                                                 threshold_list=[0, 10, 100, 100000])
 
-            if "transit_properties" in plot:
-                revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
-                    results, condition_pool_list, split_conditions=True)
-                for i_cond in range(len(condition_pool_list)):
-                    print("Transit properties for condition ", condition_names[i_cond])
-                    print("Revisit probability: ", revisit_probability[i_cond])
-                    print("Cross-patch probability: ", cross_transit_probability[i_cond])
-                    print("Exponential leaving probability: ", exponential_leaving_probability[i_cond])
-                    print("Minimal duration of visits: ", min_visit[i_cond])
-                    print("Average duration of visits: ", average_visit[i_cond])
-                    print("Average duration of same patch transits: ", average_same_patch[i_cond])
-                    print("Average duration of cross patch transits: ", average_cross_patch[i_cond])
-                    print("-----")
-
-                revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
-                    results, condition_pool_list, split_conditions=False)
-
-                print("Transit properties for conditions ", condition_names)
-                print("Revisit probability: ", revisit_probability)
-                print("Cross-patch probability: ", cross_transit_probability)
-                print("Exponential leaving probability: ", exponential_leaving_probability)
-                print("Minimal duration of visits: ", min_visit)
-                print("Average duration of visits: ", average_visit)
-                print("Average duration of same patch transits: ", average_same_patch)
-                print("Average duration of cross patch transits: ", average_cross_patch)
+        if "transit_properties" in plot:
+            revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
+                results, condition_pool_list, split_conditions=True)
+            for i_cond in range(len(condition_pool_list)):
+                print("Transit properties for condition ", condition_names[i_cond])
+                print("Revisit probability: ", revisit_probability[i_cond])
+                print("Cross-patch probability: ", cross_transit_probability[i_cond])
+                print("Exponential leaving probability: ", exponential_leaving_probability[i_cond])
+                print("Minimal duration of visits: ", min_visit[i_cond])
+                print("Average duration of visits: ", average_visit[i_cond])
+                print("Average duration of same patch transits: ", average_same_patch[i_cond])
+                print("Average duration of cross patch transits: ", average_cross_patch[i_cond])
                 print("-----")
+
+            revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
+                results, condition_pool_list, split_conditions=False)
+
+            print("Transit properties for conditions ", condition_names)
+            print("Revisit probability: ", revisit_probability)
+            print("Cross-patch probability: ", cross_transit_probability)
+            print("Exponential leaving probability: ", exponential_leaving_probability)
+            print("Minimal duration of visits: ", min_visit)
+            print("Average duration of visits: ", average_visit)
+            print("Average duration of same patch transits: ", average_same_patch)
+            print("Average duration of cross patch transits: ", average_cross_patch)
+            print("-----")
 
 
 #   Saves the results in a path that is returned:
@@ -280,15 +295,13 @@ print("Finished retrieving stuff")
 #               - "distribution_aggregated"
 #               - "transit_properties"
 #               - "aggregated_visits"
+#               - "leaving_events"
 
-#gr.add_aggregate_visits_to_results(results, [1, 2, 4, 8, 16, 100000])
 
-plot_graphs(plot="distribution_aggregated", raw_condition_list=param.condition_to_nb["close"], include_control=False)
-plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["med"])
-plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["far"], include_control=False)
-plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["cluster"], include_control=False)
-plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["0.2"], include_control=False)
-plot_graphs(plot=["distribution_aggregated"], raw_condition_list=param.condition_to_nb["0.5"], include_control=False)
+# Plot distribution of visit + same transits + cross transits
+plot_graphs(plot="leaving_events", raw_condition_list=param.condition_to_nb["0.2"], include_control=False)
+plot_graphs(plot="leaving_events", raw_condition_list=param.condition_to_nb["0.5"], include_control=False)
+plot_graphs(plot="leaving_events", raw_condition_list=param.condition_to_nb["all"], include_control=False)
 
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top => for speed analysis

@@ -568,7 +568,8 @@ def fill_holes(data_per_id):
 
             # We look for the next visit start and end
             if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
-                while not list_of_visits[i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
+                while not list_of_visits[
+                    i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
                     i_next_track += 1
                     skipped_empty_tracks = True
                 if list_of_visits[i_next_track]:  # if a non-empty track was found in the end
@@ -740,6 +741,60 @@ def make_results_per_plate(data_per_id, trajectories):
     return results_per_plate
 
 
+def add_aggregate_visit_info_to_results(results, threshold_list):
+    """
+    Will add columns in results for each threshold in threshold list, both including or excluding transits.
+    Will create new "aggregated visits", where visits are fused if separated by less than a temporal threshold.
+    See aggregate_visits function for examples.
+    Created columns:
+        - aggregated_visits_thresh_X: list of visit durations (one sublist per patch), visits separated by less than X are merged
+                Structure: output of aggregate_visits
+                           one sublist per patch, with one sublist per visit to this patch, and in each visit sublist:
+                           visit start, visit end, list of time stamps for the transits [[t0,t1], [t0,t1], ...]
+        - aggregated_visits_thresh_X_visit_durations: corresponding duration of each visit (so excluding transit durations)
+        - aggregated_visits_thresh_X_visit_nb: corresponding number of visits for each patch
+        - aggregated_visits_thresh_X_leaving_events: corresponding list of visit events (see architecture in ana.leaving_events_time_stamps)
+
+    """
+    # Create the columns
+    for i_thresh in range(len(threshold_list)):
+        # For visit list
+        thresh = threshold_list[i_thresh]
+        results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_visit_durations"] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_leaving_events_time_stamps"] = pd.DataFrame(
+            np.zeros(len(results)))
+
+    # We run this for each plate separately to keep different patches separate
+    for i_plate in range(len(results)):
+        current_plate = results["folder"][i_plate]
+        current_results = results[results["folder"] == current_plate].reset_index(drop=True)
+        this_plate_visits = fd.load_list(current_results, "no_hole_visits")
+        this_plate_condition = current_results["condition"][0]
+        for i_thresh in range(len(threshold_list)):
+            thresh = threshold_list[i_thresh]
+            aggregated_visits_w_transit_info = ana.aggregate_visits(this_plate_visits, this_plate_condition, thresh,
+                                                                    return_duration=False)
+            aggregated_visits_durations = ana.aggregate_visits(this_plate_visits, this_plate_condition, thresh,
+                                                               return_duration=True)
+            leaving_events = ana.leaving_events_time_stamps(aggregated_visits_w_transit_info)
+
+            # Sort them chronologically like other visits (works only with the ones that still have time stamps)
+            aggregated_visits_w_transit_info = sort_visits_chronologically(aggregated_visits_w_transit_info)
+
+            # Fill the columns
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh)] = str(aggregated_visits_w_transit_info)
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_visit_durations"] = str(
+                aggregated_visits_durations)
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = np.sum(
+                [len(sublist) for sublist in aggregated_visits_durations])
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_leaving_events_time_stamps"] = str(
+                leaving_events)
+
+    return results
+
+
 def exclude_invalid_videos(trajectories, results_per_plate):
     cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
     cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
@@ -783,8 +838,9 @@ def generate_results_per_id(path):
 def generate_results_per_plate(path):
     print("Aggregating and preprocessing results per plate...")
     print("Retrieving results...")
-    trajectories = pd.read_csv(path + "trajectories.csv")
-    results_per_id = pd.read_csv(path + "results_per_id.csv")
+    trajectories = pd.read_csv(path + "trajectories.csv",
+                               index_col=0)  # index_col=0 is to prevent the addition of new index columns at each import
+    results_per_id = pd.read_csv(path + "results_per_id.csv", index_col=0)
     print("Starting to build results_per_plate from results_per_id...")
     results_per_plate = make_results_per_plate(results_per_id, trajectories)
     results_per_plate.to_csv(path + "results_per_plate.csv")
@@ -793,8 +849,8 @@ def generate_results_per_plate(path):
 
 def generate_clean_tables_and_speed(path):
     print("Retrieving results and trajectories...")
-    results_per_plate = pd.read_csv(path + "results_per_plate.csv")
-    trajectories = pd.read_csv(path + "trajectories.csv")
+    results_per_plate = pd.read_csv(path + "results_per_plate.csv", index_col=0)
+    trajectories = pd.read_csv(path + "trajectories.csv", index_col=0)
     print("Cleaning results...")
     clean_trajectories, clean_results = exclude_invalid_videos(trajectories, results_per_plate)
     clean_results.to_csv(path + "clean_results.csv")
@@ -806,54 +862,14 @@ def generate_clean_tables_and_speed(path):
     return 0
 
 
-def add_aggregate_visits_to_results(results, threshold_list):
-    """
-    Will add one column in results for each threshold in threshold list, both including or excluding transits.
-    Will create new "aggregated visits", where visits are fused if separated by less than a temporal threshold.
-    See aggregate_visits function for examples.
-    """
-    # Create the columns
-    for i_thresh in range(len(threshold_list)):
-        # For visit list
-        thresh = threshold_list[i_thresh]
-        results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results)))
-        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = pd.DataFrame(np.zeros(len(results)))
-        # For visit numbers
-        results["aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
-        results["aggregated_visits_thresh_" + str(thresh) + "_include_transits_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
-
-    # We run this for each plate separately to keep different patches separate
-    for i_plate in range(len(results)):
-        current_plate = results["folder"][i_plate]
-        current_results = results[results["folder"] == current_plate].reset_index(drop=True)
-        this_plate_visits = fd.load_list(current_results, "no_hole_visits")
-        this_plate_condition = current_results["condition"][0]
-        for i_thresh in range(len(threshold_list)):
-            thresh = threshold_list[i_thresh]
-            aggregated_visits_wo_transits = ana.aggregate_visits(this_plate_visits, this_plate_condition, thresh,
-                                                             include_transits=False)
-            aggregated_visits_w_transits = ana.aggregate_visits(this_plate_visits, this_plate_condition, thresh,
-                                                            include_transits=True)
-
-            # Sort them chronologically like other visits (works only with the ones that still have time stamps)
-            aggregated_visits_w_transits = sort_visits_chronologically(aggregated_visits_w_transits)
-
-            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh)] = str(aggregated_visits_wo_transits)
-            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits"] = str(aggregated_visits_w_transits)
-            # Fill columns for number of visits
-            results[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = np.sum([len(sublist) for sublist in aggregated_visits_wo_transits])
-            results[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_include_transits_visit_nb"] = np.sum([len(sublist) for sublist in aggregated_visits_w_transits])
-    return results
-
-
 def generate_aggregated_visits(path, threshold_list):
     print("Retrieving results and trajectories...")
-    clean_results = pd.read_csv(path + "clean_results.csv")
-    print("Adding aggregated visits info for thresholds "+str(threshold_list)+"...")
-    new_results = add_aggregate_visits_to_results(clean_results, threshold_list)
+    clean_results = pd.read_csv(path + "clean_results.csv", index_col=0).reset_index()
+    print("Adding aggregated visits info for thresholds " + str(threshold_list) + "...")
+    new_results = add_aggregate_visit_info_to_results(clean_results, threshold_list)
     new_results.to_csv(path + "clean_results.csv", index=False)
     print("Done!")
-    return 0
+    return new_results  # return this because this function is also used dynamically
 
 
 def generate(starting_from=""):

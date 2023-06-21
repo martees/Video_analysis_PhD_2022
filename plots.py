@@ -8,6 +8,8 @@ import seaborn as sns
 import analysis as ana
 import generate_results as gr
 import find_data as fd
+import param
+
 
 # Sanity check functions
 
@@ -561,25 +563,38 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
         plot_cumulative: plot cumulative histograms or not
     to_same_patch: if False, will only plot transits that go from one patch to another
     to_different_patch: if False, will only plot transits that leave and come back to the same patch
+    threshold_list: list of thresholds for aggregation of visits
     """
     if scale_list is None:
         scale_list = ["log"]  # could also be "linear
     if variable_list is None:
         variable_list = ["visits", "same transits", "cross transits"]
-    if "aggregation" in variable_list:
-        # If aggregation is in variable list, we want to plot all the effects ("distance", "density", etc) but with
+
+    # If an aggregation related column is called for, generate it in results if it's not done yet
+    if "aggregated_visits" in variable_list or "aggregated_leaving_events" in variable_list:
+        # If aggregation is in variable list, we want to plot all the effects ("distance", "density", etc.) but with
         # one subplot per possible aggregation threshold
         for i_thresh in range(len(threshold_list)):
-            column_name = "aggregated_visits_thresh_"+threshold_list[i_thresh]
+            column_name = "aggregated_visits_thresh_"+str(threshold_list[i_thresh])
             if column_name not in results.columns:
                 # If the aggregated visits have not been generated yet for this threshold values
-                gr.generate_aggregated_visits(gr.generate(), threshold_list[i_thresh])  # add them to the results.csv table
-            variable_list.append(column_name)
+                results = gr.generate_aggregated_visits(gr.generate(), [threshold_list[i_thresh]])  # add them to the clean_results.csv table
+        if "aggregated_visits" in variable_list:
+            for thresh in threshold_list:
+                variable_list.append("aggregated_visits_thresh_"+str(thresh)+"_visit_durations")
+            variable_list.remove("aggregated_visits")
+        if "aggregated_leaving_events" in variable_list:
+            for thresh in threshold_list:
+                variable_list.append("aggregated_visits_thresh_"+str(thresh)+"_leaving_events_time_stamps")
+            variable_list.remove("aggregated_leaving_events")
 
     # Pool conditions depending on the "effect_of" argument
     condition_pools, condition_names = ana.pool_conditions_by(condition_list, effect_of)
     fig, axs = plt.subplots(len(scale_list), len(variable_list))
+    fig.set_size_inches(7*len(variable_list), 6*len(scale_list))
     colors = plt.cm.jet(np.linspace(0, 1, len(condition_pools)))
+    fig.suptitle("Conditions "+str([param.nb_to_name[i] for i in condition_list]))
+    fig.set_tight_layout(True)  # make the margins tighter
 
     for i_variable in range(len(variable_list)):
         variable = variable_list[i_variable]
@@ -588,10 +603,14 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
         else:
             bins = np.linspace(0, 8500, 60)
         for i_scale in range(len(scale_list)):
-            if len(scale_list) == 1 and len(variable_list) == 1:
-                ax = axs
-            else:
+            if len(scale_list) > 1 and len(variable_list) > 1:
                 ax = axs[i_scale, i_variable]
+            elif len(scale_list) == 1:
+                ax = axs[i_variable]
+            elif len(variable_list) == 1:
+                ax = axs[i_scale]
+            else:
+                ax = axs
             if i_variable == 0:
                 ax.set(ylabel="normalized "+scale_list[i_scale]+" occurrences")
             if i_scale == 0:

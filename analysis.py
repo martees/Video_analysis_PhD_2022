@@ -491,28 +491,29 @@ def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
     return new_condition_list, new_pool_names
 
 
-def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_transits, return_leaving_events=False):
+def aggregate_visits(list_of_visits, condition, aggregation_threshold, return_duration):
     """
     This will aggregate visits to the same patch that are spaced by a transit shorter than aggregation threshold.
-    If include_transits is True:
-        Will output time stamps for the beginning and end of each visit ([t0, t1, patch]), including whatever is in
-        between (so it's better to use it with short thresholds). Third element will be a list of info for the transits.
-    If include_transits is False:
-        Will output visit durations to each patch ([duration, patch]) for each visit, excluding the transits, but
-        losing the information of the start/end of the visit.
-    Note: with a very high aggregation threshold, you can get all visits to a patch to be pooled
+    Needs condition to know how many patches there are in total.
+    Note: with a very high aggregation threshold, you can get all visits to a patch to be pooled.
     Example:
         INPUT: visit list = [[10, 20, 1], [22, 40, 1], [122, 200, 2], [210, 220, 1]]
         (first element is visit start, second is visit end, third is visit patch)
         OUTPUT:
         - Will first convert to by_patch visit format: [ [[10,20], [22,40], [210,220]], [[122,200]] ]
           because we want to work on visits patch by patch.
-        - if include_transits = TRUE, will return
+        - if return_duration = FALSE, will return
             - aggregation threshold = 5: [ [ [10, 40, [[20, 22]]], [210, 220, [[]] ], [ [122, 200, []] ] ]
-            - aggregation threshold = 10000: [ [ [10, 220, [[20,22], [40, 210]] ], [ [210, 200, [IT]] ] ]
-        - if include_transits = FALSE, will return
+            - aggregation threshold = 10000: [ [ [10, 220, [[20,22], [40, 210]] ], [ [210, 200, []] ] ]
+            Where each sublist corresponds to a patch, containing one sublist for each visit sublist, itself containing:
+                - the start of the visit
+                - the end of the visit
+                - a sublist containing the times where the worm was out during this visit
+        - if return_duration = TRUE, will return
             - aggregation threshold = 5: [[30, 21], [79]]
             - aggregation threshold = 10000: [[51], [79]]
+            Where each sublist corresponds to a patch, and contains the durations of the successive visits, excluding
+            intermediate transits.
     """
     visits_per_patch = []
     # We refactor visits from chronological to by_patch format (one sub-list per patch)
@@ -542,7 +543,28 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
             next_visit_end = this_patch_visits[i_visit + 1][1]
             next_visit_duration = next_visit_end - next_visit_start + 1
 
-            if include_transits:
+            if return_duration:
+                current_visit_end = this_patch_visits[i_visit][1]
+                # If this isn't the last next_visit
+                if i_visit < len(this_patch_visits) - 2:
+                    # If we have to aggregate
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        current_visit_duration += next_visit_duration
+                    # If we don't have to aggregate
+                    else:
+                        aggregated_visits[i_patch].append(current_visit_duration)
+                        current_visit_duration = next_visit_duration  # create a new visit with the next
+                # If this is the last next_visit (so current visit is penultimate)
+                else:
+                    # If we have to aggregate with the last
+                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
+                        aggregated_visits[i_patch].append(current_visit_duration + next_visit_duration)
+                    # If we don't have to aggregate current and next visit
+                    else:
+                        aggregated_visits[i_patch].append(current_visit_duration)
+                        aggregated_visits[i_patch].append(next_visit_duration)
+
+            else:
                 # If this isn't the last next_visit
                 if i_visit < len(visits_per_patch[i_patch]) - 2:
                     # If we have to aggregate
@@ -565,36 +587,45 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, include_t
                     else:
                         aggregated_visits[i_patch].append([current_visit_start, current_visit_end, ignored_transits])
                         aggregated_visits[i_patch].append([next_visit_start, next_visit_end, []])
-            else:
-                current_visit_end = this_patch_visits[i_visit][1]
-                # If this isn't the last next_visit
-                if i_visit < len(this_patch_visits) - 2:
-                    # If we have to aggregate
-                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                        current_visit_duration += next_visit_duration
-                    # If we don't have to aggregate
-                    else:
-                        aggregated_visits[i_patch].append(current_visit_duration)
-                        current_visit_duration = next_visit_duration  # create a new visit with the next
-                # If this is the last next_visit (so current visit is penultimate)
-                else:
-                    # If we have to aggregate with the last
-                    if abs(next_visit_start - current_visit_end) < aggregation_threshold:
-                        aggregated_visits[i_patch].append(current_visit_duration + next_visit_duration)
-                    # If we don't have to aggregate current and next visit
-                    else:
-                        aggregated_visits[i_patch].append(current_visit_duration)
-                        aggregated_visits[i_patch].append(next_visit_duration)
 
     return aggregated_visits
 
 
-def leaving_events(list_of_visits_with_transit_info):
+def leaving_events_time_stamps(list_of_visits_with_transit_info):
     """
-    Takes
-    aggregation threshold = 5: [ [ [10, 40, [[20, 22]]], [210, 220, [[]] ], [ [122, 200, []] ] ]
+    Takes a list of "aggregated visits" as outputted by the aggregate_visits function, with transit info included.
+    List structure should be as follows: [ [ [10, 40, [[20, 22], [27, 32]] ], [210, 220, [[]] ], [ [122, 200, []] ] ]
+    Where each sublist corresponds to a patch, containing one sublist for each visit sublist, itself containing:
+        - the start of the visit
+        - the end of the visit
+        - a sublist containing the times where the worm was out during this visit
+    Should return:
+    - For each patch, the time stamps of the leaving events in terms of total time in patch. So for the example sublist
+    [10, 40, [[20, 22], [27, 32]], it should transform it to simply [11, 17] (transits happen after 10 time steps inside
+    the food patch, and then after 16 time steps (18 time steps from 10 to 27, minus the time spent outside from 20 to
+    22).
+    """
+    events_time_stamps = []
+    # For every patch sublist
+    for i_patch in range(len(list_of_visits_with_transit_info)):
+        events_this_patch = []
+        current_patch_list = list_of_visits_with_transit_info[i_patch]
+        # For every "aggregated visits" to this patch
+        for i_visit in range(len(current_patch_list)):
+            current_visit = current_patch_list[i_visit]
+            visit_start = current_visit[0]
+            list_of_transits = current_visit[2]
+            time_outside_of_patch = 0
+            for transit in list_of_transits:
+                # Add when the leaving happens relatively to visit start, removing total time spent outside of patch
+                events_this_patch.append(transit[0] - visit_start + 1 - time_outside_of_patch)
+                # Update total time spent outside w/ current transit info
+                time_outside_of_patch += transit[1] - transit[0] + 1
+            # Add last exit event (visit end)
+            events_this_patch.append(current_visit[1] - visit_start + 1)
+        events_time_stamps.append(events_this_patch)
 
-    """
+    return events_time_stamps
 
 
 def first(iterable, condition=lambda x: True):
