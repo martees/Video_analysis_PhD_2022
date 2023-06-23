@@ -28,6 +28,11 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
     # Fork to fill condition names and densities depending on densities
     condition_pool_list = []
     condition_pool_names = []
+
+    #for condition in raw_condition_list:
+    #    condition_pool_list.append(param.name_to_nb[condition])
+    #    condition_pool_names.append()
+
     if "low" in raw_condition_list:
         condition_pool_list.append([0, 1, 2, 3])
         condition_pool_names.append(["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"])
@@ -92,14 +97,23 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
             # Visits plots
             if "visit_duration" in plot:
                 plots.plot_selected_data(results, "Average duration of visits in " + condition_pool + " densities",
-                                         condition_pool_list,
+                                         condition_pool,
                                          condition_names, "total_visit_time", divided_by="nb_of_visits", mycolor=color,
                                          plot_model=True)
             if "visit_duration_mvt" in plot:
                 plots.plot_selected_data(results, "Average duration of MVT visits in " + condition_pool + " densities",
-                                         condition_pool_list,
+                                         condition_pool,
                                          condition_names, "total_visit_time", divided_by="mvt_nb_of_visits",
                                          mycolor=color, plot_model=True)
+
+            if "aggregated_visit_duration" in plot:
+                for thresh in param.threshold_list:
+                    plots.plot_selected_data(results, "Average duration visits in " + raw_condition_list[
+                        i_pool] + " densities, aggregated with threshold " + str(thresh),
+                                             condition_pool, condition_names,
+                                             "aggregated_visits_thresh_" + str(thresh) + "_total_visit_time",
+                                             divided_by="aggregated_visits_thresh_" + str(thresh) + "_nb_of_visits",
+                                             mycolor=color, plot_model=True)
 
             # Transits plots
             if "transit_duration" in plot:
@@ -108,7 +122,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                                          divided_by="nb_of_visits", mycolor="brown")
                 plots.plot_selected_data(results, "Average duration of transits in medium densities", [4, 5, 6, 11],
                                          ["close 0.5", "med 0.5", "far 0.5", "control"], "total_transit_time",
-                                         divided_by="nb_of_visits", mycolor="orange")
+                                         divided_by="nb_of_visits", mycolor=color)
 
             if "visit_duration_vs_previous_transit" in plot:
                 plots.plot_visit_time(results, trajectories,
@@ -164,27 +178,24 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
             if "visit_rate" in plot:
                 plots.plot_selected_data(results, "Average visit rate in low densities", [0, 1, 2, 11],
                                          ["close 0.2", "med 0.2", "far 0.2", "control"], "nb_of_visits",
-                                         divided_by="total_video_time", mycolor="brown")
+                                         divided_by="total_video_time", mycolor=color)
                 plots.plot_selected_data(results, "Average visit rate in medium densities", [4, 5, 6, 11],
                                          ["close 0.5", "med 0.5", "far 0.5", "control"], "nb_of_visits",
-                                         divided_by="total_video_time", mycolor="orange")
+                                         divided_by="total_video_time", mycolor=color)
                 plots.plot_selected_data(results, "Average visit rate MVT in low densities", [0, 1, 2, 11],
                                          ["close 0.2", "med 0.2", "far 0.2", "control"], "mvt_nb_of_visits",
-                                         divided_by="total_video_time", mycolor="brown")
+                                         divided_by="total_video_time", mycolor=color)
                 plots.plot_selected_data(results, "Average visit rate MVT in medium densities", [4, 5, 6, 11],
                                          ["close 0.5", "med 0.5", "far 0.5", "control"], "mvt_nb_of_visits",
-                                         divided_by="total_video_time", mycolor="orange")
+                                         divided_by="total_video_time", mycolor=color)
 
             # Proportion of visited patches plots
             if "proportion_of_time" in plot:
-                plots.plot_selected_data(results, "Average proportion of time spent in patches in low densities",
-                                         [0, 1, 2, 11],
-                                         ["close 0.2", "med 0.2", "far 0.2", "control"], "total_visit_time",
-                                         divided_by="total_video_time", mycolor="brown")
-                plots.plot_selected_data(results, "Average proportion of time spent in patches in medium densities",
-                                         [4, 5, 6, 11], ["close 0.5", "med 0.5", "far 0.5", "control"],
-                                         "total_visit_time",
-                                         divided_by="total_video_time", mycolor="orange")
+                plots.plot_selected_data(results, "Average proportion of time spent in patches in" + str(
+                    condition_names) + "densities",
+                                         condition_pool,
+                                         condition_names, "total_visit_time",
+                                         divided_by="total_video_time", mycolor=color)
 
                 # plot_selected_data("Average number of visits in low densities", 0, 3, "nb_of_visits", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
                 # plot_selected_data("Average furthest visited patch distance in low densities", 0, 3, "furthest_patch_distance", ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"], mycolor = "brown")
@@ -204,13 +215,17 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
 
             if "distribution_aggregated" in plot:
                 plots.plot_variable_distribution(results, condition_pool, effect_of="nothing",
-                                                 variable_list=["aggregated_visits"], threshold_list=[0, 10, 100, 100000])
+                                                 variable_list=["aggregated_visits"],
+                                                 threshold_list=[0, 10, 100, 100000])
                 plots.plot_variable_distribution(results, condition_pool, effect_of="food",
-                                                 variable_list=["aggregated_visits"], threshold_list=[0, 10, 100, 100000])
+                                                 variable_list=["aggregated_visits"],
+                                                 threshold_list=[0, 10, 100, 100000])
                 plots.plot_variable_distribution(results, condition_pool, effect_of="distance",
-                                                 variable_list=["aggregated_visits"], threshold_list=[0, 10, 100, 100000])
+                                                 variable_list=["aggregated_visits"],
+                                                 threshold_list=[0, 10, 100, 100000])
                 plots.plot_variable_distribution(results, condition_pool, effect_of="density",
-                                                 variable_list=["aggregated_visits"], threshold_list=[0, 10, 100, 100000])
+                                                 variable_list=["aggregated_visits"],
+                                                 threshold_list=[0, 10, 100, 100000])
 
             if "leaving_events" in plot:
                 plots.plot_variable_distribution(results, condition_pool, effect_of="nothing",
@@ -226,32 +241,36 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                                                  variable_list=["aggregated_leaving_events"],
                                                  threshold_list=[0, 10, 100, 100000])
 
-        if "transit_properties" in plot:
-            revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
-                results, condition_pool_list, split_conditions=True)
-            for i_cond in range(len(condition_pool_list)):
-                print("Transit properties for condition ", condition_names[i_cond])
-                print("Revisit probability: ", revisit_probability[i_cond])
-                print("Cross-patch probability: ", cross_transit_probability[i_cond])
-                print("Exponential leaving probability: ", exponential_leaving_probability[i_cond])
-                print("Minimal duration of visits: ", min_visit[i_cond])
-                print("Average duration of visits: ", average_visit[i_cond])
-                print("Average duration of same patch transits: ", average_same_patch[i_cond])
-                print("Average duration of cross patch transits: ", average_cross_patch[i_cond])
+            if "leaving_events_delay_distribution" in plot:
+                plots.plot_leaving_delays(results, "Frequency of leaving events as a function of in_patch time in conditions " + str(
+                                              condition_names), condition_pool, 1000)
+
+            if "transit_properties" in plot:
+                revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
+                    results, condition_pool_list, split_conditions=True)
+                for i_cond in range(len(condition_pool_list)):
+                    print("Transit properties for condition ", condition_names[i_cond])
+                    print("Revisit probability: ", revisit_probability[i_cond])
+                    print("Cross-patch probability: ", cross_transit_probability[i_cond])
+                    print("Exponential leaving probability: ", exponential_leaving_probability[i_cond])
+                    print("Minimal duration of visits: ", min_visit[i_cond])
+                    print("Average duration of visits: ", average_visit[i_cond])
+                    print("Average duration of same patch transits: ", average_same_patch[i_cond])
+                    print("Average duration of cross patch transits: ", average_cross_patch[i_cond])
+                    print("-----")
+
+                revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
+                    results, condition_pool_list, split_conditions=False)
+
+                print("Transit properties for conditions ", condition_names)
+                print("Revisit probability: ", revisit_probability)
+                print("Cross-patch probability: ", cross_transit_probability)
+                print("Exponential leaving probability: ", exponential_leaving_probability)
+                print("Minimal duration of visits: ", min_visit)
+                print("Average duration of visits: ", average_visit)
+                print("Average duration of same patch transits: ", average_same_patch)
+                print("Average duration of cross patch transits: ", average_cross_patch)
                 print("-----")
-
-            revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
-                results, condition_pool_list, split_conditions=False)
-
-            print("Transit properties for conditions ", condition_names)
-            print("Revisit probability: ", revisit_probability)
-            print("Cross-patch probability: ", cross_transit_probability)
-            print("Exponential leaving probability: ", exponential_leaving_probability)
-            print("Minimal duration of visits: ", min_visit)
-            print("Average duration of visits: ", average_visit)
-            print("Average duration of same patch transits: ", average_same_patch)
-            print("Average duration of cross patch transits: ", average_cross_patch)
-            print("-----")
 
 
 #   Saves the results in a path that is returned:
@@ -271,9 +290,9 @@ path = gr.generate(starting_from="")
 # Retrieve results from what generate_and_save has saved
 
 # REMOVE THIS ONCE YOU HAVE THE CLEAN TRAJECTORIES ON YOUR PC YOU AIRHEAD
-if fd.is_linux():  # Linux path
-    trajectories = pd.read_csv(path + "clean_trajectories.csv")
-else:  # Windows path
+#if fd.is_linux():  # Linux path
+#    trajectories = pd.read_csv(path + "clean_trajectories.csv")
+if not fd.is_linux():  # Windows path
     trajectories = pd.read_csv(path + "trajectories.csv")
 results = pd.read_csv(path + "clean_results.csv")
 
@@ -285,6 +304,7 @@ print("Finished retrieving stuff")
 #               - "speed"
 #               - "visit_duration"
 #               - "visit_duration_mvt"
+#               - "aggregated_visit_duration"
 #               - "transit_duration"
 #               - "visit_duration_vs_previous_transit"
 #               - "visit_duration_vs_visit_start"
@@ -296,13 +316,9 @@ print("Finished retrieving stuff")
 #               - "transit_properties"
 #               - "aggregated_visits"
 #               - "leaving_events"
+#               - "leaving_events_delay_distribution"
 
-
-# Plot distribution of visit + same transits + cross transits
-plot_graphs(plot="leaving_events", raw_condition_list=param.condition_to_nb["0.2"], include_control=False)
-plot_graphs(plot="leaving_events", raw_condition_list=param.condition_to_nb["0.5"], include_control=False)
-plot_graphs(plot="leaving_events", raw_condition_list=param.condition_to_nb["all"], include_control=False)
-
+plot_graphs("leaving_events_delay_distribution", "low")
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top => for speed analysis
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)

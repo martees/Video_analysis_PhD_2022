@@ -44,10 +44,10 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
     eg: divide duration sum by nb of visits for each plate to get average visit duration for each plate
     """
 
-    # Full list
+    # Full list (to be filled)
     full_list_of_values = [list(i) for i in np.zeros((len(list_of_conditions), 1), dtype='int')]
 
-    # List of average
+    # List of average (to be filled)
     list_of_avg_values = np.zeros(len(list_of_conditions))
 
     # Initializing errors
@@ -591,7 +591,7 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, return_du
     return aggregated_visits
 
 
-def leaving_events_time_stamps(list_of_visits_with_transit_info):
+def leaving_events_time_stamps(list_of_visits_with_transit_info, in_patch_timeline=True):
     """
     Takes a list of "aggregated visits" as outputted by the aggregate_visits function, with transit info included.
     List structure should be as follows: [ [ [10, 40, [[20, 22], [27, 32]] ], [210, 220, [[]] ], [ [122, 200, []] ] ]
@@ -626,6 +626,92 @@ def leaving_events_time_stamps(list_of_visits_with_transit_info):
         events_time_stamps.append(events_this_patch)
 
     return events_time_stamps
+
+
+def delays_before_leaving(result_table, condition_list):
+    """
+    Should return list of average times before next leaving event, for each time point of the "total time in patch" timeline,
+    pooled for all patches of condition list
+    """
+
+    full_folder_list = fd.return_folders_condition_list(np.unique(result_table["folder"]), condition_list)
+    # Generate fully aggregated visits (where all visits to a patch are merged together)
+    result_table = gr.add_aggregate_visit_info_to_results(result_table, [100000])
+
+    delay_before_leaving_list = []
+    corresponding_time_in_patch_list = []
+
+    for plate in full_folder_list:
+        current_data = result_table[result_table["folder"] == plate].reset_index()
+        list_of_visits = fd.load_list(current_data, "aggregated_visits_thresh_"+str(100000))
+        for i_patch in range(len(list_of_visits)):
+            current_patch_info = list_of_visits[i_patch]
+            visit_start = current_patch_info[0]
+            visit_end = current_patch_info[1]
+            current_patch_transits = current_patch_info[-1]
+            time_in_patch_counter = 0
+            # Add delays that run from beginning of visit to first exit
+            delay_list = list(range(visit_start, current_patch_transits[0][0]))
+            delay_before_leaving_list += delay_list
+            corresponding_time_in_patch_list += [delay_list[i] - visit_start for i in range(len(delay_list))]  # adjust to in patch time
+            time_in_patch_counter += current_patch_transits[0][0] - visit_start + 1  # update in-patch time counter
+            # Add delays from end of each transit to beginning of next transit
+            for i_transit in range(len(current_patch_transits) - 1):
+                delay_list = list(range(current_patch_transits[i_transit][1], current_patch_transits[i_transit+1][0]))
+                delay_before_leaving_list += delay_list
+                corresponding_time_in_patch_list += [delay_list[i] - visit_start + time_in_patch_counter for i in range(len(delay_list))]
+                time_in_patch_counter += current_patch_transits[i_transit+1][0] - current_patch_transits[i_transit][1] + 1  # update in-patch time counter
+            # Add delays that run from end of last transit to end of visit
+            delay_list = list(range(current_patch_transits[-1][1], visit_end))
+            delay_before_leaving_list += delay_list
+            corresponding_time_in_patch_list += [delay_list[i] - visit_start + time_in_patch_counter for i in range(len(delay_list))]
+
+    return delay_before_leaving_list, corresponding_time_in_patch_list
+
+
+def xy_to_bins(x, y, bin_size):
+    """
+    Will take an x and a y iterable.
+    Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
+    With errorbars too.
+    """
+
+    # Create bin list, with left limit of each bin
+    bin_list = []
+    x_values = np.unique(x)
+    current_bin = np.min(x_values)
+    while current_bin < np.max(x_values):
+        bin_list.append(current_bin)
+        current_bin += bin_size
+    bin_list.append(current_bin)  # add the last value
+    nb_of_bins = len(bin_list)
+
+    # Create a list with one sublist of y values for each bin
+    binned_y_values = [[] for _ in range(nb_of_bins)]
+    for i in range(len(y)):
+        if i % 200000 == 0:
+            print("Binning leaving delays... ", int(100*i/(i+len(y))), "% done")
+        current_y = y.pop()
+        current_x = x.pop()
+        i_bin = np.searchsorted(bin_list, current_x)  # looks for first index at which x can be inserted in the bin list
+        binned_y_values[i_bin].append(current_y)
+
+    # Compute averages and bootstrap errorbars
+    avg_list = np.zeros(nb_of_bins)
+    errors_inf = np.zeros(nb_of_bins)
+    errors_sup = np.zeros(nb_of_bins)
+    for i_bin in range(nb_of_bins):
+        if i_bin % 100 == 0:
+            print("Averaging leaving delays... ", int(100*i_bin/nb_of_bins), "% done")
+        current_values = binned_y_values[i_bin]
+        if current_values:  # if there are values there
+            avg_list[i_bin] = np.mean(current_values)
+            # Bootstrapping on the plate avg duration
+            bootstrap_ci = bottestrop_ci(current_values, 1000)
+            errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
+            errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
+
+    return bin_list, avg_list, [list(errors_inf), list(errors_sup)]
 
 
 def first(iterable, condition=lambda x: True):

@@ -752,7 +752,7 @@ def add_aggregate_visit_info_to_results(results, threshold_list):
                            one sublist per patch, with one sublist per visit to this patch, and in each visit sublist:
                            visit start, visit end, list of time stamps for the transits [[t0,t1], [t0,t1], ...]
         - aggregated_visits_thresh_X_visit_durations: corresponding duration of each visit (so excluding transit durations)
-        - aggregated_visits_thresh_X_visit_nb: corresponding number of visits for each patch
+        - aggregated_visits_thresh_X_nb_of_visits: corresponding number of visits for each patch
         - aggregated_visits_thresh_X_leaving_events: corresponding list of visit events (see architecture in ana.leaving_events_time_stamps)
 
     """
@@ -762,7 +762,8 @@ def add_aggregate_visit_info_to_results(results, threshold_list):
         thresh = threshold_list[i_thresh]
         results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results)))
         results["aggregated_visits_thresh_" + str(thresh) + "_visit_durations"] = pd.DataFrame(np.zeros(len(results)))
-        results["aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_nb_of_visits"] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh) + "_total_visit_time"] = pd.DataFrame(np.zeros(len(results)))
         results["aggregated_visits_thresh_" + str(thresh) + "_leaving_events_time_stamps"] = pd.DataFrame(
             np.zeros(len(results)))
 
@@ -787,8 +788,10 @@ def add_aggregate_visit_info_to_results(results, threshold_list):
             results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh)] = str(aggregated_visits_w_transit_info)
             results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_visit_durations"] = str(
                 aggregated_visits_durations)
-            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_visit_nb"] = np.sum(
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_nb_of_visits"] = np.sum(
                 [len(sublist) for sublist in aggregated_visits_durations])
+            results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_total_visit_time"] = np.sum(
+                [np.sum(sublist) for sublist in aggregated_visits_durations])
             results.loc[i_plate, "aggregated_visits_thresh_" + str(thresh) + "_leaving_events_time_stamps"] = str(
                 leaving_events)
 
@@ -890,17 +893,21 @@ def generate(starting_from=""):
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
+        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "results_per_id":
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
+        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "results_per_plate":
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
+        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "clean":
         generate_clean_tables_and_speed(path)
+        generate_aggregated_visits(path, param.threshold_list)
 
     return path

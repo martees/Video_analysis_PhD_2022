@@ -632,8 +632,14 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
     plt.show()
 
 
-def side_by_side_hists(data_list, errorbar_list, plot_title, x_label, y_label, color_list):
-    return 0
+def plot_leaving_delays(results, plot_title, condition_list, bin_size):
+    leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, condition_list)
+    binned_times_in_patch, avg_leaving_delays, y_err_list = ana.xy_to_bins(corresponding_time_in_patch, leaving_delays, bin_size)
+    plt.title(plot_title)
+    plt.ylabel("Average delay before next exit")
+    plt.xlabel("Time already spent in patch")
+    plt.bar(binned_times_in_patch, avg_leaving_delays, yerr=y_err_list, align='edge', width=bin_size)
+    plt.show()
 
 
 def plot_aggregated_visits_duration(results, condition_list, threshold_list):
