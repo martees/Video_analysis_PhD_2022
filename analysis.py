@@ -649,27 +649,30 @@ def delays_before_leaving(result_table, condition_list):
             visit_start = current_patch_info[0]
             visit_end = current_patch_info[1]
             current_patch_transits = current_patch_info[-1]
-            time_in_patch_counter = 0
+            time_out_of_patch_counter = 0
             # Add delays that run from beginning of visit to first exit
-            delay_list = list(range(visit_start, current_patch_transits[0][0]))
-            delay_before_leaving_list += delay_list
-            corresponding_time_in_patch_list += [delay_list[i] - visit_start for i in range(len(delay_list))]  # adjust to in patch time
-            time_in_patch_counter += current_patch_transits[0][0] - visit_start + 1  # update in-patch time counter
+            current_delays = list(range(current_patch_transits[0][0] - visit_start, 0, -1))
+            delay_before_leaving_list += current_delays
+            corresponding_time_in_patch_list += list(range(current_patch_transits[0][0] - visit_start))
             # Add delays from end of each transit to beginning of next transit
             for i_transit in range(len(current_patch_transits) - 1):
-                delay_list = list(range(current_patch_transits[i_transit][1], current_patch_transits[i_transit+1][0]))
-                delay_before_leaving_list += delay_list
-                corresponding_time_in_patch_list += [delay_list[i] - visit_start + time_in_patch_counter for i in range(len(delay_list))]
-                time_in_patch_counter += current_patch_transits[i_transit+1][0] - current_patch_transits[i_transit][1] + 1  # update in-patch time counter
+                this_transit_start = current_patch_transits[i_transit][0]
+                this_transit_end = current_patch_transits[i_transit][1]
+                next_transit_start = current_patch_transits[i_transit+1][0]
+                time_before_next_transit = next_transit_start - this_transit_end
+                time_out_of_patch_counter += this_transit_end - this_transit_start  # update in-patch time counter
+                current_delays = list(range(time_before_next_transit, 0, -1))
+                delay_before_leaving_list += current_delays
+                corresponding_time_in_patch_list += list(range(this_transit_end - visit_start - time_out_of_patch_counter, next_transit_start - visit_start - time_out_of_patch_counter))
             # Add delays that run from end of last transit to end of visit
-            delay_list = list(range(current_patch_transits[-1][1], visit_end))
-            delay_before_leaving_list += delay_list
-            corresponding_time_in_patch_list += [delay_list[i] - visit_start + time_in_patch_counter for i in range(len(delay_list))]
+            current_delays = list(range(visit_end - current_patch_transits[-1][1], 0, -1))
+            delay_before_leaving_list += current_delays
+            corresponding_time_in_patch_list += list(range(current_patch_transits[-1][1] - visit_start - time_out_of_patch_counter, visit_end - visit_start - time_out_of_patch_counter))
 
     return delay_before_leaving_list, corresponding_time_in_patch_list
 
 
-def xy_to_bins(x, y, bin_size):
+def xy_to_bins(x, y, bin_size, bootstrap=True):
     """
     Will take an x and a y iterable.
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
@@ -700,18 +703,19 @@ def xy_to_bins(x, y, bin_size):
     avg_list = np.zeros(nb_of_bins)
     errors_inf = np.zeros(nb_of_bins)
     errors_sup = np.zeros(nb_of_bins)
-    for i_bin in range(nb_of_bins):
-        if i_bin % 100 == 0:
-            print("Averaging leaving delays... ", int(100*i_bin/nb_of_bins), "% done")
-        current_values = binned_y_values[i_bin]
-        if current_values:  # if there are values there
-            avg_list[i_bin] = np.mean(current_values)
-            # Bootstrapping on the plate avg duration
-            bootstrap_ci = bottestrop_ci(current_values, 1000)
-            errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
-            errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
+    if bootstrap:
+        for i_bin in range(nb_of_bins):
+            if i_bin % 10 == 0:
+                print("Averaging leaving delays... ", int(100*i_bin/nb_of_bins), "% done")
+            current_values = binned_y_values[i_bin]
+            if current_values:  # if there are values there
+                avg_list[i_bin] = np.mean(current_values)
+                # Bootstrapping on the plate avg duration
+                bootstrap_ci = bottestrop_ci(current_values, 100)
+                errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
+                errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
 
-    return bin_list, avg_list, [list(errors_inf), list(errors_sup)]
+    return bin_list, avg_list, [list(errors_inf), list(errors_sup)], binned_y_values
 
 
 def first(iterable, condition=lambda x: True):
