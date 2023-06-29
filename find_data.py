@@ -153,7 +153,10 @@ def load_list(results, column_name):
     """
     For lists that are stored as strings in the results.csv table
     """
-    return list(json.loads(results[column_name][0]))
+    if column_name in results.columns:
+        return list(json.loads(results[column_name][0]))
+    else:
+        print("Column ", column_name, " does not exist in results.")
 
 def load_condition(folder_name):
     return folder_to_metadata(folder_name)["condition"][0]
