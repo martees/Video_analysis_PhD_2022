@@ -475,7 +475,8 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     eg : if column_name="total_visit_time" and divided_by="nb_of_visits", it will output the average visit time
     """
     # Getting results
-    list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list, column_name, divided_by)
+    list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
+                                                                                         column_name, divided_by)
 
     # Model results
     if plot_model:
@@ -497,6 +498,8 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     for i in range(len(condition_list)):
         ax.scatter([range(len(condition_list))[i] for _ in range(len(list_of_avg_each_plate[i]))],
                    list_of_avg_each_plate[i], color="red", zorder=2)
+
+    # Plot error bars
     ax.errorbar(range(len(condition_list)), average_per_condition, errorbars, fmt='.k', capsize=5)
 
     # Plot model as a dashed line on top
@@ -535,8 +538,12 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
                         [max_x // 2, max_y * 3 / 4])
 
     if not split_conditions:
-        data["Visit duration"] = pd.DataFrame([full_visit_list[i_cond][i] for i_cond in range(len(full_visit_list)) for i in range(len(full_visit_list[i_cond]))])
-        data[variable] = pd.DataFrame([full_variable_list[i_cond][i] for i_cond in range(len(full_variable_list)) for i in range(len(full_variable_list[i_cond]))])
+        data["Visit duration"] = pd.DataFrame(
+            [full_visit_list[i_cond][i] for i_cond in range(len(full_visit_list)) for i in
+             range(len(full_visit_list[i_cond]))])
+        data[variable] = pd.DataFrame(
+            [full_variable_list[i_cond][i] for i_cond in range(len(full_variable_list)) for i in
+             range(len(full_variable_list[i_cond]))])
         sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100),
                       marginal_ticks=True)
         fig = plt.gcf()
@@ -550,7 +557,8 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     plt.show()
 
 
-def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None, plot_cumulative=True, threshold_list=None):
+def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None,
+                               plot_cumulative=True, threshold_list=None):
     """
     Will plot a distribution of each variable from variable_list in results, for conditions in condition_list.
         effect_of: if set to "nothing", will plot one curve for each condition in condition_list.
@@ -575,25 +583,26 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
         # If aggregation is in variable list, we want to plot all the effects ("distance", "density", etc.) but with
         # one subplot per possible aggregation threshold
         for i_thresh in range(len(threshold_list)):
-            column_name = "aggregated_visits_thresh_"+str(threshold_list[i_thresh])
+            column_name = "aggregated_visits_thresh_" + str(threshold_list[i_thresh])
             if column_name not in results.columns:
                 # If the aggregated visits have not been generated yet for this threshold values
-                results = gr.generate_aggregated_visits(gr.generate(), [threshold_list[i_thresh]])  # add them to the clean_results.csv table
+                results = gr.generate_aggregated_visits(gr.generate(), [
+                    threshold_list[i_thresh]])  # add them to the clean_results.csv table
         if "aggregated_visits" in variable_list:
             for thresh in threshold_list:
-                variable_list.append("aggregated_visits_thresh_"+str(thresh)+"_visit_durations")
+                variable_list.append("aggregated_visits_thresh_" + str(thresh) + "_visit_durations")
             variable_list.remove("aggregated_visits")
         if "aggregated_leaving_events" in variable_list:
             for thresh in threshold_list:
-                variable_list.append("aggregated_visits_thresh_"+str(thresh)+"_leaving_events_time_stamps")
+                variable_list.append("aggregated_visits_thresh_" + str(thresh) + "_leaving_events_time_stamps")
             variable_list.remove("aggregated_leaving_events")
 
     # Pool conditions depending on the "effect_of" argument
     condition_pools, condition_names = ana.pool_conditions_by(condition_list, effect_of)
     fig, axs = plt.subplots(len(scale_list), len(variable_list))
-    fig.set_size_inches(7*len(variable_list), 6*len(scale_list))
+    fig.set_size_inches(7 * len(variable_list), 6 * len(scale_list))
     colors = plt.cm.jet(np.linspace(0, 1, len(condition_pools)))
-    fig.suptitle("Conditions "+str([param.nb_to_name[i] for i in condition_list]))
+    fig.suptitle("Conditions " + str([param.nb_to_name[i] for i in condition_list]))
     fig.set_tight_layout(True)  # make the margins tighter
 
     for i_variable in range(len(variable_list)):
@@ -612,7 +621,7 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
             else:
                 ax = axs
             if i_variable == 0:
-                ax.set(ylabel="normalized "+scale_list[i_scale]+" occurrences")
+                ax.set(ylabel="normalized " + scale_list[i_scale] + " occurrences")
             if i_scale == 0:
                 ax.set_title(str(variable) + " values")
             ax.set_yscale(scale_list[i_scale])
@@ -626,19 +635,50 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
                     values = [sublist[i] for sublist in values for i in range(len(sublist))]
                 else:
                     values = ana.return_value_list(results, variable, cond, convert_to_duration=True)
-                ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step", color=colors[i_cond])
+                ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step",
+                        color=colors[i_cond])
 
     plt.legend()
     plt.show()
 
 
-def plot_leaving_delays(results, plot_title, condition_list, bin_size):
+def plot_leaving_delays(results, plot_title, condition_list, bin_size, color):
     leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, condition_list)
-    binned_times_in_patch, avg_leaving_delays, y_err_list = ana.xy_to_bins(corresponding_time_in_patch, leaving_delays, bin_size)
+    binned_times_in_patch, avg_leaving_delays, y_err_list, full_value_list = ana.xy_to_bins(corresponding_time_in_patch,
+                                                                                            leaving_delays, bin_size, bootstrap=False)
     plt.title(plot_title)
+    plt.yscale("log")
     plt.ylabel("Average delay before next exit")
     plt.xlabel("Time already spent in patch")
-    plt.bar(binned_times_in_patch, avg_leaving_delays, yerr=y_err_list, align='edge', width=bin_size)
+    #plt.bar(binned_times_in_patch, avg_leaving_delays, align='edge', width=bin_size, color=color)
+
+    # # Plot individual values as scatter on top
+    # for i_bin in range(len(full_value_list)):
+    #     plt.scatter([binned_times_in_patch[i_bin] + bin_size / 2] * len(full_value_list[i_bin]),
+    #                 full_value_list[i_bin], color="red", zorder=2)
+
+    # Plot errorbars. + binsize/2 is to align with bars that are not centered on the bins (left side aligned to them)
+    #plt.errorbar([binned_times_in_patch[i] + bin_size / 2 for i in range(len(binned_times_in_patch))],
+    #             avg_leaving_delays, y_err_list, fmt='.k', capsize=bin_size / 500)
+
+    # Make a violin plot
+    nans = [float('nan'), float('nan')]
+    parts = plt.violinplot([val or nans for val in full_value_list],
+                           [binned_times_in_patch[i] + bin_size / 2 for i in range(len(binned_times_in_patch))],
+                           showmedians=True, showextrema=True, widths=bin_size)
+    for pc in parts['bodies']:
+        pc.set_facecolor(color)
+        pc.set_alpha(1)
+
+    for part_name in ('cbars', 'cmins', 'cmaxes', 'cmedians'):
+        vp = parts[part_name]
+        vp.set_edgecolor("k")
+        vp.set_linewidth(1)
+
+    # Plot number of values in each bin
+    for i_bin in range(len(binned_times_in_patch)):
+        plt.annotate(str(len(full_value_list[i_bin])), [binned_times_in_patch[i_bin] + 100, avg_leaving_delays[i_bin] + 100])
+
     plt.show()
 
 
