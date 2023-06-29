@@ -654,6 +654,9 @@ def delays_before_leaving(result_table, condition_list):
             current_delays = list(range(current_patch_transits[0][0] - visit_start, 0, -1))
             delay_before_leaving_list += current_delays
             corresponding_time_in_patch_list += list(range(current_patch_transits[0][0] - visit_start))
+
+            continuity_check = current_patch_transits[0][0] - visit_start
+
             # Add delays from end of each transit to beginning of next transit
             for i_transit in range(len(current_patch_transits) - 1):
                 this_transit_start = current_patch_transits[i_transit][0]
@@ -664,11 +667,19 @@ def delays_before_leaving(result_table, condition_list):
                 current_delays = list(range(time_before_next_transit, 0, -1))
                 delay_before_leaving_list += current_delays
                 corresponding_time_in_patch_list += list(range(this_transit_end - visit_start - time_out_of_patch_counter, next_transit_start - visit_start - time_out_of_patch_counter))
+
+                if continuity_check != this_transit_end - visit_start - time_out_of_patch_counter:
+                    print("ohlolo")
+
+                continuity_check = next_transit_start - visit_start - time_out_of_patch_counter
+
             # Add delays that run from end of last transit to end of visit
             current_delays = list(range(visit_end - current_patch_transits[-1][1], 0, -1))
             delay_before_leaving_list += current_delays
+            time_out_of_patch_counter += current_patch_transits[-1][1] - current_patch_transits[-1][0]  # update in-patch time counter
             corresponding_time_in_patch_list += list(range(current_patch_transits[-1][1] - visit_start - time_out_of_patch_counter, visit_end - visit_start - time_out_of_patch_counter))
-
+            if continuity_check != current_patch_transits[-1][1] - visit_start - time_out_of_patch_counter:
+                print("ohlolo")
     return delay_before_leaving_list, corresponding_time_in_patch_list
 
 

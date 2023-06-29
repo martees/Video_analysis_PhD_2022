@@ -647,7 +647,6 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color):
     binned_times_in_patch, avg_leaving_delays, y_err_list, full_value_list = ana.xy_to_bins(corresponding_time_in_patch,
                                                                                             leaving_delays, bin_size, bootstrap=False)
     plt.title(plot_title)
-    plt.yscale("log")
     plt.ylabel("Average delay before next exit")
     plt.xlabel("Time already spent in patch")
     #plt.bar(binned_times_in_patch, avg_leaving_delays, align='edge', width=bin_size, color=color)
@@ -677,7 +676,7 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color):
 
     # Plot number of values in each bin
     for i_bin in range(len(binned_times_in_patch)):
-        plt.annotate(str(len(full_value_list[i_bin])), [binned_times_in_patch[i_bin] + 100, avg_leaving_delays[i_bin] + 100])
+        plt.annotate(str(len(full_value_list[i_bin])), [binned_times_in_patch[i_bin] + 100, np.max(full_value_list[i_bin]) + 100])
 
     plt.show()
 

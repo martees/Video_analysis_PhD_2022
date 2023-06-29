@@ -221,8 +221,11 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
 
             if "leaving_events_delay_distribution" in plot:
                 plots.plot_leaving_delays(results,
-                                          "Frequency of leaving events as a function of in_patch time in " + current_pool_name + " conditions",
+                                          "Delays before leaving as a function of in_patch time in " + current_pool_name + " conditions",
                                           current_condition_pool, bin_size=1000, color=current_color)
+
+            if "leaving_probability" in plot:
+                pass
 
             if "transit_properties" in plot:
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
@@ -299,7 +302,7 @@ print("Finished retrieving stuff")
 
 
 ## Plot
-plot_graphs("leaving_events_delay_distribution", ["0.5", "med 0.5"])
+plot_graphs("leaving_events_delay_distribution", ["0.2", "0.5", "close", "med", "far", "cluster", "close 0.2", "close 0.5", "med 0.2", "med 0.5", "far 0.2", "far 0.5", "cluster 0.2", "cluster 0.5"])
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top => for speed analysis
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
