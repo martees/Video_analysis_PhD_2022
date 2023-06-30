@@ -8,8 +8,12 @@ verbose = False
 condition_names = ["close 0.2", "med 0.2", "far 0.2", "cluster 0.2", "close 0.5", "med 0.5", "far 0.5",
                    "cluster 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "control"]
 
-# Threshold list for visit aggregation
+# Time threshold list for visit aggregation
 threshold_list = [0, 10, 100, 100000]
+
+# Time threshold for leaving probability (to compute P_leave of a worm, look at probability that it leaves in the next
+#   N time steps, with N being this threshold)
+time_threshold = 20
 
 # Conditions
 nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2", 3: "cluster 0.2", 4: "close 0.5", 5: "med 0.5", 6: "far 0.5",
@@ -29,4 +33,5 @@ name_to_nb_list = {"close": [0, 4], "med": [1, 5, 8, 9, 10, 11], "far": [2, 6], 
 name_to_color = {"close": "darkslategrey", "med": "teal", "far": "darkturquoise", "cluster": "deepskyblue",
                  "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "chocolate", "control": "gray", "all": "yellowgreen",
                  "close 0.2": "darkslategrey", "med 0.2": "teal", "far 0.2": "darkturquoise", "cluster 0.2": "deepskyblue",
-                 "close 0.5": "darkslategrey", "med 0.5": "teal", "far 0.5": "darkturquoise", "cluster 0.5": "deepskyblue"}
+                 "close 0.5": "darkslategrey", "med 0.5": "teal", "far 0.5": "darkturquoise", "cluster 0.5": "deepskyblue",
+                 "med 0.2+0.5": "brown", "med 0.5+1.25": "orange", "med 1.25": "saddlebrown"}

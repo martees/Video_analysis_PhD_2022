@@ -644,27 +644,19 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
 
 def plot_leaving_delays(results, plot_title, condition_list, bin_size, color):
     leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, condition_list)
+    leaving_delays_in_one_list = [leaving_delays[i] for i in range(len(leaving_delays))]
     binned_times_in_patch, avg_leaving_delays, y_err_list, full_value_list = ana.xy_to_bins(corresponding_time_in_patch,
-                                                                                            leaving_delays, bin_size, bootstrap=False)
+                                                                                            leaving_delays_in_one_list, bin_size, bootstrap=False)
     plt.title(plot_title)
     plt.ylabel("Average delay before next exit")
     plt.xlabel("Time already spent in patch")
-    #plt.bar(binned_times_in_patch, avg_leaving_delays, align='edge', width=bin_size, color=color)
-
-    # # Plot individual values as scatter on top
-    # for i_bin in range(len(full_value_list)):
-    #     plt.scatter([binned_times_in_patch[i_bin] + bin_size / 2] * len(full_value_list[i_bin]),
-    #                 full_value_list[i_bin], color="red", zorder=2)
-
-    # Plot errorbars. + binsize/2 is to align with bars that are not centered on the bins (left side aligned to them)
-    #plt.errorbar([binned_times_in_patch[i] + bin_size / 2 for i in range(len(binned_times_in_patch))],
-    #             avg_leaving_delays, y_err_list, fmt='.k', capsize=bin_size / 500)
 
     # Make a violin plot
     nans = [float('nan'), float('nan')]
     parts = plt.violinplot([val or nans for val in full_value_list],
                            [binned_times_in_patch[i] + bin_size / 2 for i in range(len(binned_times_in_patch))],
                            showmedians=True, showextrema=True, widths=bin_size)
+
     for pc in parts['bodies']:
         pc.set_facecolor(color)
         pc.set_alpha(1)
@@ -681,16 +673,43 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color):
     plt.show()
 
 
-def plot_aggregated_visits_duration(results, condition_list, threshold_list):
-    """
-    Will plot a
-    :param results: result table (will only access the no_hole_visit column)
-    :param condition_list: condition list that we'll look at
-    :param threshold_list: list of thresholds to try for visit aggregation (maximum transit length that will be
-                           considered as a "fake" transit, and either ignored in visit duration computation, either
-                           included in visit).
-    :param effect_of: see pool_conditions_by function in analysis.py
-    """
+def plot_leaving_probability(results, plot_title, condition_list, bin_size, color, split_conditions=False):
+    plt.title(plot_title)
+    plt.ylabel("Probability of exiting in the next " + str(param.time_threshold) + " time steps")
+    plt.xlabel("Time already spent in patch")
+
+    colors = plt.cm.jet(np.linspace(0, 1, len(condition_list)))
+
+    if not split_conditions:
+        leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, condition_list)
+        binned_times_in_patch, avg_leaving_delays, y_err_list, full_delay_list = ana.xy_to_bins(
+            corresponding_time_in_patch,
+            leaving_delays, bin_size,
+            bootstrap=False)
+        binned_leaving_probability, errorbars = ana.leaving_probability(full_delay_list)
+        plt.plot(binned_times_in_patch, binned_leaving_probability, color=color)
+        plt.errorbar(binned_times_in_patch, binned_leaving_probability, errorbars, fmt='.k', capsize=5)
+
+        # Plot number of values in each bin
+        for i_bin in range(len(binned_times_in_patch)):
+            plt.annotate(str(len(full_delay_list[i_bin])), [binned_times_in_patch[i_bin], binned_leaving_probability[i_bin]+0.005])
+
+    if split_conditions:
+
+        for i_condition in range(len(condition_list)):
+            current_condition = condition_list[i_condition]
+            leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, [current_condition])
+            binned_times_in_patch, avg_leaving_delays, y_err_list, full_delay_list = ana.xy_to_bins(
+                corresponding_time_in_patch,
+                leaving_delays, bin_size,
+                bootstrap=False)
+            binned_leaving_probability, errorbars = ana.leaving_probability(full_delay_list, errorbars=False)
+            plt.plot(binned_times_in_patch, binned_leaving_probability, color=colors[i_condition], label=param.nb_to_name[current_condition])
+
+        plt.legend()
+
+    plt.show()
+
 
 
 def plot_test(results):

@@ -32,6 +32,19 @@ plot_graphs(plot="leaving_events", raw_condition_list=param.name_to_nb_list["all
 ## Plot duration of aggregated visits (see thresholds in param.py file)
 plot_graphs("aggregated_visit_duration", "all", include_control=True)
 
+## Leaving events
+plot_graphs("leaving_events_delay_distribution", ["0.2", "0.5", "close", "med", "far", "cluster", "close 0.2", "close 0.5", "med 0.2", "med 0.5", "far 0.2", "far 0.5", "cluster 0.2", "cluster 0.5"])
+plot_graphs("leaving_probability", ["0.2", "0.5", "close", "med", "far", "cluster", "close 0.2", "close 0.5", "med 0.2", "med 0.5", "far 0.2", "far 0.5", "cluster 0.2", "cluster 0.5"])
+
+
+plots.plot_leaving_probability(results,
+                               "Probability of leaving as a function of in_patch time (med)",
+                               param.name_to_nb_list["med"], bin_size=1000, color=param.name_to_color["med"], split_conditions=True)
+
+
+
+
+
 # plot_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
 # plot_data_coverage(trajectories)
