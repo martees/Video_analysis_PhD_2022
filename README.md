@@ -41,22 +41,26 @@ caught it again, this id will have been incremented. This means we have to do so
   - x: column with x coordinates
   - y: column with y coordinates
 - a "foodpatches.mat" which contains information about the density of each patch, and the experimental condition
-- a "foodpatches_new.mat" which contains a spline 
+- a "foodpatches_new.mat" which contains spline information (stored in matlab format) for exact patch contours. 
 
 
 ## Project structure
 ### param.py
-Contains global parameters, for easier editing.
+_Contains global parameters, for easier editing._
 
 ### find_data.py
-Contains the auxiliary functions related to finding the data in a specific path, and reformatting it to dataframes.  
+_Contains the auxiliary functions related to finding the data in a specific path, and reformatting it to dataframes._  
 
-The output data should be a pandas dataframe, containing tracking ID, trajectory, and folder name.  
+Converts .mat files to a pandas dataframe, containing tracking ID, trajectory, and folder name.  
 Trajectories are in the following format: [[x0, x1, ..., xN], [y0, y1, ..., yN]] (xi and yi being respectively the x and y coordinates 
 of the individual at time i).  
 Also contains a function that takes a folder name, and returns "metadata" found in that folder:
-condition number, patch positions, patch densities. This allows to not have this info copied in every line of the data
+condition number, patch positions, patch densities, splines. This allows to not have this info copied in every line of the data
 table, which would make it uselessly large.
+
+### generate_controls.py
+Will take our existing control plates, and make new controls out of it, one corresponding to each patch
+layout used in our experiments.
 
 ### generate_results.py
 This contains trajectory analysis functions (compute number of visited patches, stuff like that). Contains the generate_and_save

@@ -16,7 +16,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
     # Default values
     if raw_condition_list is None:
         raw_condition_list = ["all"]
-    # If plot is just one string, transform it into a one element list for the later loops to work
+    # If plot is just one string, transform it into a one element list for the following loops to work
     # (otherwise it will do len() of a string and run many times x))
     if type(plot) == str:
         plot = [plot]
@@ -46,7 +46,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
     for _ in range(len(plot)):
         for i_pool in range(len(condition_pools)):
             current_pool_name = raw_condition_list[i_pool]
-            current_condition_pool = condition_pools[i_pool]
+            current_conditions = condition_pools[i_pool]
             current_condition_names = condition_names[i_pool]
             current_color = condition_colors[i_pool]
 
@@ -75,12 +75,12 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
             # Visits plots
             if "visit_duration" in plot:
                 plots.plot_selected_data(results, "Average duration of visits in " + current_pool_name + " densities",
-                                         current_condition_pool,
+                                         current_conditions,
                                          current_condition_names, "total_visit_time", divided_by="nb_of_visits", mycolor=current_color,
                                          plot_model=True)
             if "visit_duration_mvt" in plot:
                 plots.plot_selected_data(results, "Average duration of MVT visits in " + current_pool_name + " densities",
-                                         current_condition_pool,
+                                         current_conditions,
                                          current_condition_names, "total_visit_time", divided_by="mvt_nb_of_visits",
                                          mycolor=current_color, plot_model=True)
 
@@ -88,7 +88,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                 for thresh in param.threshold_list:
                     plots.plot_selected_data(results, "Average duration visits in " + raw_condition_list[
                         i_pool] + " densities, aggregated with threshold " + str(thresh),
-                                             current_condition_pool, current_condition_names,
+                                             current_conditions, current_condition_names,
                                              "aggregated_visits_thresh_" + str(thresh) + "_total_visit_time",
                                              divided_by="aggregated_visits_thresh_" + str(thresh) + "_nb_of_visits",
                                              mycolor=current_color, plot_model=True)
@@ -104,7 +104,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
 
             if "visit_duration_vs_previous_transit" in plot:
                 plots.plot_visit_time(results, trajectories,
-                                      "Visit duration vs. previous transit in " + current_condition_pool + " densities",
+                                      "Visit duration vs. previous transit in " + current_conditions + " densities",
                                       condition_pools, "Last travel time", current_condition_names, split_conditions=False)
                 plots.plot_visit_time(results, trajectories, "Visit duration vs. previous transit in control",
                                       [11], "Last travel time", ["control"])
@@ -171,7 +171,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
             if "proportion_of_time" in plot:
                 plots.plot_selected_data(results, "Average proportion of time spent in patches in" + str(
                     current_condition_names) + "densities",
-                                         current_condition_pool,
+                                         current_conditions,
                                          current_condition_names, "total_visit_time",
                                          divided_by="total_video_time", mycolor=current_color)
 
@@ -186,46 +186,46 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                 # plot_selected_data("Average number of visited patches in medium densities", 4, 7, "nb_of_visited_patches", ["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"], mycolor = "orange")
 
             if "distribution" in plot:
-                plots.plot_variable_distribution(results, condition_list=current_condition_pool, effect_of="nothing")
-                plots.plot_variable_distribution(results, condition_list=current_condition_pool, effect_of="food")
-                plots.plot_variable_distribution(results, condition_list=current_condition_pool, effect_of="density")
-                plots.plot_variable_distribution(results, condition_list=current_condition_pool, effect_of="distance")
+                plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="nothing")
+                plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="food")
+                plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="density")
+                plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="distance")
 
             if "distribution_aggregated" in plot:
-                plots.plot_variable_distribution(results, current_condition_pool, effect_of="nothing",
+                plots.plot_variable_distribution(results, current_conditions, effect_of="nothing",
                                                  variable_list=["aggregated_visits"],
                                                  threshold_list=[0, 10, 100, 100000])
-                plots.plot_variable_distribution(results, current_condition_pool, effect_of="food",
+                plots.plot_variable_distribution(results, current_conditions, effect_of="food",
                                                  variable_list=["aggregated_visits"],
                                                  threshold_list=[0, 10, 100, 100000])
-                plots.plot_variable_distribution(results, current_condition_pool, effect_of="distance",
+                plots.plot_variable_distribution(results, current_conditions, effect_of="distance",
                                                  variable_list=["aggregated_visits"],
                                                  threshold_list=[0, 10, 100, 100000])
-                plots.plot_variable_distribution(results, current_condition_pool, effect_of="density",
+                plots.plot_variable_distribution(results, current_conditions, effect_of="density",
                                                  variable_list=["aggregated_visits"],
                                                  threshold_list=[0, 10, 100, 100000])
 
             if "leaving_events" in plot:
-                plots.plot_variable_distribution(results, current_condition_pool, effect_of="nothing",
+                plots.plot_variable_distribution(results, current_conditions, effect_of="nothing",
                                                  variable_list=["aggregated_leaving_events"],
                                                  threshold_list=[0, 10, 100, 100000])
-                plots.plot_variable_distribution(results, current_condition_pool, effect_of="food",
+                plots.plot_variable_distribution(results, current_conditions, effect_of="food",
                                                  variable_list=["aggregated_leaving_events"],
                                                  threshold_list=[0, 10, 100, 100000])
-                plots.plot_variable_distribution(results, current_condition_pool, effect_of="distance",
+                plots.plot_variable_distribution(results, current_conditions, effect_of="distance",
                                                  variable_list=["aggregated_leaving_events"],
                                                  threshold_list=[0, 10, 100, 100000])
-                plots.plot_variable_distribution(results, current_condition_pool, effect_of="density",
+                plots.plot_variable_distribution(results, current_conditions, effect_of="density",
                                                  variable_list=["aggregated_leaving_events"],
                                                  threshold_list=[0, 10, 100, 100000])
 
             if "leaving_events_delay_distribution" in plot:
                 plots.plot_leaving_delays(results,
                                           "Delays before leaving as a function of in_patch time in " + current_pool_name + " conditions",
-                                          current_condition_pool, bin_size=1000, color=current_color)
+                                          current_conditions, bin_size=1000, color=current_color)
 
             if "leaving_probability" in plot:
-                plots.plot_leaving_probability(results, "Probability of leaving as a function of in_patch time ("+ current_pool_name + ")", current_condition_pool, bin_size=1000, color=current_color, split_conditions=False)
+                plots.plot_leaving_probability(results, "Probability of leaving as a function of in_patch time ("+ current_pool_name + ")", current_conditions, bin_size=1000, color=current_color, split_conditions=False)
 
             if "transit_properties" in plot:
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = analysis.transit_properties(
