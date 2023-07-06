@@ -1,5 +1,3 @@
-import find_data as fd
-import numpy as np
 from scipy.spatial import distance
 import pandas as pd
 from itertools import groupby
@@ -7,8 +5,9 @@ import copy
 import json
 
 # My code
-import param
+import parameters
 import analysis as ana
+from generate_controls import *
 
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
@@ -69,7 +68,7 @@ def in_patch_list(traj):
         patch_where_it_is = -1  # initializing variable with index of patch where the worm currently is
         # We go through the whole trajectory
         for time in range(len(list_x)):
-            if param.verbose and time % 100 == 0:
+            if parameters.verbose and time % 100 == 0:
                 print(time, "/", len(list_x))
 
             # First we figure out where the worm is
@@ -148,7 +147,7 @@ def trajectory_speeds(traj):
         # Add 1 in the beginning because the first point isn't relevant (not zero to avoid division issues)
         current_list_of_time_steps = np.insert(current_list_of_time_steps, 0, 1)
 
-        if param.verbose:
+        if parameters.verbose:
             nb_double_frames = np.count_nonzero(current_list_of_time_steps - np.maximum(current_list_of_time_steps,
                                                                                         0.1 * np.ones(
                                                                                             len(current_list_of_time_steps))))
@@ -889,25 +888,26 @@ def generate(starting_from=""):
         path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
 
     if starting_from == "trajectories":
+        generate_controls(path)
         generate_trajectories(path)
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
+        generate_aggregated_visits(path, parameters.threshold_list)
 
     elif starting_from == "results_per_id":
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
+        generate_aggregated_visits(path, parameters.threshold_list)
 
     elif starting_from == "results_per_plate":
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
+        generate_aggregated_visits(path, parameters.threshold_list)
 
     elif starting_from == "clean":
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
+        generate_aggregated_visits(path, parameters.threshold_list)
 
     return path

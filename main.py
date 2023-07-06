@@ -4,7 +4,7 @@
 import pandas as pd
 
 import analysis
-import param
+import parameters
 # My code
 import plots
 import generate_results as gr
@@ -30,11 +30,11 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
     condition_colors = []
 
     for condition in raw_condition_list:
-        list_of_conditions = param.name_to_nb_list[condition]
-        list_of_names = [param.nb_to_name[i] for i in list_of_conditions]
+        list_of_conditions = parameters.name_to_nb_list[condition]
+        list_of_names = [parameters.nb_to_name[i] for i in list_of_conditions]
         condition_pools.append(list_of_conditions)
         condition_names.append(list_of_names)
-        condition_colors.append(param.name_to_color[condition])
+        condition_colors.append(parameters.name_to_color[condition])
 
     # Add control to every condition sublist
     if include_control:
@@ -85,7 +85,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
                                          mycolor=current_color, plot_model=True)
 
             if "aggregated_visit_duration" in plot:
-                for thresh in param.threshold_list:
+                for thresh in parameters.threshold_list:
                     plots.plot_selected_data(results, "Average duration visits in " + raw_condition_list[
                         i_pool] + " densities, aggregated with threshold " + str(thresh),
                                              current_conditions, current_condition_names,

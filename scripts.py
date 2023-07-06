@@ -2,34 +2,34 @@ from main import *
 
 
 ## Plot distribution of visit + same transits + cross transits
-plot_graphs(plot="distribution", raw_condition_list=param.name_to_nb_list["close"], include_control=False)
-plot_graphs(plot="distribution", raw_condition_list=param.name_to_nb_list["med"])
-plot_graphs(plot="distribution", raw_condition_list=param.name_to_nb_list["far"], include_control=False)
-plot_graphs(plot="distribution", raw_condition_list=param.name_to_nb_list["cluster"], include_control=False)
-plot_graphs(plot="distribution", raw_condition_list=param.name_to_nb_list["0.2"], include_control=False)
-plot_graphs(plot="distribution", raw_condition_list=param.name_to_nb_list["0.5"], include_control=False)
-plot_graphs(plot="distribution", raw_condition_list=param.name_to_nb_list["all"], include_control=False)
+plot_graphs(plot="distribution", raw_condition_list=parameters.name_to_nb_list["close"], include_control=False)
+plot_graphs(plot="distribution", raw_condition_list=parameters.name_to_nb_list["med"])
+plot_graphs(plot="distribution", raw_condition_list=parameters.name_to_nb_list["far"], include_control=False)
+plot_graphs(plot="distribution", raw_condition_list=parameters.name_to_nb_list["cluster"], include_control=False)
+plot_graphs(plot="distribution", raw_condition_list=parameters.name_to_nb_list["0.2"], include_control=False)
+plot_graphs(plot="distribution", raw_condition_list=parameters.name_to_nb_list["0.5"], include_control=False)
+plot_graphs(plot="distribution", raw_condition_list=parameters.name_to_nb_list["all"], include_control=False)
 
 ## Plot distribution of visit + same transits + cross transits
-plot_graphs(plot="distribution_aggregated", raw_condition_list=param.name_to_nb_list["close"], include_control=False)
-plot_graphs(plot="distribution_aggregated", raw_condition_list=param.name_to_nb_list["med"])
-plot_graphs(plot="distribution_aggregated", raw_condition_list=param.name_to_nb_list["far"], include_control=False)
-plot_graphs(plot="distribution_aggregated", raw_condition_list=param.name_to_nb_list["cluster"], include_control=False)
-plot_graphs(plot="distribution_aggregated", raw_condition_list=param.name_to_nb_list["0.2"], include_control=False)
-plot_graphs(plot="distribution_aggregated", raw_condition_list=param.name_to_nb_list["0.5"], include_control=False)
-plot_graphs(plot="distribution_aggregated", raw_condition_list=param.name_to_nb_list["all"], include_control=False)
+plot_graphs(plot="distribution_aggregated", raw_condition_list=parameters.name_to_nb_list["close"], include_control=False)
+plot_graphs(plot="distribution_aggregated", raw_condition_list=parameters.name_to_nb_list["med"])
+plot_graphs(plot="distribution_aggregated", raw_condition_list=parameters.name_to_nb_list["far"], include_control=False)
+plot_graphs(plot="distribution_aggregated", raw_condition_list=parameters.name_to_nb_list["cluster"], include_control=False)
+plot_graphs(plot="distribution_aggregated", raw_condition_list=parameters.name_to_nb_list["0.2"], include_control=False)
+plot_graphs(plot="distribution_aggregated", raw_condition_list=parameters.name_to_nb_list["0.5"], include_control=False)
+plot_graphs(plot="distribution_aggregated", raw_condition_list=parameters.name_to_nb_list["all"], include_control=False)
 
 ## Plot distribution of visit + same transits + cross transits
-plot_graphs(plot="leaving_events", raw_condition_list=param.name_to_nb_list["close"], include_control=False)
-plot_graphs(plot="leaving_events", raw_condition_list=param.name_to_nb_list["med"])
-plot_graphs(plot="leaving_events", raw_condition_list=param.name_to_nb_list["far"], include_control=False)
-plot_graphs(plot="leaving_events", raw_condition_list=param.name_to_nb_list["cluster"], include_control=False)
-plot_graphs(plot="leaving_events", raw_condition_list=param.name_to_nb_list["0.2"], include_control=False)
-plot_graphs(plot="leaving_events", raw_condition_list=param.name_to_nb_list["0.5"], include_control=False)
-plot_graphs(plot="leaving_events", raw_condition_list=param.name_to_nb_list["all"], include_control=False)
+plot_graphs(plot="leaving_events", raw_condition_list=parameters.name_to_nb_list["close"], include_control=False)
+plot_graphs(plot="leaving_events", raw_condition_list=parameters.name_to_nb_list["med"])
+plot_graphs(plot="leaving_events", raw_condition_list=parameters.name_to_nb_list["far"], include_control=False)
+plot_graphs(plot="leaving_events", raw_condition_list=parameters.name_to_nb_list["cluster"], include_control=False)
+plot_graphs(plot="leaving_events", raw_condition_list=parameters.name_to_nb_list["0.2"], include_control=False)
+plot_graphs(plot="leaving_events", raw_condition_list=parameters.name_to_nb_list["0.5"], include_control=False)
+plot_graphs(plot="leaving_events", raw_condition_list=parameters.name_to_nb_list["all"], include_control=False)
 
 
-## Plot duration of aggregated visits (see thresholds in param.py file)
+## Plot duration of aggregated visits (see thresholds in parameters.py file)
 plot_graphs("aggregated_visit_duration", "all", include_control=True)
 
 ## Leaving events
@@ -39,7 +39,7 @@ plot_graphs("leaving_probability", ["0.2", "0.5", "close", "med", "far", "cluste
 
 plots.plot_leaving_probability(results,
                                "Probability of leaving as a function of in_patch time (med)",
-                               param.name_to_nb_list["med"], bin_size=1000, color=param.name_to_color["med"], split_conditions=True)
+                               parameters.name_to_nb_list["med"], bin_size=1000, color=parameters.name_to_color["med"], split_conditions=True)
 
 
 
@@ -57,12 +57,12 @@ plots.plot_leaving_probability(results,
 # binned_speed_as_a_function_of_time_window(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [1, 100, 1000], [0, 1], 1)
 
 
-# plot_graphs(plot="distribution", densities_list=param.condition_to_nb["close"], include_control=False)
-# plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["med"])
-# plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["far"], include_control=False)
-# plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["cluster"], include_control=False)
-# plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["0.2"], include_control=False)
-# plot_graphs(plot=["distribution"], raw_condition_list=param.condition_to_nb["0.5"], include_control=False)
+# plot_graphs(plot="distribution", densities_list=parameters.condition_to_nb["close"], include_control=False)
+# plot_graphs(plot=["distribution"], raw_condition_list=parameters.condition_to_nb["med"])
+# plot_graphs(plot=["distribution"], raw_condition_list=parameters.condition_to_nb["far"], include_control=False)
+# plot_graphs(plot=["distribution"], raw_condition_list=parameters.condition_to_nb["cluster"], include_control=False)
+# plot_graphs(plot=["distribution"], raw_condition_list=parameters.condition_to_nb["0.2"], include_control=False)
+# plot_graphs(plot=["distribution"], raw_condition_list=parameters.condition_to_nb["0.5"], include_control=False)
 
 # plots.trajectories_1condition(trajectories, 2, plate_list=["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111318_SmallPatches_C2-CAM2/traj.csv"])
 # gr.add_aggregation(path, [10, 100, 100000])
