@@ -11,10 +11,17 @@ from generate_controls import *
 
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
+    """
+    Matlab splines are curves divided in subsections, each subsection defined by a polynomial.
+
+    ::spline_breaks: the limits between the different polynomials
+    :spline_coefs: the coefficients for each subsection
+    """
     i = 0
+    angular_position = - angular_position + np.pi/2
     while i < len(spline_breaks) - 1 and angular_position >= spline_breaks[i]:
         i += 1
-    # invert coef order
+    # invert coefficient order (matlab to numpy format)
     coefficients = [spline_coefs[i - 1][j] for j in range(len(spline_coefs[i - 1]) - 1, -1, -1)]
     local_polynomial = np.polynomial.polynomial.Polynomial(coefficients)
     return local_polynomial(angular_position - spline_breaks[i - 1])
