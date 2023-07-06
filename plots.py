@@ -8,10 +8,10 @@ import seaborn as sns
 import analysis as ana
 import generate_results as gr
 import find_data as fd
-import param
-
+import parameters
 
 # Sanity check functions
+
 
 def data_coverage(traj):
     """
@@ -63,11 +63,13 @@ def patches(folder_list, show_composite=True, is_plot=True):
             else:
                 background = plt.imread(folder + "background.tif")
                 ax.imshow(background, cmap='gray')
+            ax.use_sticky_edges = False
 
         patch_centers = metadata["patch_centers"]
         patch_densities = metadata["patch_densities"]
         patch_spline_breaks = metadata["spline_breaks"]
         patch_spline_coefs = metadata["spline_coefs"]
+        patch_guides = metadata["spline_guides"]
 
         colors = plt.cm.jet(np.linspace(0, 1, len(patch_centers)))
         x_list = []
@@ -75,7 +77,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
         # For each patch
         for i_patch in range(len(patch_centers)):
             # For a range of 100 angular positions
-            angular_pos = np.linspace(0, 2 * np.pi, 100)
+            angular_pos = np.linspace(-np.pi, np.pi, 100)
             radiuses = np.zeros(len(angular_pos))
             # Compute the local spline value for each of those radiuses
             for i_angle in range(len(angular_pos)):
@@ -83,7 +85,6 @@ def patches(folder_list, show_composite=True, is_plot=True):
                                                     patch_spline_coefs[i_patch])
 
             fig = plt.gcf()
-            ax = fig.gca()
 
             # Create lists of cartesian positions out of this
             x_pos = []
@@ -95,6 +96,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
             # Either plot them
             if is_plot:
                 plt.plot(x_pos, y_pos, color=colors[i_patch])
+                plt.scatter([patch_guides[i_patch][i][0] for i in range(len(patch_guides[i_patch]))], [patch_guides[i_patch][i][1] for i in range(len(patch_guides[i_patch]))], color="white", s=15)
             # Or add them to a list for later
             else:
                 x_list.append(x_pos)
@@ -216,6 +218,10 @@ def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, s
         previous_folder = current_folder
 
     plt.show()
+
+
+def interactive_worm_silhouette(folder, frame):
+    video.show_frames(folder, frame)
 
 
 # Analysis functions
@@ -704,12 +710,11 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, colo
                 leaving_delays, bin_size,
                 bootstrap=False)
             binned_leaving_probability, errorbars = ana.leaving_probability(full_delay_list, errorbars=False)
-            plt.plot(binned_times_in_patch, binned_leaving_probability, color=colors[i_condition], label=param.nb_to_name[current_condition])
+            plt.plot(binned_times_in_patch, binned_leaving_probability, color=colors[i_condition], label=parameters.nb_to_name[current_condition])
 
         plt.legend()
 
     plt.show()
-
 
 
 def plot_test(results):
