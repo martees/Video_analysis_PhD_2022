@@ -3,19 +3,37 @@ import ReferencePoints
 import scipy
 
 # My code
-from param import *
+from parameters import *
+import find_data as fd
 
 
-def generate_controls(folder):
+def generate_controls(path):
     """
-    Will take the folder path of a control condition, check that it is indeed one, and then make a foodpatches_control.csv
-    file containing the patch centers and splines
+    Takes a path prefix, finds the files of all control conditions inside.
+    Will create subfolders each containing:
+        - a copy of the traj.csv file from the parent folder
+        - a foodpatches.mat folder containing a new condition number
+        - a foodpatches_new
     """
 
-    # Define folders
-    general_folder = 'H:\\Results_minipatches_20221108'
-    folders_dir = os.listdir(general_folder)
-    folders = [os.path.join(general_folder, folder) for folder in folders_dir]
+    # Full list of paths for the traj.csv files that can be found in the arborescence starting in path
+    folder_list = fd.path_finding_traj(path)
+    # Select folders that correspond to a control condition (11)
+    folder_list = fd.return_folders_condition_list(folder_list, 11)
+
+    for folder in folder_list:
+        close_patches = return_control_patches(folder, "close")
+        med_patches = return_control_patches(folder, "med")
+        far_patches = return_control_patches(folder, "far")
+        cluster_patches = return_control_patches(folder, "cluster")
+
+
+def return_control_patches(folder, distance):
+    """
+    Will take the folder path of a control condition, check that it is indeed one, and then make a foodpatches_distance.csv
+    file containing the patch centers and splines for fake patches distanced by distance.
+    For example, foodpatches_close or foodpatches_med.
+    """
 
     for i in range(len(nb_to_xy)):
         nb_to_xy[i] = -nb_to_xy[i]  # Invert the y-coordinate and flip the x-coordinate
@@ -86,3 +104,4 @@ def generate_controls(folder):
                     print('PointList error in', folder)
         else:
             print('Pilot study excluded:', folder)
+    return 0
