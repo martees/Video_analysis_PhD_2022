@@ -265,6 +265,7 @@ def plot_graphs(plot, raw_condition_list=None, include_control=True):
 # "clean" will generate everything starting here ->
 #       "clean_results.csv": same but removing some plates (see generate_results.exclude_invalid_videos)
 #       "clean_trajectories.csv": trajectories csv but with only the tracks corresponding to the valid plates
+# "" will simply return the working directory path, adapted for Linux or Windows
 # NOTE: lists are stored as strings in the csv, so we retrieve the values with json loads function
 path = gr.generate(starting_from="")
 # Only generate the results in the beginning of your analysis!
@@ -308,8 +309,10 @@ print("Finished retrieving stuff")
 #                                    ["close 0.2", "close 0.5"], ["far 0.2", "far 0.5"], ["med 0.2", "med 0.5"], ["cluster 0.2", "cluster 0.5"],
 #                                    ["med 0.2", "med 0.5", "med 1.25", "med 0.2+0.5", "med 0.5+1.25", "control"]])
 
-plot_graphs("leaving_probability", ["0.2", "0.5", "close", "med", "far", "cluster", "close 0.2", "close 0.5", "med 0.2", "med 0.5", "far 0.2", "far 0.5", "cluster 0.2", "cluster 0.5"])
+#plot_graphs("leaving_probability", ["0.2", "0.5", "close", "med", "far", "cluster", "close 0.2", "close 0.5", "med 0.2", "med 0.5", "far 0.2", "far 0.5", "cluster 0.2", "cluster 0.5"])
 
+
+plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM1/traj.csv", "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM2/traj.csv", "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM3/traj.csv"])
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top => for speed analysis
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
@@ -317,6 +320,4 @@ plot_graphs("leaving_probability", ["0.2", "0.5", "close", "med", "far", "cluste
 
 # TODO movement stuff between patches: speed, turning rate, MSD over time
 # TODO radial_tolerance in a useful way
-
-##
 
