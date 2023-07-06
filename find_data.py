@@ -63,7 +63,7 @@ def trajmat_to_dataframe(paths_of_mat):
 
     dataframe["folder"] = folder_list
 
-        #### outdated comments but might be useful?? about the old structure of traj.mat
+        # outdated comments but might be useful?? about the old structure of traj.mat
         # Structure of traj.mat: traj.mat[0] = one line per worm, with their x,y positions at t_0
         # So if you call traj.mat[:,0] you get all the positions of the first worm.
     return dataframe
@@ -96,6 +96,8 @@ def folder_to_metadata(path):
     # In patch_object[0] are 8x2 lists of interpolation points that were used to extract the spline
     # In patch_object[1] is a 1x2 list with the patch center coordinates
     # In patch_object[2] is a matlab spline object stuck in two [[[]]], so we access it like that:
+    spline_guides = [patch_objects[i][0] for i in range(len(patch_objects))]
+    patch_centers = [patch_objects[i][1] for i in range(len(patch_objects))]
     spline_objects = [patch_objects[i][2] for i in range(len(patch_objects))]
     # In spline_objects[0] is useless strings
     # In spline_objects[1] is the breaks which give the intervals for each spline equation
@@ -105,7 +107,8 @@ def folder_to_metadata(path):
     # holepositions = pd.DataFrame(holesmat.get('pointList')) # gets the holes positions
     # condition_number = readcode(holepositions) #get the condition from that
 
-    metadata["patch_centers"] = [patch_objects[i][1][0] for i in range(len(patch_objects))]
+    metadata["patch_centers"] = [patch_centers[i][0] for i in range(len(patch_centers))]
+    metadata["spline_guides"] = [[[spline_guides[i][j][0], spline_guides[i][j][1]] for j in range(len(spline_guides[i]))] for i in range(len(spline_guides))]
     metadata["spline_breaks"] = [list(spline_objects[i][0][0][1][0]) for i in range(len(spline_objects))]
     metadata["spline_coefs"] = [[list(spline_objects[j][0][0][2][i]) for i in range(len(spline_objects[j][0][0][2]))] for j in range(len(spline_objects))]
 
@@ -185,14 +188,23 @@ def load_condition(folder):
     return folder_to_metadata(folder)["condition"][0]
 
 
-def load_frame(folder, frame_index):
+def load_index(folder, frame):
     """
-    Will load the traj.csv matrix in folder, and find at which index of the table it is the frame_index-th frame of the
+    Will load the traj.csv matrix in folder, and find at which index of the table it is the frame-th frame of the
     tracking (if there are holes in the tracking, frame 800 could be at index 750, because of 50 frames with no tracking)
     """
     traj = trajmat_to_dataframe([folder])
-    index = find_closest(traj["frame"], frame_index)
+    index = find_closest(traj["frame"], frame)
     return index
+
+
+def load_frame(folder, index):
+    """
+    Will load the traj.csv matrix in folder, and find at which frame of the table it is the index-th tracked frame of the
+    tracking (if there are holes in the tracking, frame 800 could be at index 750, because of 50 frames with no tracking)
+    """
+    traj = trajmat_to_dataframe([folder])
+    return traj["frame"][index]
 
 
 def find_closest(iterable, value):
