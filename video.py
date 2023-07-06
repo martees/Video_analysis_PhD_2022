@@ -93,15 +93,15 @@ def show_frames(folder, first_frame):
     curr_index = fd.load_index(folder, first_frame)
     xmin, xmax, ymin, ymax = plt.axis()
 
-    global worm_pixels
-    global ax
+    global worm_ax
     fig = plt.gcf()
     ax = plt.gca()
+    worm_ax = ax.twinx().twiny()
     # Removing 60 to the intensities to make the worm lighter
-    worm_pixels = ax.scatter(pixels[curr_index][0], pixels[curr_index][1], color=colors[np.array(intensities[curr_index]) - 80], s=1)
-    ax.scatter(center_of_mass["x"][curr_index], center_of_mass["y"][curr_index])
-    ax.annotate(str(patch_list[curr_index]), [center_of_mass["x"][curr_index] + 10, center_of_mass["y"][curr_index] + 10])
-    ax.set_title("Frame: " + str(fd.load_frame(folder, curr_index)))
+    worm_ax.scatter(pixels[curr_index][0], pixels[curr_index][1], color=colors[np.array(intensities[curr_index]) - 80], s=1)
+    worm_ax.scatter(center_of_mass["x"][curr_index], center_of_mass["y"][curr_index])
+    worm_ax.annotate(str(patch_list[curr_index]), [center_of_mass["x"][curr_index] + 10, center_of_mass["y"][curr_index] + 10])
+    worm_ax.set_title("Frame: " + str(fd.load_frame(folder, curr_index)))
 
     # Make the plot scrollable
     def key_event(e):
@@ -137,33 +137,32 @@ def show_frames(folder, first_frame):
 
 
 def update_frame(folder, colors, index, pixels, intensities, center_of_mass, patch_list):
-    global worm_pixels
-    global ax
+    global worm_ax
     global patches_ax
     global curr_fig
     global xmin, xmax, ymin, ymax
 
-    worm_pixels.set_offsets([[pixels[index][0][i], pixels[index][1][i]] for i in range(len(pixels[index]))])
-    worm_pixels.set_array(colors[np.array(intensities[index]) - 80])
-    ax.annotate(str(patch_list[curr_index]), [center_of_mass["x"][curr_index] + 10, center_of_mass["y"][curr_index] + 10])
+    worm_ax.cla()
+    worm_ax.scatter(pixels[index][0], pixels[index][1], color=colors[np.array(intensities[curr_index]) - 80], s=1)
+    worm_ax.annotate(str(patch_list[curr_index]), [center_of_mass["x"][curr_index] + 10, center_of_mass["y"][curr_index] + 10])
 
     curr_x = center_of_mass["x"][curr_index]
     curr_y = center_of_mass["y"][curr_index]
-    ax.scatter(curr_x, curr_y, s=4)
+    worm_ax.scatter(curr_x, curr_y, s=4)
 
     xmin, xmax, ymin, ymax = curr_x - 100, curr_x + 100, curr_y - 100, curr_y + 100
 
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin, ymax)
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin, ymax)
+    worm_ax.set_xlim(xmin, xmax)
+    worm_ax.set_ylim(ymin, ymax)
+    worm_ax.set_xlim(xmin, xmax)
+    worm_ax.set_ylim(ymin, ymax)
 
     patches_ax.set_xlim(xmin, xmax)
     patches_ax.set_ylim(ymin, ymax)
     patches_ax.set_xlim(xmin, xmax)
     patches_ax.set_ylim(ymin, ymax)
 
-    ax.set_title("Frame: " + str(fd.load_frame(folder, index)))
+    worm_ax.set_title("Frame: " + str(fd.load_frame(folder, index)))
 
     curr_fig.canvas.draw()
 
