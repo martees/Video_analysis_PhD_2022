@@ -5,6 +5,7 @@ from matplotlib.widgets import Slider
 # My code
 import find_data as fd
 import plots
+import generate_results as gr
 
 
 def show_frame(folder, frame, is_plot=True):
@@ -52,14 +53,20 @@ def show_frames(folder, first_frame):
     """
     Starts by showing first_frame of folder. Then, user can scroll to go through frames.
     """
+    fig = plt.gcf()
+    fig.set_size_inches(15, 15)
+
     # Plot the background
     composite = plt.imread(folder[:-len('traj.csv')] + "composite_patches.tif")
     plt.imshow(composite)
 
     # Plot the patches
+    global patches_ax
+    fig = plt.gcf()
+    patches_ax = fig.gca()
     patches_x, patches_y = plots.patches([folder], show_composite=False, is_plot=False)
     for i_patch in range(len(patches_x)):
-        plt.plot(patches_x[i_patch], patches_y[i_patch], color="white")
+        patches_ax.plot(patches_x[i_patch], patches_y[i_patch], color="black")
 
     # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
     pixels, intensities, frame_size = fd.load_silhouette(folder)
@@ -75,82 +82,91 @@ def show_frames(folder, first_frame):
         reformatted_pixels.append([x_list, y_list])
     pixels = reformatted_pixels
 
+    # Load centers of mass from the tracking
+    center_of_mass = fd.trajmat_to_dataframe([folder])
+    # Get patch info
+    patch_list = gr.in_patch_list(center_of_mass)
+
     colors = plt.cm.Greys(np.linspace(0, 1, 256))
-    # now the real code :)
-    global curr_pos
-    curr_pos = first_frame
+    global curr_index
     global xmin, xmax, ymin, ymax
+    curr_index = fd.load_index(folder, first_frame)
     xmin, xmax, ymin, ymax = plt.axis()
 
+    global worm_pixels
+    global ax
+    fig = plt.gcf()
+    ax = plt.gca()
+    # Removing 60 to the intensities to make the worm lighter
+    worm_pixels = ax.scatter(pixels[curr_index][0], pixels[curr_index][1], color=colors[np.array(intensities[curr_index]) - 80], s=1)
+    ax.scatter(center_of_mass["x"][curr_index], center_of_mass["y"][curr_index])
+    ax.annotate(str(patch_list[curr_index]), [center_of_mass["x"][curr_index] + 10, center_of_mass["y"][curr_index] + 10])
+    ax.set_title("Frame: " + str(fd.load_frame(folder, curr_index)))
+
+    # Make the plot scrollable
     def key_event(e):
-        global curr_pos
-        global worm_ax
+        global curr_index
+        global curr_fig
 
         if e.button == "up":
-            curr_pos = curr_pos + 1
+            curr_index = curr_index + 1
         elif e.button == "down":
-            curr_pos = max(0, curr_pos - 1)
+            curr_index = max(0, curr_index - 1)
         else:
             return
-        #curr_pos = curr_pos % len(plots)
-
         curr_fig = plt.gcf()
-        worm_ax.cla()
-        worm_ax.set_xlim(xmin, xmax)
-        worm_ax.set_ylim(ymin, ymax)
-        worm_ax.scatter(pixels[curr_pos][0], pixels[curr_pos][1], color=colors[np.array(intensities[curr_pos])-60], s=1)
-        worm_ax.set_title("Frame: "+str(curr_pos))
-        curr_fig.canvas.draw()
-
-    global worm_ax
-    fig = plt.gcf()
-    patches_ax = fig.gca()
-    worm_ax = patches_ax.twinx()
-    worm_ax.set_xlim(xmin, xmax)
-    worm_ax.set_ylim(ymin, ymax)
+        update_frame(folder, colors, curr_index, pixels, intensities, center_of_mass, patch_list)
     fig.canvas.mpl_connect('scroll_event', key_event)
-    # Removing 60 to the intensities to make the worm lighter
-    worm_ax.scatter(pixels[curr_pos][0], pixels[curr_pos][1], color=colors[np.array(intensities[curr_pos])-60], s=1)
 
-    # Set the slider for frequency and amplitude
+    # Create a slider
     fig = plt.gcf()
     slider_axis = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-    frame_slider = Slider(slider_axis, 'Frame', 0, 10000, valinit=first_frame)
+    frame_slider = Slider(slider_axis, 'Index', 0, 10000, valinit=first_frame)
     plt.subplots_adjust(left=0.25, bottom=.2, right=None, top=.9, wspace=.2, hspace=.2)
 
-    # Update() function to change the graph when the
-    # slider is in use
-    def update(val):
-        global curr_pos
-        global worm_ax
+    def slider_update():
+        global curr_index
+        global curr_fig
 
-        curr_pos = int(frame_slider.val)
+        curr_index = int(frame_slider.val)
         curr_fig = plt.gcf()
-        worm_ax.cla()
-        worm_ax.set_xlim(xmin, xmax)
-        worm_ax.set_ylim(ymin, ymax)
-        worm_ax.scatter(pixels[curr_pos][0], pixels[curr_pos][1], color=colors[np.array(intensities[curr_pos]) - 60],
-                        s=1)
-        worm_ax.set_title("Frame: " + str(curr_pos))
-        curr_fig.canvas.draw()
-
-    # update function called using on_changed() function
-    # for both frequency and amplitude
-    frame_slider.on_changed(update)
+        update_frame(folder, colors, curr_index, pixels, intensities, center_of_mass, patch_list)
+    frame_slider.on_changed(slider_update)
 
     plt.show()
 
 
-# def onclick(event):
-#     print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-#           ('double' if event.dblclick else 'single', event.button,
-#            event.x, event.y, event.xdata, event.ydata))
-#
-#
-# fig = plt.gcf()
-# cid = fig.canvas.mpl_connect('button_press_event', onclick)
-#
+def update_frame(folder, colors, index, pixels, intensities, center_of_mass, patch_list):
+    global worm_pixels
+    global ax
+    global patches_ax
+    global curr_fig
+    global xmin, xmax, ymin, ymax
 
-show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM4/traj.csv", 1000)
-show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T112411_SmallPatches_C5-CAM1/traj.csv", 600)
+    worm_pixels.set_offsets([[pixels[index][0][i], pixels[index][1][i]] for i in range(len(pixels[index]))])
+    worm_pixels.set_array(colors[np.array(intensities[index]) - 80])
+    ax.annotate(str(patch_list[curr_index]), [center_of_mass["x"][curr_index] + 10, center_of_mass["y"][curr_index] + 10])
+
+    curr_x = center_of_mass["x"][curr_index]
+    curr_y = center_of_mass["y"][curr_index]
+    ax.scatter(curr_x, curr_y, s=4)
+
+    xmin, xmax, ymin, ymax = curr_x - 100, curr_x + 100, curr_y - 100, curr_y + 100
+
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+
+    patches_ax.set_xlim(xmin, xmax)
+    patches_ax.set_ylim(ymin, ymax)
+    patches_ax.set_xlim(xmin, xmax)
+    patches_ax.set_ylim(ymin, ymax)
+
+    ax.set_title("Frame: " + str(fd.load_frame(folder, index)))
+
+    curr_fig.canvas.draw()
+
+
+show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM3/traj.csv", 612)
 
