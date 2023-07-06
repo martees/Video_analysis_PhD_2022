@@ -6,7 +6,7 @@ import glob
 import json
 
 # My code
-from param import *
+from parameters import *
 
 
 def is_linux():  # returns true if you're using linux, otherwise false
@@ -140,7 +140,30 @@ def perfect_square_parameters(x1, y1, x2, y2, x3, y3, x4, y4):
     return scaling_factor, rotation_angle
 
 
+def load_silhouette(path):
+    """
+    Takes a folder path, returns the content of the silhouette matrix found in this path.
+    """
+    lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
+    silhouette_path = path[:-lentoremove] + "silhouettes.mat"
+    matrix = loadmat(silhouette_path)
+
+    # Get the different arrays from the dictionnary output of loadmat
+    frame_size = matrix.get("frame_size")
+    pixels = matrix.get("pixels")
+    intensities = matrix.get("intensities")
+
+    # Reformat
+    pixels = [[pixels[i][0][j][0] for j in range(len(pixels[i][0]))] for i in range(len(pixels))]
+    intensities = [[intensities[i][0][j][0] for j in range(len(intensities[i][0]))] for i in range(len(intensities))]
+    frame_size = frame_size[0]
+
+    return pixels, intensities, frame_size
+
+
 def return_folders_condition_list(full_folder_list, condition_list):
+    if condition_list is int:
+        condition_list = [condition_list]
     condition_folders = []
     for folder in full_folder_list:
         current_condition = folder_to_metadata(folder).reset_index()["condition"][0]
@@ -158,5 +181,22 @@ def load_list(results, column_name):
     else:
         print("Column ", column_name, " does not exist in results.")
 
-def load_condition(folder_name):
-    return folder_to_metadata(folder_name)["condition"][0]
+def load_condition(folder):
+    return folder_to_metadata(folder)["condition"][0]
+
+
+def load_frame(folder, frame_index):
+    """
+    Will load the traj.csv matrix in folder, and find at which index of the table it is the frame_index-th frame of the
+    tracking (if there are holes in the tracking, frame 800 could be at index 750, because of 50 frames with no tracking)
+    """
+    traj = trajmat_to_dataframe([folder])
+    index = find_closest(traj["frame"], frame_index)
+    return index
+
+
+def find_closest(iterable, value):
+    """
+    Find index of closest value to "value" in "iterable"
+    """
+    return min(enumerate(iterable), key=lambda x: abs(x[1] - value))[0]
