@@ -53,20 +53,26 @@ def show_frames(folder, first_frame):
     """
     Starts by showing first_frame of folder. Then, user can scroll to go through frames.
     """
+    # Define figure and axes
+    global top_ax
     fig = plt.gcf()
     fig.set_size_inches(15, 15)
+    top_ax = fig.gca()
 
     # Plot the background
     composite = plt.imread(folder[:-len('traj.csv')] + "composite_patches.tif")
-    plt.imshow(composite)
+    top_ax.imshow(composite, origin="lower")
 
     # Plot the patches
-    global patches_ax
     fig = plt.gcf()
-    patches_ax = fig.gca()
+    top_ax = fig.gca()
     patches_x, patches_y = plots.patches([folder], show_composite=False, is_plot=False)
     for i_patch in range(len(patches_x)):
-        patches_ax.plot(patches_x[i_patch], patches_y[i_patch], color="black")
+        top_ax.plot(patches_x[i_patch], patches_y[i_patch], color="black")
+    # Plot patch centers
+    current_metadata = fd.folder_to_metadata(folder)
+    patch_centers = current_metadata["patch_centers"]
+    plt.scatter(np.transpose(patch_centers)[0], np.transpose(patch_centers)[1])
 
     # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
     pixels, intensities, frame_size = fd.load_silhouette(folder)
@@ -83,89 +89,116 @@ def show_frames(folder, first_frame):
     pixels = reformatted_pixels
 
     # Load centers of mass from the tracking
-    center_of_mass = fd.trajmat_to_dataframe([folder])
+    centers_of_mass = fd.trajmat_to_dataframe([folder])
     # Get patch info
-    patch_list = gr.in_patch_list(center_of_mass)
+    patch_list = gr.in_patch_list(centers_of_mass)
 
-    colors = plt.cm.Greys(np.linspace(0, 1, 256))
-    global curr_index
+    # Make a copy of full image limits, for zoom out purposes
+    global img_xmin, img_xmax, img_ymin, img_ymax
+    img_xmin, img_xmax, img_ymin, img_ymax = plt.axis()
+    # Define axes limits that will be modified to follow the worm as it moves
     global xmin, xmax, ymin, ymax
-    curr_index = fd.load_index(folder, first_frame)
-    xmin, xmax, ymin, ymax = plt.axis()
+    xmin, xmax, ymin, ymax = img_xmin, img_xmax, img_ymin, img_ymax
 
-    global worm_ax
-    fig = plt.gcf()
-    ax = plt.gca()
-    worm_ax = ax.twinx().twiny()
-    # Removing 60 to the intensities to make the worm lighter
-    worm_ax.scatter(pixels[curr_index][0], pixels[curr_index][1], color=colors[np.array(intensities[curr_index]) - 80], s=1)
-    worm_ax.scatter(center_of_mass["x"][curr_index], center_of_mass["y"][curr_index])
-    worm_ax.annotate(str(patch_list[curr_index]), [center_of_mass["x"][curr_index] + 10, center_of_mass["y"][curr_index] + 10])
-    worm_ax.set_title("Frame: " + str(fd.load_frame(folder, curr_index)))
+    # Define frame index counter (will be incremented/decremented depending on what user does)
+    global curr_index
+    curr_index = fd.load_index(folder, first_frame)
+
+    # Plot the worm
+    global worm_plot
+    worm_plot = top_ax.plot(pixels[curr_index][0], pixels[curr_index][1],
+                            color=plt.cm.Greys(np.linspace(0, 1, 256))[80], marker="o", linewidth=0)
+
+    # Plot the center of mass of the worm
+    global center_of_mass_plot
+    center_of_mass_plot = top_ax.scatter(centers_of_mass["x"][curr_index], centers_of_mass["y"][curr_index], zorder=3, color="orange")
+
+    # Plot a line between the center of the patch and the center of the worm
+    global center_to_center_line
+    center_to_center_line = top_ax.plot([], [], color="white")
+    if patch_list[curr_index] != -1:
+        curr_patch_center = patch_centers[patch_list[curr_index]]
+        curr_worm_pos = [centers_of_mass["x"][curr_index], centers_of_mass["y"][curr_index]]
+        center_to_center_line[0].set_data([curr_patch_center[0], curr_worm_pos[0]], [curr_patch_center[1], curr_worm_pos[1]])
+
+    # Put the frame number (different from frame index due to missing frames in the tracking)
+    top_ax.set_title("Frame: " + str(fd.load_frame(folder, curr_index)) + ", patch: " + str(patch_list[curr_index]))
+
+    # As a y-label, put distance of worm to center computed geometrically and spline value
+    if patch_list[curr_index] != -1
+        worm_to_center = np.sqrt((curr_patch_center[0] - curr_worm_pos[0])**2 - (curr_patch_center[1] - curr_worm_pos[1])**2)
+        angular_position = np.arctan2((curr_worm_pos[1] - curr_patch_center[1]), (curr_worm_pos[0] - curr_patch_center[0]))
+        distance_from_center = np.sqrt((curr_worm_pos[0] - curr_patch_center[0]) ** 2 + (curr_worm_pos[1] - curr_patch_center[1]) ** 2)
+        spline_value = gr.spline_value(angular_position, current_metadata["spline_breaks"], current_metadata["spline_coefs"])
+        top_ax.set_ylabel("Worm_distance")
 
     # Make the plot scrollable
     def key_event(e):
         global curr_index
-        global curr_fig
-
         if e.button == "up":
             curr_index = curr_index + 1
         elif e.button == "down":
             curr_index = max(0, curr_index - 1)
         else:
             return
-        curr_fig = plt.gcf()
-        update_frame(folder, colors, curr_index, pixels, intensities, center_of_mass, patch_list)
+        update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, patch_centers)
+
     fig.canvas.mpl_connect('scroll_event', key_event)
 
     # Create a slider
+    global bottom_ax
     fig = plt.gcf()
-    slider_axis = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-    frame_slider = Slider(slider_axis, 'Index', 0, 10000, valinit=first_frame)
+    bottom_ax = fig.add_axes([0.25, 0.1, 0.65, 0.03])
+    frame_slider = Slider(bottom_ax, 'Index', 0, 10000, valinit=first_frame)
     plt.subplots_adjust(left=0.25, bottom=.2, right=None, top=.9, wspace=.2, hspace=.2)
 
-    def slider_update():
+    # Slider update function
+    def slider_update(val):
         global curr_index
-        global curr_fig
-
+        global bottom_ax
         curr_index = int(frame_slider.val)
-        curr_fig = plt.gcf()
-        update_frame(folder, colors, curr_index, pixels, intensities, center_of_mass, patch_list)
+        update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, patch_centers, zoom_out=True)
+
+    # Slider function update call
     frame_slider.on_changed(slider_update)
 
     plt.show()
 
 
-def update_frame(folder, colors, index, pixels, intensities, center_of_mass, patch_list):
-    global worm_ax
-    global patches_ax
-    global curr_fig
+def update_frame(folder, index, pixels, centers_of_mass, patch_list, patch_centers, zoom_out=False):
+    global worm_plot
+    global center_of_mass_plot
+    global center_to_center_line
+    global top_ax
     global xmin, xmax, ymin, ymax
 
-    worm_ax.cla()
-    worm_ax.scatter(pixels[index][0], pixels[index][1], color=colors[np.array(intensities[curr_index]) - 80], s=1)
-    worm_ax.annotate(str(patch_list[curr_index]), [center_of_mass["x"][curr_index] + 10, center_of_mass["y"][curr_index] + 10])
+    worm_plot[0].set_data([pixels[index][0]], [pixels[index][1]])
+    center_of_mass_plot.set_offsets([centers_of_mass["x"][index], centers_of_mass["y"][index]])
 
-    curr_x = center_of_mass["x"][curr_index]
-    curr_y = center_of_mass["y"][curr_index]
-    worm_ax.scatter(curr_x, curr_y, s=4)
+    curr_x = centers_of_mass["x"][curr_index]
+    curr_y = centers_of_mass["y"][curr_index]
+    curr_patch = patch_list[index]
+    top_ax.scatter(curr_x, curr_y, s=4)
 
-    xmin, xmax, ymin, ymax = curr_x - 100, curr_x + 100, curr_y - 100, curr_y + 100
+    if patch_list[curr_index] != -1:
+        curr_patch_center = patch_centers[curr_patch]
+        curr_worm_pos = [curr_x, curr_y]
+        center_to_center_line[0].set_data([curr_patch_center[0], curr_worm_pos[0]], [curr_patch_center[1], curr_worm_pos[1]])
 
-    worm_ax.set_xlim(xmin, xmax)
-    worm_ax.set_ylim(ymin, ymax)
-    worm_ax.set_xlim(xmin, xmax)
-    worm_ax.set_ylim(ymin, ymax)
+    if zoom_out:
+        top_ax.set_xlim(img_xmin, img_xmax)
+        top_ax.set_ylim(img_ymin, img_ymax)
+    else:
+        xmin, xmax, ymin, ymax = curr_x - 100, curr_x + 100, curr_y - 100, curr_y + 100
+        top_ax.set_xlim(xmin, xmax)
+        top_ax.set_ylim(ymin, ymax)
 
-    patches_ax.set_xlim(xmin, xmax)
-    patches_ax.set_ylim(ymin, ymax)
-    patches_ax.set_xlim(xmin, xmax)
-    patches_ax.set_ylim(ymin, ymax)
+    top_ax.set_title("Frame: " + str(fd.load_frame(folder, index)) + ", patch: " + str(curr_patch))
 
-    worm_ax.set_title("Frame: " + str(fd.load_frame(folder, index)))
-
+    curr_fig = plt.gcf()
     curr_fig.canvas.draw()
 
 
-show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM3/traj.csv", 612)
-
+show_frames(
+    "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM3/traj.csv",
+    612)
