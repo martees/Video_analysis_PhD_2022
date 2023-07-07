@@ -33,6 +33,7 @@ def in_patch(position, patch_center, spline_breaks, spline_coefs):
     uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
     """
     # Compute radial coordinates
+    # Compute the angle in radians measured counterclockwise from the positive x-axis, returns the angle t in the range (-π, π].
     angular_position = np.arctan2((position[1] - patch_center[1]), (position[0] - patch_center[0]))
     distance_from_center = np.sqrt((position[0] - patch_center[0]) ** 2 + (position[1] - patch_center[1]) ** 2)
 

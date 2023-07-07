@@ -59,7 +59,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
             fig, ax = plt.subplots()
             if show_composite:
                 composite = plt.imread(folder + "composite_patches.tif")
-                ax.imshow(composite)
+                ax.imshow(composite, origin="lower")
             else:
                 background = plt.imread(folder + "background.tif")
                 ax.imshow(background, cmap='gray')

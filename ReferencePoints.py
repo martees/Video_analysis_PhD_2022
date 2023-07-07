@@ -11,6 +11,7 @@ class ReferencePoints:
     """
     Class for manipulating reference points.
     """
+
     def __init__(self, xy_holes):
         th_quality_square = 0.05
         side_square_mm = 1
