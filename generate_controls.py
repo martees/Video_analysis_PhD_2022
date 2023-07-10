@@ -83,12 +83,12 @@ def return_control_patches(folder, distance):
                     pointList[-1, 2] = 2  # Correct a mistake manually
                 if not np.any(pointList[:, 2] == 4):
                     refPoints = ReferencePoints(pointList[pointList[:, 2] == 2, 0:2], 'side_square_mm', 32)
-                    if len(refPoints.error.errorList) == 0:
-                        xy_code = refPoints.pixel2mm(pointList[pointList[:, 2] == 1, 0:2])
+                    if len(refPoints.errors.errorList) == 0:
+                        xy_code = refPoints.pixel_to_mm(pointList[pointList[:, 2] == 1, 0:2])
                         code = classCode(xy_code, 'n_row_col', rowcol_code)
-                        if len(code.error.errorList) == 0 and (date_exp != '20221011' or (code.num != 3 and code.num != 7)):
+                        if len(code.errors.errorList) == 0 and (date_exp != '20221011' or (code.num != 3 and code.num != 7)):
                             centers_patches = nb_to_xy[code.num + 1]
-                            centers_patches = refPoints.mm2pixel(centers_patches)
+                            centers_patches = refPoints.mm_to_pixel(centers_patches)
                             densities_patches = cond2densities[code.num + 1]
                             densities_patches = densities_patches[~np.isnan(densities_patches)]
                             if len(densities_patches) > 0:

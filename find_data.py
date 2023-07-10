@@ -29,7 +29,7 @@ def path_finding_traj(path_prefix):
 
     listofpaths = glob.glob(path_prefix + "/**/traj.csv", recursive=True)
 
-    if not is_linux(): #on windows the glob output uses \\ as separators so remove that
+    if not is_linux():  # On windows the glob output uses \\ as separators so remove that
         listofpaths = [name.replace("\\",'/') for name in listofpaths]
 
     print("Finished path finding")
@@ -73,8 +73,12 @@ def folder_to_metadata(path):
     """
     This function takes the path of a traj.csv file and returns a dataframe with the metadata of this video,
     found in the same folder:
-        patch_centers: list of coordinates of the patch centers
-        patch_densities: list of densities of each patch
+        "patch_centers": list of coordinates of the patch centers
+        "patch_densities": list of densities of each patch
+        "condition": condition number
+        "spline_guides": coordinates of the points that were used to build the patch splines (for checkup purposes)
+        "spline_breaks": breaks in the spline (points at which the polynomial switches, see MATLAB splines)
+        "spline_coefs": coefficients of the polynomials for each inter-break interval
     :param path: a string with the path leading to the traj.csv whose metadata you want to retrieve (metadata should be in the same folder)
     """
     metadata = pd.DataFrame() #where we'll put everything

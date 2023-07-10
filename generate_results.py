@@ -18,7 +18,7 @@ def spline_value(angular_position, spline_breaks, spline_coefs):
     :spline_coefs: the coefficients for each subsection
     """
     i = 0
-    angular_position = - angular_position + np.pi/2
+    #angular_position = - angular_position
     while i < len(spline_breaks) - 1 and angular_position >= spline_breaks[i]:
         i += 1
     # invert coefficient order (matlab to numpy format)
