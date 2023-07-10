@@ -90,8 +90,8 @@ def patches(folder_list, show_composite=True, is_plot=True):
             x_pos = []
             y_pos = []
             for point in range(len(angular_pos)):
-                x_pos.append(patch_centers[i_patch][0] + (radiuses[point] * np.sin(angular_pos[point])))
-                y_pos.append(patch_centers[i_patch][1] + (radiuses[point] * np.cos(angular_pos[point])))
+                x_pos.append(patch_centers[i_patch][0] + (radiuses[point] * np.cos(angular_pos[point])))
+                y_pos.append(patch_centers[i_patch][1] + (radiuses[point] * np.sin(angular_pos[point])))
 
             # Either plot them
             if is_plot:
