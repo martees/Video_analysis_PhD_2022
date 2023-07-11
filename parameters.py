@@ -25,6 +25,7 @@ distance_to_nb_of_patches = {"close":52, "med":24, "far":7, "extrafar":3, "clust
 
 # Loops to make nice dictionaries from that:
 # nb_to_distance
+# nb_to_density
 # nb_to_nb_of_patches
 # name_to_nb_list
 

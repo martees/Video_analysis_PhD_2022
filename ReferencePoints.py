@@ -107,9 +107,9 @@ def references_to_base(xy_holes, show=False):
     v2 = np.array([-v1[1], v1[0]])
 
     if show:
-        plt.plot([xy_holes[i][0] for i in range(len(xy_holes))], [xy_holes[i][1] for i in range(len(xy_holes))], ".", label="Original holes")
+        plt.plot([xy_holes[i][0] for i in range(len(xy_holes))], [xy_holes[i][1] for i in range(len(xy_holes))], marker=".", label="Original holes")
         computed_positions = np.array([x0, x0 + v1, x0 + v2, x0 + v1 + v2])
-        plt.plot(computed_positions[:, 0], computed_positions[:, 1], "o", label="Better square")
+        plt.plot(computed_positions[:, 0], computed_positions[:, 1], marker="o", label="Better square")
         plt.axis("equal")
         plt.legend()
         plt.show()

@@ -112,12 +112,13 @@ def folder_to_metadata(path):
     # condition_number = readcode(holepositions) #get the condition from that
 
     metadata["patch_centers"] = [patch_centers[i][0] for i in range(len(patch_centers))]
-    metadata["spline_guides"] = [[[spline_guides[i][j][0], spline_guides[i][j][1]] for j in range(len(spline_guides[i]))] for i in range(len(spline_guides))]
+    metadata["spline_guides"] = [spline_guides[i].tolist() for i in range(len(spline_guides))]
     metadata["spline_breaks"] = [list(spline_objects[i][0][0][1][0]) for i in range(len(spline_objects))]
     metadata["spline_coefs"] = [[list(spline_objects[j][0][0][2][i]) for i in range(len(spline_objects[j][0][0][2]))] for j in range(len(spline_objects))]
 
     metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
     metadata["condition"] = list(patchesmat.get("num_condition"))[0][0]
+    metadata["holes"] = [[hole for hole in holesmat.get("pointList").tolist() if hole[2] == 1] for i_patch in range(len(metadata["patch_centers"]))]
 
     return metadata
 
@@ -216,3 +217,25 @@ def find_closest(iterable, value):
     Find index of closest value to "value" in "iterable"
     """
     return min(enumerate(iterable), key=lambda x: abs(x[1] - value))[0]
+
+
+def control_folders(path, condition_names):
+    """
+    See generate_controls.py for documentation of why this function is useful.
+    This script will return the paths for the control sub-folders that should be in path. Does not check if they exist.
+    Example:
+        input: Results_minipatches_20221108_clean_fp/20221014T101512_SmallPatches_C1-CAM1/traj.csv, ["close", "med"]
+        output: - Results_minipatches_20221108_clean_fp/20221014T101512_SmallPatches_C1-CAM1/20221014T101512_SmallPatches_C1-CAM1_control_close
+                - Results_minipatches_20221108_clean_fp/20221014T101512_SmallPatches_C1-CAM1/20221014T101512_SmallPatches_C1-CAM1_control_med
+    """
+    # Goes from "XXX/YYY/traj.csv" to ["XXX", "YYY", "traj.csv"]
+    parse_path = path.split("/")
+    # Remove the final "traj.csv" from the path
+    path = path[:-len(parse_path[-1])]
+    # Add parent_folder name to path
+    path = path + parse_path[-2]
+    # Make a list with the controls added to path
+    path_list = []
+    for condition_name in condition_names:
+        path_list.append(path + "_control_" + condition_name)
+    return path_list
