@@ -49,22 +49,18 @@ def patches(folder_list, show_composite=True, is_plot=True):
     - return a list of border positions for each patch (is_plot = False)
     """
     for folder in folder_list:
-        metadata = fd.folder_to_metadata(folder)
-        patch_centers = metadata["patch_centers"]
-
-        lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
-        folder = folder[:-lentoremove]
-
         if is_plot:
             fig, ax = plt.subplots()
             if show_composite:
-                composite = plt.imread(folder + "composite_patches.tif")
+                composite = plt.imread(fd.load_image(folder, "composite_patches.tif"))
                 ax.imshow(composite, origin="lower")
             else:
-                background = plt.imread(folder + "background.tif")
+                background = plt.imread(fd.load_image(folder, "background.tif"))
                 ax.imshow(background, cmap='gray')
             ax.use_sticky_edges = False
 
+        # Load metadata
+        metadata = fd.folder_to_metadata(folder)
         patch_centers = metadata["patch_centers"]
         patch_densities = metadata["patch_densities"]
         patch_spline_breaks = metadata["spline_breaks"]
