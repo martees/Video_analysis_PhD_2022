@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import numpy as np
+import patch_coordinates
 # General parameters
 
 # NOT IMPLEMENTED YET
@@ -17,10 +17,11 @@ time_threshold = 20
 
 # Condition names
 nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2", 3: "cluster 0.2", 4: "close 0.5", 5: "med 0.5", 6: "far 0.5",
-              7: "cluster 0.5", 8: "med 1.25", 9: "med 0.2+0.5", 10: "med 0.5+1.25", 11: "med 0"}
+              7: "cluster 0.5", 8: "med 1.25", 9: "med 0.2+0.5", 10: "med 0.5+1.25", 12: "close 0", 13: "med 0", 14: "far 0", 15: "cluster 0"}
+name_to_nb = {v: k for k, v in nb_to_name.items()}
 
 # Distance to number of patch dictionary (lower we build a condition number to number of patches dictionary from that)
-distance_to_nb_of_patches = {"close":52, "med":24, "far":7, "extrafar":3, "cluster":25}
+distance_to_nb_of_patches = {"close": 52, "med": 24, "far": 7, "superfar": 3, "cluster": 25}
 # nb_to_nb_of_patches = {0: 52, 1: 24, 2: 7, 3: 25, 4: 52, 5: 24, 6: 7, 7: 25, 8: 24, 9: 24, 10: 24, 11: 24}
 
 # Loops to make nice dictionaries from that:
@@ -37,8 +38,8 @@ for condition in nb_to_name.keys():
         nb_to_distance[condition] = "med"
     elif "far" in nb_to_name[condition]:
         nb_to_distance[condition] = "far"
-    elif "extrafar" in nb_to_name[condition]:
-        nb_to_distance[condition] = "extrafar"
+    elif "superfar" in nb_to_name[condition]:
+        nb_to_distance[condition] = "superfar"
     elif "cluster" in nb_to_name[condition]:
         nb_to_distance[condition] = "cluster"
 
@@ -67,14 +68,14 @@ for condition in nb_to_name.keys():
         nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["med"]
     elif "far" in nb_to_name[condition]:
         nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["far"]
-    elif "extrafar" in nb_to_name[condition]:
-        nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["extrafar"]
+    elif "superfar" in nb_to_name[condition]:
+        nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["superfar"]
     elif "cluster" in nb_to_name[condition]:
         nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["cluster"]
 
 # Convert condition names into lists of condition numbers
 # eg {"close": [0, 4], "med": [1, 5, 8, 9, 10, 11], "far": [2, 6]}
-name_to_nb_list = {"all": [], "close": [], "med": [], "far": [], "extrafar": [], "cluster": [], "0.5+1.25": [],
+name_to_nb_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [], "0.5+1.25": [],
                    "0.2+0.5": [], "0.5": [], "1.25": [], "0.2": [], "0": []}
 for condition in nb_to_name.keys():
     name_to_nb_list["all"].append(condition)  # the all should have everyone
@@ -94,11 +95,11 @@ for condition in nb_to_name.keys():
 # close: purple
 # med: blue
 # far: green
-# extrafar: yellowish green
+# superfar: yellowish green
 # clusters: teal
 # 0.2, 0.5, 1.25: shades of brown
 
-name_to_color = {"close": "purple", "med": "blue", "far": "cornflowerblue", "extrafar": "teal", "cluster": "yellowgreen",
+name_to_color = {"close": "purple", "med": "blue", "far": "cornflowerblue", "superfar": "teal", "cluster": "yellowgreen",
                  "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate", "0.5+1.25": "orange",
                  "control": "gray", "all": "pink"}
 # Add colors for single conditions, distance override
@@ -116,145 +117,20 @@ def test_colors():
     plt.show()
 
 
-# x-y coordinates of the patches in the reference points system
-xy_patches_far = [
-    [-9.0, -15.59],
-    [9.0, -15.59],
-    [-18.0, 0.0],
-    [0.0, 0.0],
-    [18.0, 0.0],
-    [-9.0, 15.59],
-    [9.0, 15.59]
-]
-
-xy_patches_med = [
-    [-13.5, -15.59],
-    [-4.5, -15.59],
-    [4.5, -15.59],
-    [13.5, -15.59],
-    [-18.0, -7.79],
-    [-9.0, -7.79],
-    [0.0, -7.79],
-    [9.0, -7.79],
-    [18.0, -7.79],
-    [-22.5, 0.0],
-    [-13.5, 0.0],
-    [-4.5, 0.0],
-    [4.5, 0.0],
-    [13.5, 0.0],
-    [22.5, 0.0],
-    [-18.0, 7.79],
-    [-9.0, 7.79],
-    [0.0, 7.79],
-    [9.0, 7.79],
-    [18.0, 7.79],
-    [-13.5, 15.59],
-    [-4.5, 15.59],
-    [4.5, 15.59],
-    [13.5, 15.59]
-]
-
-alpha = -15 / 180 * np.pi
-mediumSpaceListOrig = xy_patches_med.copy()
-for iPatch in range(len(xy_patches_med)):
-    xy = xy_patches_med[iPatch]
-    xy_patches_med[iPatch] = [xy[0] * np.cos(alpha) - xy[1] * np.sin(alpha),
-                              xy[0] * np.sin(alpha) + xy[1] * np.cos(alpha)]
-
-xy_patches_close = [
-    [-15.75, -11.69],
-    [-11.25, -11.69],
-    [-6.75, -11.69],
-    [-2.25, -11.69],
-    [2.25, -11.69],
-    [6.75, -11.69],
-    [11.25, -11.69],
-    [15.75, -11.69],
-    [-13.5, -7.79],
-    [-9.0, -7.79],
-    [-4.5, -7.79],
-    [0.0, -7.79],
-    [4.5, -7.79],
-    [9.0, -7.79],
-    [13.5, -7.79],
-    [-15.75, -3.90],
-    [-11.25, -3.90],
-    [-6.75, -3.90],
-    [-2.25, -3.90],
-    [2.25, -3.90],
-    [6.75, -3.90],
-    [11.25, -3.90],
-    [15.75, -3.90],
-    [-13.5, 0.0],
-    [-9.0, 0.0],
-    [-4.5, 0.0],
-    [4.5, 0.0],
-    [9.0, 0.0],
-    [13.5, 0.0],
-    [-15.75, 3.90],
-    [-11.25, 3.90],
-    [-6.75, 3.90],
-    [-2.25, 3.90],
-    [2.25, 3.90],
-    [6.75, 3.90],
-    [11.25, 3.90],
-    [15.75, 3.90],
-    [-13.5, 7.79],
-    [-9.0, 7.79],
-    [-4.5, 7.79],
-    [0.0, 7.79],
-    [4.5, 7.79],
-    [9.0, 7.79],
-    [13.5, 7.79],
-    [-15.75, 11.69],
-    [-11.25, 11.69],
-    [-6.75, 11.69],
-    [-2.25, 11.69],
-    [2.25, 11.69],
-    [6.75, 11.69],
-    [11.25, 11.69],
-    [15.75, 11.69]
-]
-
-xy_patches_cluster = [
-    [-16.14, -9.6],
-    [-12.1, -9.96],
-    [-18.94, -6.54],
-    [-14.48, -5.68],
-    [-20.09, -11.42],
-    [-2.71, 12.51],
-    [-4.6, 7.81],
-    [0.47, 15.37],
-    [0.65, 10.3],
-    [-6.82, 11.76],
-    [5.97, -16.54],
-    [7.33, -11.5],
-    [9.23, -18.94],
-    [2.66, -14.34],
-    [5.56, -20.51],
-    [17.69, 4.04],
-    [15.78, 8.05],
-    [20.36, 6.92],
-    [13.3, 3.47],
-    [16.1, 0.44],
-    [-19.21, 8.89],
-    [-22.63, 6.53],
-    [-15.15, 8.95],
-    [-18.35, 5.02]
-]
-
-mediumSpaceHighDensityMask = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1]
-
 # Centers of patches for each condition
 nb_to_xy = {}
 for condition in nb_to_distance.keys():
     if nb_to_distance[condition] == "close":
-        nb_to_xy[condition] = xy_patches_close
+        nb_to_xy[condition] = patch_coordinates.xy_patches_close
     if nb_to_distance[condition] == "med":
-        nb_to_xy[condition] = xy_patches_med
+        nb_to_xy[condition] = patch_coordinates.xy_patches_med
     if nb_to_distance[condition] == "far":
-        nb_to_xy[condition] = xy_patches_far
+        nb_to_xy[condition] = patch_coordinates.xy_patches_far
     if nb_to_distance[condition] == "cluster":
-        nb_to_xy[condition] = xy_patches_cluster
+        nb_to_xy[condition] = patch_coordinates.xy_patches_cluster
+
+
+# Centers of patches for each condition
+distance_to_xy = {"close": patch_coordinates.xy_patches_close, "med": patch_coordinates.xy_patches_med, "far": patch_coordinates.xy_patches_far, "cluster": patch_coordinates.xy_patches_cluster}
 
 
