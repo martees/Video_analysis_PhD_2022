@@ -312,7 +312,8 @@ print("Finished retrieving stuff")
 #plot_graphs("leaving_probability", ["0.2", "0.5", "close", "med", "far", "cluster", "close 0.2", "close 0.5", "med 0.2", "med 0.5", "far 0.2", "far 0.5", "cluster 0.2", "cluster 0.5"])
 
 
-plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM3/traj.csv"])
+plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221014T101512_SmallPatches_C1-CAM3/20221014T101512_SmallPatches_C1-CAM3_control_cluster/traj.csv"])
+plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221014T101512_SmallPatches_C1-CAM3/20221014T101512_SmallPatches_C1-CAM3_control_far/traj.csv"])
 
 # TODO function find frame that returns index of a frame in a traj with two options: either approach from below, or approach from top => for speed analysis
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
