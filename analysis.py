@@ -6,9 +6,9 @@ import time
 import copy
 
 # My code
-import parameters
+import parameters as param
 import find_data as fd
-import model
+import model as model
 import generate_results as gr
 
 
@@ -100,7 +100,7 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     if column_name == "nb_of_visited_patches":
                         list_of_values[i_plate] = len(np.unique(list_of_visited_patches))
                     else:
-                        list_total_patch = list(parameters.nb_to_nb_of_patches.values())  # total nb of patches for each cond
+                        list_total_patch = list(param.nb_to_nb_of_patches.values())  # total nb of patches for each cond
                         list_of_values[i_plate] = len(np.unique(list_of_visited_patches)) / list_total_patch[
                             i_condition]
                 elif column_name == "furthest_patch_distance":  # in this case we want the maximal value and not the average
@@ -229,7 +229,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
                         while current_visit[0] > current_transit[1] and i_transit + 1 < len(list_of_transits):
                             # Compute next transit
                             current_transit = list_of_transits[i_transit + 1]
-                            if parameters.verbose:
+                            if param.verbose:
                                 print("additional transit : [", current_transit[0], ", ", current_transit[1], "]")
                             # IF this next transit ends before the current visit starts
                             # THEN it means there's really a double transit (otherwise it means there's a hole in the tracking)
@@ -250,7 +250,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
                         i_visit += 1
                         double_visits += 1
                         current_visit = list_of_visits[i_visit]
-                        if parameters.verbose:
+                        if param.verbose:
                             print("additional visit : [", current_visit[0], ", ", current_visit[1], "]")
                         # We add this extra transit to the previous transit length
                         list_of_visit_lengths[-1] += current_visit[1] - current_visit[0] + 1
@@ -474,7 +474,7 @@ def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
         pool_names = ["food", "control"]
     else:
         pooled_conditions = [[condition_list[i]] for i in range(len(condition_list))]
-        pool_names = [[parameters.nb_to_name[condition_list[i]]] for i in range(len(condition_list))]
+        pool_names = [[param.nb_to_name[condition_list[i]]] for i in range(len(condition_list))]
 
     # We build a new list
     new_condition_list = []
@@ -524,7 +524,7 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, return_du
     """
     visits_per_patch = []
     # We refactor visits from chronological to by_patch format (one sub-list per patch)
-    sorted_visits = gr.sort_visits_by_patch(list_of_visits, parameters.nb_to_nb_of_patches[condition])
+    sorted_visits = gr.sort_visits_by_patch(list_of_visits, param.nb_to_nb_of_patches[condition])
     # We don't append because we want to pool all patches from all conditions in the same list (for now)
     visits_per_patch += sorted_visits
     # At the end of this, all visits to a same patch are in the same sublist of visits_per_patch
