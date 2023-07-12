@@ -3,11 +3,13 @@ import pandas as pd
 from itertools import groupby
 import copy
 import json
+import numpy as np
 
 # My code
-import parameters
 import analysis as ana
-from generate_controls import *
+import generate_controls
+import find_data as fd
+import parameters as param
 
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
@@ -18,7 +20,7 @@ def spline_value(angular_position, spline_breaks, spline_coefs):
     :spline_coefs: the coefficients for each subsection
     """
     i = 0
-    #angular_position = - angular_position
+    # angular_position = - angular_position
     while i < len(spline_breaks) - 1 and angular_position >= spline_breaks[i]:
         i += 1
     # invert coefficient order (matlab to numpy format)
@@ -76,7 +78,7 @@ def in_patch_list(traj):
         patch_where_it_is = -1  # initializing variable with index of patch where the worm currently is
         # We go through the whole trajectory
         for time in range(len(list_x)):
-            if parameters.verbose and time % 100 == 0:
+            if param.verbose and time % 100 == 0:
                 print(time, "/", len(list_x))
 
             # First we figure out where the worm is
@@ -155,7 +157,7 @@ def trajectory_speeds(traj):
         # Add 1 in the beginning because the first point isn't relevant (not zero to avoid division issues)
         current_list_of_time_steps = np.insert(current_list_of_time_steps, 0, 1)
 
-        if parameters.verbose:
+        if param.verbose:
             nb_double_frames = np.count_nonzero(current_list_of_time_steps - np.maximum(current_list_of_time_steps,
                                                                                         0.1 * np.ones(
                                                                                             len(current_list_of_time_steps))))
@@ -575,8 +577,7 @@ def fill_holes(data_per_id):
 
             # We look for the next visit start and end
             if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
-                while not list_of_visits[
-                    i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
+                while not list_of_visits[i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
                     i_next_track += 1
                     skipped_empty_tracks = True
                 if list_of_visits[i_next_track]:  # if a non-empty track was found in the end
@@ -621,8 +622,7 @@ def fill_holes(data_per_id):
                     if current_visit_end == data_per_id["last_frame"][i_track]:
                         # Case where the next track starts while the worm is still in, and we didn't have sneaky empty tracks in the middle
                         # We also check that there is indeed a next next visit otherwise this line makes no sense
-                        if data_per_id["first_tracked_position_patch"][
-                            i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
+                        if data_per_id["first_tracked_position_patch"][i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
                             # In this case we take the transit for the next visit now because the visit list loop will skip
                             # this value for the next loop
                             corrected_list_of_transits.append([next_visit_end, next_next_visit_start, -1])
@@ -640,8 +640,7 @@ def fill_holes(data_per_id):
             # If this is the end of this track, and not the last track, and the tracking stops during the visit
             if is_last_visit and not is_last_nonempty_track and current_visit_end == data_per_id["last_frame"][i_track]:
                 # Check if the hole in the tracking is valid (ends and then starts in the same patch)
-                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][
-                    i_track + 1]:
+                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][i_track + 1]:
                     # We increase i_track by 2, to not look at next visit as it has already been counted
                     init_visit_at_one = True
                     # Then the current visit in fact ends at the end of the first visit of the next track
@@ -896,26 +895,26 @@ def generate(starting_from=""):
         path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
 
     if starting_from == "trajectories":
-        generate_controls(path)
+        generate_controls.generate_controls(path)
         generate_trajectories(path)
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, parameters.threshold_list)
+        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "results_per_id":
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, parameters.threshold_list)
+        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "results_per_plate":
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, parameters.threshold_list)
+        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "clean":
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, parameters.threshold_list)
+        generate_aggregated_visits(path, param.threshold_list)
 
     return path
