@@ -11,7 +11,7 @@ class ReferencePoints:
 
     def __init__(self, xy_holes):
         square_quality_threshold = 0.05  # If reference square has quality above this threshold, the plate will be rejected
-        side_square_mm = 1  # If we have no information about the side, we take 1 mm (which is ridiculous; just to put something)
+        side_square_mm = 3.2  # Theoretical square size
         self.xy_holes = xy_holes  # coordinates of the four corners [[x0,y0],[x1,y1],[x2,y2],[x3,y3]]
         self.side_square_mm = side_square_mm  # Length of the side of the square of reference points, in mm
         self.square_quality = 0  # Quality of the square formed by the 4 reference points
@@ -22,15 +22,14 @@ class ReferencePoints:
         # Fill the transformation dictionary
         if len(self.xy_holes) == 4:
             self.square_quality = compute_square_quality(self.xy_holes)
-            x0, v1, v2 = references_to_base(
-                self.xy_holes)  # x0 is at the lower-left point, and v1, v2 have length equal to the square side
+            x0, v1, v2 = references_to_base(self.xy_holes)  # x0 is the lower-left point, and v1, v2 have length equal to the square side
             # Translate base from lower left corner to center of plate
             x0 = x0 + v1 / 2 + v2 / 2
+            # Scaling factor (determined by v1) (compute before normalizing vectors)
+            mm_per_pixel = self.side_square_mm / np.linalg.norm(v1)
             # Renormalize the unit vectors so they have length 1 mm
             v1 = v1 / np.linalg.norm(v1)
             v2 = v2 / np.linalg.norm(v2)
-            # Scaling factor (determined by v1)
-            mm_per_pixel = self.side_square_mm / np.linalg.norm(v1)
             self.transformation = {"x0": x0, "v1": v1, "v2": v2, "mm_per_pixel": mm_per_pixel}
 
             if self.square_quality > self.pars["square_quality_threshold"]:
@@ -40,27 +39,28 @@ class ReferencePoints:
 
     def pixel_to_mm(self, xy):
         """
-        Transforms a set of points, from the image reference system (in pixels) into the aligned ref. system (in mm).
+        Transforms a set of points [[x y], [x y], [x y]], from the image reference system (in pixels) into the aligned ref. system (in mm).
         """
-        xy = np.array(xy) - self.transformation["x0"]  # subtract the lower left corner coordinates
-        xy = np.column_stack(
-            (np.sum(xy * self.transformation["v1"], axis=1), np.sum(xy * self.transformation["v2"], axis=1)))
+        # Subtract the center of plate coordinates
+        xy = np.array(xy) - self.transformation["x0"]  # double brackets are because for 1D array np.transpose will return same array
+        vector1 = self.transformation["v1"]
+        vector2 = self.transformation["v2"]
+        change_of_basis_matrix = np.linalg.inv(np.array([[vector1[0], vector2[0]], [vector1[1], vector2[1]]]))
+        xy = np.transpose(np.dot(change_of_basis_matrix, np.transpose(xy)))
         xy = xy * self.transformation["mm_per_pixel"]
         return xy
 
     def mm_to_pixel(self, xy):
         """
-         Transforms a set of points, from the aligned ref. system (in mm) into the image reference system (in pixels).
+         Transforms a set of points [[x x x], [y y y]], from the aligned ref. system (in mm) into the image reference system (in pixels).
         """
         xy = xy / self.transformation["mm_per_pixel"]
-        xy = np.column_stack((xy[:, 0] * self.transformation["v1"] + xy[:, 1] * self.transformation["v2"]))
+        vector1 = self.transformation["v1"]
+        vector2 = self.transformation["v2"]
+        change_of_basis_matrix = np.array([[vector1[0], vector2[0]], [vector1[1], vector2[1]]])
+        xy = np.transpose(np.dot(change_of_basis_matrix, np.transpose(xy)))
         xy = xy + self.transformation["x0"]
         return xy
-
-    def switch_reference(self, target_system, xy):
-        """
-        Transform a set of points from one system to another target system (which should be a ReferencePoints instance)
-        """
 
     def add_error(self, codeError, strError, show=False):
         """
@@ -92,14 +92,9 @@ def references_to_base(xy_holes, show=False):
     I think this function gives you the two perpendicular vectors (v1 and v2)
     that best approximate the 4 reference points.
     """
-    # Reorder points
-    orderY = np.argsort([xy_holes[i][1] for i in range(len(xy_holes))])
-    orderFinal = np.empty(4, dtype=int)
-    for iRow in range(2):
-        indPointRow = orderY[iRow * 2: (iRow + 1) * 2]
-        orderX = np.argsort([xy_holes[i][0] for i in range(len(indPointRow))])
-        orderFinal[iRow * 2: (iRow + 1) * 2] = indPointRow[orderX]
-    xy_holes = [xy_holes[i] for i in orderFinal]
+    # Reorder points according to y then x, to get lower left corner then lower right then upper left then upper right
+    xy_holes = sorted(xy_holes, key=lambda x: x[1])
+    xy_holes = sorted(xy_holes[0:2], key=lambda x: x[0]) + sorted(xy_holes[2:4], key=lambda x: x[0])
 
     # Initial estimate for base, using only the two bottom points
     x0 = xy_holes[0]
@@ -140,7 +135,7 @@ def compute_square_quality(reference_points):
         distances = []
         for j_point in range(3):
             other_point = other_points[j_point]
-            distances.append((other_point[1] - current_point[1]) ** 2 + (other_point[0] - current_point[0]) ** 2)
+            distances.append(np.sqrt((other_point[1] - current_point[1]) ** 2 + (other_point[0] - current_point[0]) ** 2))
         other_points.remove(other_points[np.argmax(
             distances)])  # remove point with max distance, because it is diagonally facing our point
         # Compute the dot product of the two vectors formed by our current point and the two others
@@ -148,8 +143,8 @@ def compute_square_quality(reference_points):
         vector_1 = np.array([other_points[0][0] - current_point[0], other_points[0][1] - current_point[1]])
         vector_1 = vector_1 / np.linalg.norm(vector_1)
         vector_2 = np.array([other_points[1][0] - current_point[0], other_points[1][1] - current_point[1]])
-        vector_2 = vector_2 / np.linalg.norm(vector_1)
-        square_quality += np.dot(vector_1, vector_2)
+        vector_2 = vector_2 / np.linalg.norm(vector_2)
+        square_quality += abs(np.dot(vector_1, vector_2))
 
     return square_quality
 
@@ -158,10 +153,16 @@ def test():
     ref_points = [[0, 0], [7, 1], [0, 7], [7, 8]]
     references_to_base(ref_points, show=True)
     ref_object = ReferencePoints(ref_points)
+    new_ref_object = ReferencePoints([[0, 0], [1, 0], [0, 1], [1, 1]])
     points = [[3, 4], [3, 6]]
-    converted_points = ref_object.pixel_to_mm(points)
-    plt.scatter([3, 3], [4, 6], color="green")
-    plt.scatter([converted_points[0][0], converted_points[1][0]], [converted_points[0][1], converted_points[1][1]], color="black")
+    points_in_mm = ref_object.mm_to_pixel(points)
+    new_ref_points = new_ref_object.pixel_to_mm(points_in_mm)
+    plt.scatter([3, 3], [4, 6], color="green", label="old points")
+    plt.scatter([points_in_mm[0][0], points_in_mm[1][0]], [points_in_mm[0][1], points_in_mm[1][1]],
+                color="black", label="points_mm")
+    plt.scatter([new_ref_points[0][0], new_ref_points[1][0]], [new_ref_points[0][1], new_ref_points[1][1]],
+                color="grey", label="new_points")
     plt.show()
 
-test()
+
+#test()

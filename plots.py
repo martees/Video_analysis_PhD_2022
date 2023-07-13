@@ -8,7 +8,8 @@ import seaborn as sns
 import analysis as ana
 import generate_results as gr
 import find_data as fd
-import parameters
+import parameters as param
+import ReferencePoints
 
 # Sanity check functions
 
@@ -214,10 +215,6 @@ def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, s
         previous_folder = current_folder
 
     plt.show()
-
-
-def interactive_worm_silhouette(folder, frame):
-    video.show_frames(folder, frame)
 
 
 # Analysis functions
@@ -706,7 +703,7 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, colo
                 leaving_delays, bin_size,
                 bootstrap=False)
             binned_leaving_probability, errorbars = ana.leaving_probability(full_delay_list, errorbars=False)
-            plt.plot(binned_times_in_patch, binned_leaving_probability, color=colors[i_condition], label=parameters.nb_to_name[current_condition])
+            plt.plot(binned_times_in_patch, binned_leaving_probability, color=colors[i_condition], label=param.nb_to_name[current_condition])
 
         plt.legend()
 

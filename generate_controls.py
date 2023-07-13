@@ -3,12 +3,13 @@ import shutil
 import pandas as pd
 import random
 import ReferencePoints
+import numpy as np
 import scipy
 
 import parameters
 # My code
-from parameters import *
 import find_data as fd
+import plots
 
 # Originally, our controls are saved in some folder. In order to have one control per inter-patch distance, we create
 #     subfolders inside of those original folders, containing the name of the corresponding distance. Eg : inside the folder
@@ -30,10 +31,10 @@ def rename_original_control_traj(path):
     folder_list = fd.return_folders_condition_list(folder_list, 11)
     # Rename them allllll
     for folder in folder_list:
-        os.rename(folder, folder[:-"traj.csv"]+"traj_control.csv")
+        os.rename(folder, folder[:-len("traj.csv")]+"traj_parent.csv")
 
 
-def generate_controls(path):
+def generate_controls(path, show=True):
     """
     Takes a path prefix, finds the files of all control conditions inside.
     Will create subfolders (named parentfolder_control_close, parentfolder_control_med, etc.) each containing:
@@ -41,10 +42,11 @@ def generate_controls(path):
         - a foodpatches.mat folder containing a new condition number
         - a foodpatches_new
     """
+    print("Starting to generate controls...")
     # Rename any (new) control traj.csv into traj_control.csv
     rename_original_control_traj(path)
     # Full list of paths for the traj_control.csv files that can be found in the arborescence starting in path
-    folder_list = fd.path_finding_traj(path, target_name="traj_control.csv", include_fake_control_folders=False)
+    folder_list = fd.path_finding_traj(path, target_name="traj_parent.csv", include_fake_control_folders=False)
     # For all control folders
     for i_folder in range(len(folder_list)):
         if i_folder % 1 == 0:
@@ -60,7 +62,7 @@ def generate_controls(path):
                 os.mkdir(current_control_folder)
             # Make the metadata.csv files
             current_distance_condition = current_control_folder.split("_")[-1]  # eg "control_med" => "med" will be the last element of "_" split
-            metadata = return_control_metadata(path, folder, current_distance_condition)
+            metadata, source_folder = return_control_metadata(path, folder, current_distance_condition)
             metadata.to_csv(current_control_folder+"/metadata.csv")
             # Check if there is a traj.csv file in the current_control_folder, otherwise copy it from parent
             # Do this AFTER creating metadata otherwise find_data functions can find a traj.csv file with no metadata in the folder (and get pissed)
@@ -71,6 +73,10 @@ def generate_controls(path):
                 # folder_without_traj = folder[:-len("traj.csv")]
                 # shutil.copy(folder_without_traj+"composite.tif", current_control_folder)
                 # shutil.copy(folder_without_traj+"background.tif", current_control_folder)
+
+            if show:
+                #plots.patches([source_folder])
+                plots.patches([current_control_folder+"/traj.csv"])
 
 
 def return_control_metadata(path, parent_folder, distance):
@@ -90,22 +96,29 @@ def return_control_metadata(path, parent_folder, distance):
     all_folders = fd.path_finding_traj(path, include_fake_control_folders=False)
     # Find the folders of the experiments with the same distance between the patches
     same_distance_folders = fd.return_folders_condition_list(all_folders, parameters.name_to_nb_list[distance])
-    # Pick a random one
     the_chosen_one = random.choice(same_distance_folders)
     # Load patch information for source folder
     source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
-    #TODO If reference points are not good, look for another one?
-    parent_folder_metadata = fd.folder_to_metadata(parent_folder)
-
-    # Load reference points for re-alignment
     source_xy_holes = source_folder_metadata["holes"][0]
+    source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
+    # As long as it's not a valid set of points, keep looking
+    while len(source_reference_points.errors["list_of_errors"]) > 0:
+        # Pick a random one
+        the_chosen_one = random.choice(same_distance_folders)
+        # Load patch information for source folder
+        source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
+        source_xy_holes = source_folder_metadata["holes"][0]
+        source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
+
+    # Load holes info from parent folder of the current sub-folder
+    parent_folder_metadata = fd.folder_to_metadata(parent_folder)
+    # Load patch_centers from source folder
+    patch_centers = source_folder_metadata["patch_centers"]
     # We load the holes of the parent_folder (the control_folder traj.csv is a copy from the parent_folder's, so same ref)
     target_xy_holes = parent_folder_metadata["holes"][0]
     # Convert it to a ReferencePoints object and use one of the class methods to convert patch centers to this reference
-    source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
     target_reference_points = ReferencePoints.ReferencePoints(target_xy_holes)
-    patch_centers = source_reference_points.pixel_to_mm(parameters.distance_to_xy[distance])
-
+    patch_centers = target_reference_points.mm_to_pixel([patch_centers[i].tolist() for i in range(len(patch_centers))])
 
     # Store it all in a metadata dataframe
     control_metadata = pd.DataFrame()
@@ -123,4 +136,4 @@ def return_control_metadata(path, parent_folder, distance):
     # metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
     # metadata["condition"]
 
-    return control_metadata
+    return control_metadata, the_chosen_one

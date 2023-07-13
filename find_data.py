@@ -27,7 +27,7 @@ def path_finding_traj(path_prefix, target_name="traj.csv", include_fake_control_
     listofpaths = glob.glob(path_prefix + "/**/"+target_name, recursive=True)
 
     if not include_fake_control_folders:
-        listofpaths = [path for path in listofpaths if "control" not in path]
+        listofpaths = [path for path in listofpaths if "control_" not in path]
 
     if not is_linux():  # On windows the glob output uses \\ as separators so remove that
         listofpaths = [name.replace("\\",'/') for name in listofpaths]
@@ -99,6 +99,9 @@ def folder_to_metadata(path):
 
         # Finding the path of the other files
         lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
+        if "traj_parent.csv" in path:
+            lentoremove = len("traj_parent.csv")
+
         path_for_holes = path[:-lentoremove] + "holes.mat"
         path_for_patches = path[:-lentoremove] + "foodpatches.mat"
         path_for_patch_splines = path[:-lentoremove] + "foodpatches_new.mat"
