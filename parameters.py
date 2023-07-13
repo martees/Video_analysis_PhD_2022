@@ -1,5 +1,8 @@
+import copy
+
 import matplotlib.pyplot as plt
 import patch_coordinates
+
 # General parameters
 
 # NOT IMPLEMENTED YET
@@ -17,7 +20,8 @@ time_threshold = 20
 
 # Condition names
 nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2", 3: "cluster 0.2", 4: "close 0.5", 5: "med 0.5", 6: "far 0.5",
-              7: "cluster 0.5", 8: "med 1.25", 9: "med 0.2+0.5", 10: "med 0.5+1.25", 12: "close 0", 13: "med 0", 14: "far 0", 15: "cluster 0"}
+              7: "cluster 0.5", 8: "med 1.25", 9: "med 0.2+0.5", 10: "med 0.5+1.25", 12: "close 0", 13: "med 0",
+              14: "far 0", 15: "cluster 0"}
 name_to_nb = {v: k for k, v in nb_to_name.items()}
 
 # Distance to number of patch dictionary (lower we build a condition number to number of patches dictionary from that)
@@ -79,7 +83,8 @@ name_to_nb_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [],
                    "0.2+0.5": [], "0.5": [], "1.25": [], "0.2": [], "0": []}
 for condition in nb_to_name.keys():
     name_to_nb_list["all"].append(condition)  # the all should have everyone
-    name_to_nb_list[nb_to_name[condition]] = [condition]  # "condition" to [condition_nb] conversion for single conditions
+    name_to_nb_list[nb_to_name[condition]] = [
+        condition]  # "condition" to [condition_nb] conversion for single conditions
     # For every pool defined in name_to_nb_list initialization, add all conditions that have this name in their name
     # Note: first it finds distance, then will stop at first density found (which should be the right one)
     # (this is to avoid all conditions being put in 0)
@@ -92,6 +97,15 @@ for condition in nb_to_name.keys():
             else:
                 break  # order in name_to_nb list matters
 
+# Same but to list of names (eg "close" => ["close 0", "close 0.2", "close 0.5"]
+name_to_name_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [], "0.5+1.25": [],
+                     "0.2+0.5": [], "0.5": [], "1.25": [], "0.2": [], "0": []}
+for name in name_to_name_list.keys():
+    condition_list = copy.deepcopy(name_to_nb_list[name])
+    for i_cond in range(len(condition_list)):
+        condition_list[i_cond] = nb_to_name[condition_list[i_cond]]  # convert each nb of nb_list to a name
+    name_to_name_list[name] = condition_list
+
 # close: purple
 # med: blue
 # far: green
@@ -99,8 +113,10 @@ for condition in nb_to_name.keys():
 # clusters: teal
 # 0.2, 0.5, 1.25: shades of brown
 
-name_to_color = {"close": "purple", "med": "blue", "far": "cornflowerblue", "superfar": "teal", "cluster": "yellowgreen",
-                 "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate", "0.5+1.25": "orange",
+name_to_color = {"close": "purple", "med": "blue", "far": "cornflowerblue", "superfar": "teal",
+                 "cluster": "yellowgreen",
+                 "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate",
+                 "0.5+1.25": "orange",
                  "control": "gray", "all": "pink"}
 # Add colors for single conditions, distance override
 for condition in nb_to_name.keys():
@@ -129,8 +145,6 @@ for condition in nb_to_distance.keys():
     if nb_to_distance[condition] == "cluster":
         nb_to_xy[condition] = patch_coordinates.xy_patches_cluster
 
-
 # Centers of patches for each condition
-distance_to_xy = {"close": patch_coordinates.xy_patches_close, "med": patch_coordinates.xy_patches_med, "far": patch_coordinates.xy_patches_far, "cluster": patch_coordinates.xy_patches_cluster}
-
-
+distance_to_xy = {"close": patch_coordinates.xy_patches_close, "med": patch_coordinates.xy_patches_med,
+                  "far": patch_coordinates.xy_patches_far, "cluster": patch_coordinates.xy_patches_cluster}

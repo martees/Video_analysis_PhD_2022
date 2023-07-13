@@ -107,7 +107,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
 
 
 def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
-                            plot_continuity=False, plot_speed=False, plot_time=False, plate_list=[]):
+                            plot_continuity=False, plot_speed=False, plot_time=False, plate_list=[], is_plot=True):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -214,12 +214,13 @@ def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, s
 
         previous_folder = current_folder
 
-    plt.show()
+    if is_plot:
+        plt.show()
 
 
 # Analysis functions
 
-def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_patch=False, out_patch=False):
+def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_patch=False, out_patch=False, is_plot=True):
     # TODO take care of holes in traj.csv
     """
     Will take the trajectory dataframe and exit the following plot:
@@ -291,13 +292,13 @@ def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_pat
         # Plot for this window size
         plt.scatter([window_size + current_speed_list[i] for i in range(len(current_speed_list))], average_food_list,
                     c=current_speed_list, cmap="viridis", norm=normalize)
-    plt.colorbar()
-    plt.show()
-    return 0
+    if is_plot:
+        plt.colorbar()
+        plt.show()
 
 
 def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, step_size, nb_resamples, current_speed,
-                                      speed_history, past_speed):
+                                      speed_history, past_speed, is_plot=True):
     # TODO take care of holes in traj.csv
     """
     === Will take the trajectory dataframe and:
@@ -332,16 +333,17 @@ def plot_speed_time_window_continuous(traj, time_window_min, time_window_max, st
                 speed = np.mean(traj_window["distances"][0:window_size])
             # Plot for this window size
             plt.scatter(window_size, average_food, c=speed, cmap="viridis", norm=normalize)
-    plt.colorbar()
-    plt.ylabel("Average feeding rate")
-    plt.xlabel("Time window to compute past average feeding rate")
-    plt.title(str(condition["condition"][0]) + ", " + str(random_plate)[-48:-9])
-    plt.show()
-    return 0
+
+    if is_plot:
+        plt.colorbar()
+        plt.ylabel("Average feeding rate")
+        plt.xlabel("Time window to compute past average feeding rate")
+        plt.title(str(condition["condition"][0]) + ", " + str(random_plate)[-48:-9])
+        plt.show()
 
 
 def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time_windows, list_of_food_bins,
-                                              nb_resamples, in_patch=False, out_patch=False):
+                                              nb_resamples, in_patch=False, out_patch=False, is_plot=True):
     """
     Function that takes a table of trajectories, a list of time windows and food bins,
     and will plot the CURRENT SPEED for each time window and for each average food during that time window
@@ -456,16 +458,16 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
     ax.set_xticks(list_of_x_positions)
     ax.set_xticklabels(
         [str(np.round(list_of_food_bins[i], 2)) for i in range(len(list_of_food_bins))] * len(list_of_time_windows))
-    plt.xlabel("Average amount of food during time window")
-    plt.ylabel("Average speed")
-    plt.legend(title="Time window size")
 
-    plt.show()
-    return 0
+    if is_plot:
+        plt.xlabel("Average amount of food during time window")
+        plt.ylabel("Average speed")
+        plt.legend(title="Time window size")
+        plt.show()
 
 
 def plot_selected_data(results, plot_title, condition_list, condition_names, column_name, divided_by="",
-                       mycolor="blue", plot_model=False):
+                       mycolor="blue", plot_model=False, is_plot=True):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -505,10 +507,11 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     if plot_model:
         ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
 
-    plt.show()
+    if is_plot:
+        plt.show()
 
 
-def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True):
+def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True, is_plot=True):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
     full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable)
 
@@ -553,11 +556,12 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
         ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)),
                     [max_x // 2, max_y * 3 / 4])
 
-    plt.show()
+    if is_plot:
+        plt.show()
 
 
 def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None,
-                               plot_cumulative=True, threshold_list=None):
+                               plot_cumulative=True, threshold_list=None, is_plot=True):
     """
     Will plot a distribution of each variable from variable_list in results, for conditions in condition_list.
         effect_of: if set to "nothing", will plot one curve for each condition in condition_list.
@@ -637,11 +641,12 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step",
                         color=colors[i_cond])
 
-    plt.legend()
-    plt.show()
+    if is_plot:
+        plt.legend()
+        plt.show()
 
 
-def plot_leaving_delays(results, plot_title, condition_list, bin_size, color):
+def plot_leaving_delays(results, plot_title, condition_list, bin_size, color, is_plot=True):
     leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, condition_list)
     leaving_delays_in_one_list = [leaving_delays[i] for i in range(len(leaving_delays))]
     binned_times_in_patch, avg_leaving_delays, y_err_list, full_value_list = ana.xy_to_bins(corresponding_time_in_patch,
@@ -669,15 +674,14 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color):
     for i_bin in range(len(binned_times_in_patch)):
         plt.annotate(str(len(full_value_list[i_bin])), [binned_times_in_patch[i_bin] + 100, np.max(full_value_list[i_bin]) + 100])
 
-    plt.show()
+    if is_plot:
+        plt.show()
 
 
-def plot_leaving_probability(results, plot_title, condition_list, bin_size, color, split_conditions=False):
+def plot_leaving_probability(results, plot_title, condition_list, bin_size, color, split_conditions=False, is_plot=True):
     plt.title(plot_title)
     plt.ylabel("Probability of exiting in the next " + str(param.time_threshold) + " time steps")
     plt.xlabel("Time already spent in patch")
-
-    colors = plt.cm.jet(np.linspace(0, 1, len(condition_list)))
 
     if not split_conditions:
         leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, condition_list)
@@ -694,20 +698,15 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, colo
             plt.annotate(str(len(full_delay_list[i_bin])), [binned_times_in_patch[i_bin], binned_leaving_probability[i_bin]+0.005])
 
     if split_conditions:
-
         for i_condition in range(len(condition_list)):
             current_condition = condition_list[i_condition]
-            leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, [current_condition])
-            binned_times_in_patch, avg_leaving_delays, y_err_list, full_delay_list = ana.xy_to_bins(
-                corresponding_time_in_patch,
-                leaving_delays, bin_size,
-                bootstrap=False)
-            binned_leaving_probability, errorbars = ana.leaving_probability(full_delay_list, errorbars=False)
-            plt.plot(binned_times_in_patch, binned_leaving_probability, color=colors[i_condition], label=param.nb_to_name[current_condition])
+            binned_times_in_patch, binned_leaving_probability, errorbars = ana.leaving_probability(results, [current_condition], bin_size, errorbars=False)
+            plt.plot(binned_times_in_patch, binned_leaving_probability, errorbars, color=param.name_to_color[param.nb_to_name[i_condition]], label=param.nb_to_name[current_condition])
 
         plt.legend()
 
-    plt.show()
+    if is_plot:
+        plt.show()
 
 
 def plot_test(results):

@@ -410,7 +410,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
     return list_of_values
 
 
-def transit_properties(results, condition_list, split_conditions):
+def transit_properties(results, condition_list, split_conditions, is_print=False):
     """
     Take a condition or a list of conditions, and look at the transits to compute, for each condition:
         - the probability of coming back to a patch when the worm exits it (same patch transits / total transits)
@@ -452,7 +452,20 @@ def transit_properties(results, condition_list, split_conditions):
         average_same_patch = np.mean(same_transits)
         average_cross_patch = np.mean(cross_transits)
 
-    return revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch
+    if is_print:
+        for i_cond in range(len(condition_list)):
+            print("Transit properties for condition ", param.nb_to_name[i_cond])
+            print("Revisit probability: ", revisit_probability[i_cond])
+            print("Cross-patch probability: ", cross_transit_probability[i_cond])
+            print("Exponential leaving probability: ", exponential_leaving_probability[i_cond])
+            print("Minimal duration of visits: ", min_visit[i_cond])
+            print("Average duration of visits: ", average_visit[i_cond])
+            print("Average duration of same patch transits: ", average_same_patch[i_cond])
+            print("Average duration of cross patch transits: ", average_cross_patch[i_cond])
+            print("-----")
+
+    else:
+        return revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch
 
 
 def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
@@ -651,7 +664,7 @@ def delays_before_leaving(result_table, condition_list):
     corresponding_time_in_patch_list = []
 
     for plate in full_folder_list:
-        current_data = result_table[result_table["folder"] == plate].reset_index()
+        current_data = result_table[result_table["folder"] == plate]
         list_of_visits = fd.load_list(current_data, "aggregated_visits_thresh_100000")
         for i_visit in range(len(list_of_visits)):
             current_patch_info = list_of_visits[i_visit]
@@ -699,33 +712,67 @@ def compute_leaving_probability(delay_list):
     return len([delay_list[i] for i in range(len(delay_list)) if delay_list[i] <= param.time_threshold]) / len(delay_list)
 
 
-def leaving_probability(list_of_delays, errorbars=True):
+def leaving_probability(results, condition_list, bin_size, errorbars=True):
     """
-    Takes a list of delays as outputted by delays_before_leaving, or by running xy_to_bins on the output of
+    Takes result table and a condition.
+    Will compute a list of delays as outputted by delays_before_leaving, or by running xy_to_bins on the output of
     delay_before_leaving (so either a list of delays, or a list of lists of delays).
     Outputs, for each bin, the leaving probability (as defined in compute_leaving_probability), and bootstraps around it.
     """
+    folder_list = np.unique(results["folder"])
+    folder_list = fd.return_folders_condition_list(folder_list, condition_list)
+
+    # Initialize those in case there's no folder in folder_list
+    binned_times_in_patch = 0
+    full_list_of_delays = 0
+
+    # List where we'll store binned delays_before_leaving, one sublist per worm
+    binned_delays_each_worm = np.zeros(len(folder_list))
+    # Loop to extract and bin delays
+    for i_folder in range(len(folder_list)):
+        folder = folder_list[i_folder]
+        current_plate = results[results["folder"] == folder].reset_index()
+        leaving_delays, corresponding_time_in_patch = delays_before_leaving(current_plate, condition_list)
+        binned_times_in_patch, avg_leaving_delays, y_err_list, full_list_of_delays = xy_to_bins(
+            corresponding_time_in_patch,
+            leaving_delays, bin_size,
+            bootstrap=False)
+        binned_delays_each_worm[i_folder] = full_list_of_delays
+
+    # Reformat binned_delays_each_worm to have one sublist per bin, and in each bin sublist one sublist per worm
+    wormed_delays_each_bin = np.zeros(len(binned_times_in_patch))
+    for i_folder in range(len(folder_list)):
+        current_delays = binned_delays_each_worm[i_folder]
+        for i_bin in range(len(current_delays)):
+            wormed_delays_each_bin[i_bin] += binned_delays_each_worm[i_folder][i_bin]
+    # Compute the list of each worm's average leaving probabilities, in each bin
+    wormed_avg_delay_each_bin = np.zeros(len(binned_times_in_patch))
+    for i_bin in range(len(binned_times_in_patch)):
+        current_delays = wormed_delays_each_bin[i_bin]
+        wormed_avg_delay_each_bin[i_bin] = [np.mean(current_delays[i_worm]) for i_worm in range(len(current_delays))]
+
     # If list of delays has no bins
-    if list_of_delays[0] is int:
-        list_of_delays = [list_of_delays]  # Create a fake unique bin
+    if full_list_of_delays[0] is int:
+        full_list_of_delays = [full_list_of_delays]  # Create a fake unique bin
 
     # Initialize lists
-    probability_list = np.zeros(len(list_of_delays))
-    errors_inf = np.zeros(len(list_of_delays))
-    errors_sup = np.zeros(len(list_of_delays))
+    probability_list = np.zeros(len(full_list_of_delays))
+    errors_inf = np.zeros(len(full_list_of_delays))
+    errors_sup = np.zeros(len(full_list_of_delays))
 
     # Fill those lists
-    for i_bin in range(len(list_of_delays)):
+    for i_bin in range(len(full_list_of_delays)):
         if i_bin % 2 == 0:
-            print("Computing stats on leaving probabilities... ", int(100 * i_bin / len(list_of_delays)), "% done")
-        current_delays = list_of_delays[i_bin]
+            print("Computing stats on leaving probabilities... ", int(100 * i_bin / len(full_list_of_delays)), "% done")
+        current_delays = full_list_of_delays[i_bin]
         probability_list[i_bin] = compute_leaving_probability(current_delays)
         if errorbars:
-            bootstrap_ci = bottestrop_ci(current_delays, 50, operation="leaving_probability")
+            # For the bootstraps we use the
+            bootstrap_ci = bottestrop_ci(wormed_avg_delay_each_bin[i_bin], 50, operation="mean")
             errors_inf[i_bin] = probability_list[i_bin] - bootstrap_ci[0]
             errors_sup[i_bin] = bootstrap_ci[1] - probability_list[i_bin]
 
-    return probability_list, [errors_inf, errors_sup]
+    return binned_times_in_patch, probability_list, [errors_inf, errors_sup]
 
 
 def xy_to_bins(x, y, bin_size, bootstrap=True):
