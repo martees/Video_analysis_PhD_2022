@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import glob
 import json
+import re
 
 # My code
 from parameters import *
@@ -18,13 +19,13 @@ def is_linux():  # returns true if you're using linux, otherwise false
          return False
 
 
-def path_finding_traj(path_prefix, target_name="traj.csv", include_fake_control_folders=False):
+def path_finding_traj(path_prefix, target_name="traj.csv", include_fake_control_folders=True):
     """
     Function that takes a folder prefix and returns a list of paths of the "target_name" files present in that folder.
     :include_fake_control_folders: if TRUE, the function will return all the paths. If FALSE, function will exclude
                                    folders that have the word "control" in it.
     """
-    listofpaths = glob.glob(path_prefix + "/**/"+target_name, recursive=True)
+    listofpaths = glob.glob(path_prefix + "/**/" + target_name, recursive=True)
 
     if not include_fake_control_folders:
         listofpaths = [path for path in listofpaths if "control_" not in path]
@@ -85,8 +86,19 @@ def folder_to_metadata(path):
     # If the path contains the word control, which means it's a folder created during analysis to contain fake patches
     if "control" in path:
         metadata = pd.read_csv(path[:-len("traj.csv")]+"metadata.csv")
-        metadata["patch_centers"] = [json.loads(metadata["patch_centers"][i]) for i in range(len(metadata["patch_centers"]))]
-        metadata["spline_guides"] = [json.loads(metadata["spline_guides"][i]) for i in range(len(metadata["patch_centers"]))]
+        # In metadata each patch_centers & spline guides element is like "[560 890]", so to give it to json.loads we first change it into "[560,890]"
+        # First convert all multiple spaces into single spaces
+        patch_centers = [re.sub(r"\s+", " ", metadata["patch_centers"][i]) for i in range(len(metadata["patch_centers"]))]
+        spline_guides = [re.sub(r"\s+", " ", metadata["spline_guides"][i]) for i in range(len(metadata["spline_guides"]))]
+        # Then remove spaces that are near brackets
+        patch_centers = [patch_centers[i].replace("[ ", "[").replace(" ]", "]") for i in range(len(patch_centers))]
+        spline_guides = [spline_guides[i].replace("[ ", "[").replace(" ]", "]") for i in range(len(spline_guides))]
+        # In case the strings already have commas, replace them with single space
+        patch_centers = [patch_centers[i].replace(", ", " ").replace(",", " ") for i in range(len(patch_centers))]
+        spline_guides = [spline_guides[i].replace(", ", " ").replace(",", " ") for i in range(len(spline_guides))]
+        # Finally, replace spaces by commas and use json.loads
+        metadata["patch_centers"] = [json.loads(patch_centers[i].replace(" ", ",")) for i in range(len(patch_centers))]
+        metadata["spline_guides"] = [json.loads(spline_guides[i].replace(" ", ",").replace("\n", "")) for i in range(len(spline_guides))]
         metadata["spline_breaks"] = [json.loads(metadata["spline_breaks"][i]) for i in range(len(metadata["patch_centers"]))]
         metadata["spline_coefs"] = [json.loads(metadata["spline_coefs"][i]) for i in range(len(metadata["patch_centers"]))]
         metadata["holes"] = [json.loads(metadata["holes"][i]) for i in range(len(metadata["patch_centers"]))]
@@ -177,7 +189,11 @@ def load_list(results, column_name):
     For lists that are stored as strings in the results.csv table
     """
     if column_name in results.columns:
-        return list(json.loads(results[column_name][0]))
+        try:
+            return list(json.loads(results[column_name][0]))
+        except KeyError:
+            results = results.reset_index()
+            return list(json.loads(results[column_name][0]))
     else:
         print("Column ", column_name, " does not exist in results.")
 
