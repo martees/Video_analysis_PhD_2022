@@ -1,6 +1,8 @@
 import copy
-
 import matplotlib.pyplot as plt
+import matplotlib.colors as mc
+import colorsys
+
 import patch_coordinates
 
 # General parameters
@@ -16,7 +18,7 @@ threshold_list = [0, 10, 100, 100000]
 
 # Time threshold for leaving probability (to compute P_leave of a worm, look at probability that it leaves in the next
 #   N time steps, with N being this threshold)
-time_threshold = 20
+time_threshold = 1
 
 # Condition names
 nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2", 3: "cluster 0.2", 4: "close 0.5", 5: "med 0.5", 6: "far 0.5",
@@ -106,32 +108,6 @@ for name in name_to_name_list.keys():
         condition_list[i_cond] = nb_to_name[condition_list[i_cond]]  # convert each nb of nb_list to a name
     name_to_name_list[name] = condition_list
 
-# close: purple
-# med: blue
-# far: green
-# superfar: yellowish green
-# clusters: teal
-# 0.2, 0.5, 1.25: shades of brown
-
-name_to_color = {"close": "purple", "med": "blue", "far": "cornflowerblue", "superfar": "teal",
-                 "cluster": "yellowgreen",
-                 "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate",
-                 "0.5+1.25": "orange",
-                 "control": "gray", "all": "pink"}
-# Add colors for single conditions, distance override
-for condition in nb_to_name.keys():
-    name_to_color[nb_to_name[condition]] = name_to_color[nb_to_distance[condition]]
-
-
-def test_colors():
-    x = 0
-    y = 1
-    for pool in name_to_color.keys():
-        plt.scatter(x, y, color=name_to_color[pool], label=pool)
-        x += 1
-    plt.legend()
-    plt.show()
-
 
 # Centers of patches for each condition
 nb_to_xy = {}
@@ -148,3 +124,56 @@ for condition in nb_to_distance.keys():
 # Centers of patches for each condition
 distance_to_xy = {"close": patch_coordinates.xy_patches_close, "med": patch_coordinates.xy_patches_med,
                   "far": patch_coordinates.xy_patches_far, "cluster": patch_coordinates.xy_patches_cluster}
+
+
+## Colors
+
+# close: purple
+# med: blue
+# far: green
+# superfar: yellowish green
+# clusters: teal
+# 0.2, 0.5, 1.25: shades of brown
+
+def lighten_color(color, amount=0.5):
+    """
+    Lightens the given color by multiplying (1-luminosity) by the given amount.
+    Input can be matplotlib color string, hex string, or RGB tuple.
+
+    Examples:
+    >> lighten_color('g', 0.3)
+    >> lighten_color('#F034A3', 0.6)
+    >> lighten_color((.3,.55,.1), 0.5)
+    """
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    r, g, b = colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
+    return '#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255))
+
+
+name_to_color = {"close": "slateblue", "med": "midnightblue", "far": "deepskyblue", "superfar": "paleturquoise",
+                 "cluster": "forestgreen", "0": "bisque",
+                 "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate",
+                 "0.5+1.25": "orange",
+                 "control": "gray", "all": "pink",
+                 "food": "brown"}
+
+# Add colors for single conditions, distance override but color is lighter when density is lower
+for condition in nb_to_name.keys():
+    distance_color = name_to_color[nb_to_distance[condition]]
+    density = float(nb_to_density[condition][:3])
+    name_to_color[nb_to_name[condition]] = lighten_color(mc.cnames[distance_color], amount=min(1, max(0.1, density)*2.5))
+name_to_color["med 1.25"] = "black"
+name_to_color["med 0.5+1.25"] = "grey"
+
+def test_colors():
+    x = 0
+    y = 1
+    for pool in name_to_color.keys():
+        plt.scatter(x, y, color=name_to_color[pool], label=pool, s=100)
+        x += 1
+    plt.legend()
+    plt.show()
