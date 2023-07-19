@@ -894,8 +894,15 @@ def generate(starting_from=""):
     else:  # Windows path
         path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
 
-    if starting_from == "trajectories":
+    if starting_from == "controls":
         generate_controls.generate_controls(path)
+        generate_trajectories(path)
+        generate_results_per_id(path)
+        generate_results_per_plate(path)
+        generate_clean_tables_and_speed(path)
+        generate_aggregated_visits(path, param.threshold_list)
+
+    if starting_from == "trajectories":
         generate_trajectories(path)
         generate_results_per_id(path)
         generate_results_per_plate(path)

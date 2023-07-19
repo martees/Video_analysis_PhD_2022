@@ -9,7 +9,7 @@ import analysis as ana
 import generate_results as gr
 import find_data as fd
 import parameters as param
-import ReferencePoints
+
 
 # Sanity check functions
 
@@ -49,16 +49,18 @@ def patches(folder_list, show_composite=True, is_plot=True):
     - plot the patch positions on the composite patch image, to check if our metadata matches our actual data (is_plot = True)
     - return a list of border positions for each patch (is_plot = False)
     """
+    if type(folder_list) is str:
+        folder_list = [folder_list]
+
     for folder in folder_list:
         if is_plot:
             fig, ax = plt.subplots()
             if show_composite:
                 composite = plt.imread(fd.load_image(folder, "composite_patches.tif"))
-                ax.imshow(composite, origin="lower")
+                ax.imshow(composite)
             else:
                 background = plt.imread(fd.load_image(folder, "background.tif"))
                 ax.imshow(background, cmap='gray')
-            ax.use_sticky_edges = False
 
         # Load metadata
         metadata = fd.folder_to_metadata(folder)
@@ -479,9 +481,11 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                          column_name, divided_by)
 
-    # Model results
-    if plot_model:
-        model_per_condition = ana.model_per_condition(results, condition_list, column_name, divided_by)
+    # if not split_conditions:
+    #     condition_list = condition_list[0]  # reduce it to one element for all further loops to run only once
+    #     list_of_avg_each_plate = [list_of_avg_each_plate[i] for i in range(len(list_of_avg_each_plate))]
+    #     average_per_condition = [average_per_condition[i] for i in range(len(average_per_condition))]
+    #     errorbars = [errorbars[i] for i in range(len(errorbars))]
 
     # Plotttt
     plt.title(plot_title)
@@ -505,6 +509,7 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
 
     # Plot model as a dashed line on top
     if plot_model:
+        model_per_condition = ana.model_per_condition(results, condition_list, column_name, divided_by)
         ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
 
     if is_plot:
@@ -639,7 +644,7 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
                 else:
                     values = ana.return_value_list(results, variable, cond, convert_to_duration=True)
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step",
-                        color=colors[i_cond])
+                        color=param.name_to_color[name])
 
     if is_plot:
         plt.legend()
@@ -678,24 +683,24 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color, is
         plt.show()
 
 
-def plot_leaving_probability(results, plot_title, condition_list, bin_size, color, split_conditions=False, is_plot=True):
+def plot_leaving_probability(results, plot_title, condition_list, bin_size, worm_limit, color, label, split_conditions=False, is_plot=True, is_nb_of_worms=False):
     plt.title(plot_title)
     plt.ylabel("Probability of exiting in the next " + str(param.time_threshold) + " time steps")
     plt.xlabel("Time already spent in patch")
+    plt.yscale("log")
 
     if not split_conditions:
-        leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, condition_list)
-        binned_times_in_patch, avg_leaving_delays, y_err_list, full_delay_list = ana.xy_to_bins(
-            corresponding_time_in_patch,
-            leaving_delays, bin_size,
-            bootstrap=False)
-        binned_leaving_probability, errorbars = ana.leaving_probability(full_delay_list)
-        plt.plot(binned_times_in_patch, binned_leaving_probability, color=color)
-        plt.errorbar(binned_times_in_patch, binned_leaving_probability, errorbars, fmt='.k', capsize=5)
+        binned_times_in_patch, binned_leaving_probability, errorbars, nb_of_worms = ana.leaving_probability(results, condition_list, bin_size, worm_limit, errorbars=True)
+        # Shift them a bit to not overlap
+        binned_times_in_patch = np.array(binned_times_in_patch) + max(9, condition_list[0])*bin_size/20  # weird equation is to spread points a bit
+        plt.plot(binned_times_in_patch, binned_leaving_probability, color=color, label=label, linewidth=2)
+        if errorbars:
+            plt.errorbar(binned_times_in_patch, binned_leaving_probability, errorbars, fmt='.k', capsize=5)
 
-        # Plot number of values in each bin
-        for i_bin in range(len(binned_times_in_patch)):
-            plt.annotate(str(len(full_delay_list[i_bin])), [binned_times_in_patch[i_bin], binned_leaving_probability[i_bin]+0.005])
+        # Plot number of worms that are in each bin
+        if is_nb_of_worms:
+            for i_bin in range(len(binned_times_in_patch)):
+                plt.annotate(str(int(nb_of_worms[i_bin])), [binned_times_in_patch[i_bin], binned_leaving_probability[i_bin]*2+0.02])
 
     if split_conditions:
         for i_condition in range(len(condition_list)):
@@ -706,6 +711,7 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, colo
         plt.legend()
 
     if is_plot:
+        plt.legend()
         plt.show()
 
 

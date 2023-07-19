@@ -131,7 +131,7 @@ def show_frames(folder, first_frame):
     global bottom_ax
     fig = plt.gcf()
     bottom_ax = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-    frame_slider = Slider(bottom_ax, 'Index', 0, 10000, valinit=first_frame)
+    frame_slider = Slider(bottom_ax, 'Index', 0, 30000, valinit=first_frame)
     plt.subplots_adjust(left=0.25, bottom=.2, right=None, top=.9, wspace=.2, hspace=.2)
 
     # Slider update function
@@ -194,6 +194,4 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, patch_cente
     curr_fig.canvas.draw()
 
 
-show_frames(
-    "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221014T101512_SmallPatches_C1-CAM1/traj.csv",
-    612)
+

@@ -1,10 +1,13 @@
-from main import *
 
 ##
-plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM5/traj.csv"])
+from main import *
 
+plots.patches([
+    "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM5/traj.csv"])
 
 ## Plot distribution of visit + same transits + cross transits
+from main import *
+
 plot_graphs(what_to_plot="distribution", curve_list=param.name_to_nb_list["close"])
 plot_graphs(what_to_plot="distribution", curve_list=param.name_to_nb_list["med"])
 plot_graphs(what_to_plot="distribution", curve_list=param.name_to_nb_list["far"])
@@ -14,6 +17,8 @@ plot_graphs(what_to_plot="distribution", curve_list=param.name_to_nb_list["0.5"]
 plot_graphs(what_to_plot="distribution", curve_list=param.name_to_nb_list["all"])
 
 ## Plot distribution of visit + same transits + cross transits
+from main import *
+
 plot_graphs(what_to_plot="distribution_aggregated", curve_list=param.name_to_nb_list["close"])
 plot_graphs(what_to_plot="distribution_aggregated", curve_list=param.name_to_nb_list["med"])
 plot_graphs(what_to_plot="distribution_aggregated", curve_list=param.name_to_nb_list["far"])
@@ -23,6 +28,8 @@ plot_graphs(what_to_plot="distribution_aggregated", curve_list=param.name_to_nb_
 plot_graphs(what_to_plot="distribution_aggregated", curve_list=param.name_to_nb_list["all"])
 
 ## Plot distribution of visit + same transits + cross transits
+from main import *
+
 plot_graphs(what_to_plot="leaving_events", curve_list=param.name_to_nb_list["close"])
 plot_graphs(what_to_plot="leaving_events", curve_list=param.name_to_nb_list["med"])
 plot_graphs(what_to_plot="leaving_events", curve_list=param.name_to_nb_list["far"])
@@ -31,23 +38,36 @@ plot_graphs(what_to_plot="leaving_events", curve_list=param.name_to_nb_list["0.2
 plot_graphs(what_to_plot="leaving_events", curve_list=param.name_to_nb_list["0.5"])
 plot_graphs(what_to_plot="leaving_events", curve_list=param.name_to_nb_list["all"])
 
-
 ## Plot duration of aggregated visits (see thresholds in param.py file)
+from main import *
+
 plot_graphs("aggregated_visit_duration", "all")
 
-## Leaving events
-plot_graphs("leaving_events_delay_distribution", ["0.2", "0.5", "close", "med", "far", "cluster", "close 0.2", "close 0.5", "med 0.2", "med 0.5", "far 0.2", "far 0.5", "cluster 0.2", "cluster 0.5"])
-plot_graphs("leaving_probability", ["0.2", "0.5", "close", "med", "far", "cluster", "close 0.2", "close 0.5", "med 0.2", "med 0.5", "far 0.2", "far 0.5", "cluster 0.2", "cluster 0.5"])
+## Leaving probability
+from main import *
+
+plot_graphs("leaving_probability", [["close 0"], ["med 0"], ["far 0"]])
+plot_graphs("leaving_probability", [["close 0.2"], ["med 0.2"], ["far 0.2"]])
+plot_graphs("leaving_probability", [["close 0.5"], ["med 0.5"], ["far 0.5"]])
+plot_graphs("leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
+plot_graphs("leaving_probability", [["far"], ["med"], ["close"]])
+plot_graphs("leaving_probability", ["cluster"])
+plot_graphs("leaving_probability", [["0"], ["0.2"], ["0.5"], ["1.25"]])
+
+## Effect of food on distribution of visits and transits durations
+from main import *
+
+plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["close"], effect_of="density")
+##
+plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["med"], effect_of="density")
+##
+plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["far"], effect_of="density")
+##
+plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["cluster"], effect_of="density")
 
 
-plots.plot_leaving_probability(results,
-                               "Probability of leaving as a function of in_patch time (med)",
-                               param.name_to_nb_list["med"], bin_size=1000, color=param.name_to_color["med"], split_conditions=True)
 
-
-
-
-
+## Basura
 # plot_patches(fd.path_finding_traj(path))
 # plot_avg_furthest_patch()
 # plot_data_coverage(trajectories)
