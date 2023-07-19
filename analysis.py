@@ -477,13 +477,13 @@ def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
     """
     # TODO automate those pools using the dictionaries in parameters.py
     if pool_by_variable == "distance":
-        pooled_conditions = [[0, 4], [1, 5, 8], [2, 6], [3, 7], [11]]
+        pooled_conditions = [[0, 4, 12], [1, 5, 8, 13], [2, 6, 14], [3, 7, 15]]
         pool_names = ["close", "med", "far", "cluster", "control"]
     elif pool_by_variable == "density":
-        pooled_conditions = [[0, 1, 2, 3], [4, 5, 6, 7], [8], [11]]
+        pooled_conditions = [[0, 1, 2, 3], [4, 5, 6, 7], [8], [12, 13, 14, 15]]
         pool_names = ["0.2", "0.5", "1.25", "0"]
     elif pool_by_variable == "food":
-        pooled_conditions = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11]]
+        pooled_conditions = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [12, 13, 14, 15]]
         pool_names = ["food", "control"]
     else:
         pooled_conditions = [[condition_list[i]] for i in range(len(condition_list))]
@@ -666,6 +666,7 @@ def delays_before_leaving(result_table, condition_list):
     for plate in full_folder_list:
         current_data = result_table[result_table["folder"] == plate]
         list_of_visits = fd.load_list(current_data, "aggregated_visits_thresh_100000")
+        list_of_transits = fd.load_list(current_data, "aggregated_raw_transits")
         for i_visit in range(len(list_of_visits)):
             current_patch_info = list_of_visits[i_visit]
             visit_start = current_patch_info[0]
@@ -690,11 +691,9 @@ def delays_before_leaving(result_table, condition_list):
 
             # Add delays that run from end of last transit to end of visit, BUT ONLY if it's not the end of the video!
             # To do so, check if there is a transit that start after this visit end
-            current_transits = fd.load_list(current_data, "aggregated_raw_transits")
-            last_transit_start = np.max([current_transits[i][0] for i in range(len(current_transits))])
+            last_transit_start = np.max([list_of_transits[i][0] for i in range(len(list_of_transits))])
 
-            #if visit_end <= last_transit_start:
-            if True:
+            if visit_end <= last_transit_start:
                 current_delays = list(range(visit_end - current_patch_transits[-1][1], 0, -1))
                 delay_before_leaving_list += current_delays
                 time_out_of_patch_counter += current_patch_transits[-1][1] - current_patch_transits[-1][0]  # update in-patch time counter
@@ -712,70 +711,88 @@ def compute_leaving_probability(delay_list):
     return len([delay_list[i] for i in range(len(delay_list)) if delay_list[i] <= param.time_threshold]) / len(delay_list)
 
 
-def leaving_probability(results, condition_list, bin_size, errorbars=True):
+def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars=True):
     """
     Takes result table and a condition.
     Will compute a list of delays as outputted by delays_before_leaving, or by running xy_to_bins on the output of
     delay_before_leaving (so either a list of delays, or a list of lists of delays).
     Outputs, for each bin, the leaving probability (as defined in compute_leaving_probability), and bootstraps around it.
+    Cuts the curve after the point where the data is for less than worm_limit.
     """
     folder_list = np.unique(results["folder"])
     folder_list = fd.return_folders_condition_list(folder_list, condition_list)
 
+    # Compute the results for each worm
     # Initialize those in case there's no folder in folder_list
     binned_times_in_patch = 0
     full_list_of_delays = 0
-
     # List where we'll store binned delays_before_leaving, one sublist per worm
-    binned_delays_each_worm = np.zeros(len(folder_list))
+    binned_delays_each_worm = [[] for _ in range(len(folder_list))]
+    times_in_patch_bins_each_worm = [[] for _ in range(len(folder_list))]  # not all worms will have same bins
     # Loop to extract and bin delays
     for i_folder in range(len(folder_list)):
         folder = folder_list[i_folder]
         current_plate = results[results["folder"] == folder].reset_index()
         leaving_delays, corresponding_time_in_patch = delays_before_leaving(current_plate, condition_list)
-        binned_times_in_patch, avg_leaving_delays, y_err_list, full_list_of_delays = xy_to_bins(
-            corresponding_time_in_patch,
-            leaving_delays, bin_size,
-            bootstrap=False)
-        binned_delays_each_worm[i_folder] = full_list_of_delays
+        if corresponding_time_in_patch:  # if there are no visits, don't do that
+            binned_times_in_patch, avg_leaving_delays, y_err_list, full_list_of_delays = xy_to_bins(
+                corresponding_time_in_patch,
+                leaving_delays, bin_size,
+                bootstrap=False, print_progress=False)
+            binned_delays_each_worm[i_folder] = full_list_of_delays
+            times_in_patch_bins_each_worm[i_folder] = binned_times_in_patch
+
+    # Compute the global stats for all the worms pooled together
+    global_leaving_delays, global_times_in_patch = delays_before_leaving(results, condition_list)
+    global_time_in_patch_bins, global_avg_leaving_delays, _, full_list_of_delays = xy_to_bins(global_times_in_patch, global_leaving_delays, bin_size, bootstrap=False, print_progress=True)
 
     # Reformat binned_delays_each_worm to have one sublist per bin, and in each bin sublist one sublist per worm
-    wormed_delays_each_bin = np.zeros(len(binned_times_in_patch))
+    wormed_delays_each_bin = [[[] for _ in range(len(folder_list))] for _ in range(len(global_time_in_patch_bins))]
     for i_folder in range(len(folder_list)):
         current_delays = binned_delays_each_worm[i_folder]
-        for i_bin in range(len(current_delays)):
-            wormed_delays_each_bin[i_bin] += binned_delays_each_worm[i_folder][i_bin]
+        current_times_in_patch = times_in_patch_bins_each_worm[i_folder]
+        for i_bin in range(len(current_times_in_patch)):
+            # Current worm may have fewer bins than global pool, but if it's missing some it's the last ones
+            # So we can just run through the beginning of the global bins and it should always coincide
+            if global_time_in_patch_bins[i_bin] in current_times_in_patch:  # still, double check that this worm has this bin
+                wormed_delays_each_bin[i_bin][i_folder] = current_delays[i_bin]
     # Compute the list of each worm's average leaving probabilities, in each bin
-    wormed_avg_delay_each_bin = np.zeros(len(binned_times_in_patch))
-    for i_bin in range(len(binned_times_in_patch)):
+    wormed_avg_leaving_prob_each_bin = [[] for _ in range(len(global_time_in_patch_bins))]
+    for i_bin in range(len(global_time_in_patch_bins)):
         current_delays = wormed_delays_each_bin[i_bin]
-        wormed_avg_delay_each_bin[i_bin] = [np.mean(current_delays[i_worm]) for i_worm in range(len(current_delays))]
+        wormed_avg_leaving_prob_each_bin[i_bin] = [compute_leaving_probability(current_delays[i_worm]) for i_worm in range(len(current_delays)) if len(current_delays[i_worm]) != 0]
 
     # If list of delays has no bins
     if full_list_of_delays[0] is int:
         full_list_of_delays = [full_list_of_delays]  # Create a fake unique bin
 
     # Initialize lists
-    probability_list = np.zeros(len(full_list_of_delays))
-    errors_inf = np.zeros(len(full_list_of_delays))
-    errors_sup = np.zeros(len(full_list_of_delays))
+    probability_list = []
+    nb_of_worms_each_bin = []
+    errors_inf = []
+    errors_sup = []
 
     # Fill those lists
-    for i_bin in range(len(full_list_of_delays)):
+    for i_bin in range(len(global_time_in_patch_bins)):
+        nb_of_worms = len([wormed_delays_each_bin[i_bin][i_worm] for i_worm in range(len(wormed_delays_each_bin[i_bin])) if wormed_delays_each_bin[i_bin][i_worm] != []])
         if i_bin % 2 == 0:
             print("Computing stats on leaving probabilities... ", int(100 * i_bin / len(full_list_of_delays)), "% done")
-        current_delays = full_list_of_delays[i_bin]
-        probability_list[i_bin] = compute_leaving_probability(current_delays)
-        if errorbars:
-            # For the bootstraps we use the
-            bootstrap_ci = bottestrop_ci(wormed_avg_delay_each_bin[i_bin], 50, operation="mean")
-            errors_inf[i_bin] = probability_list[i_bin] - bootstrap_ci[0]
-            errors_sup[i_bin] = bootstrap_ci[1] - probability_list[i_bin]
+        if nb_of_worms > worm_limit:
+            nb_of_worms_each_bin.append(nb_of_worms)
+            current_bin_avg_probabilities = wormed_avg_leaving_prob_each_bin[i_bin]
+            probability_list.append(np.mean(current_bin_avg_probabilities))
+            if errorbars:
+                bootstrap_ci = bottestrop_ci(wormed_avg_leaving_prob_each_bin[i_bin], 50, operation="mean")
+                errors_inf.append(probability_list[i_bin] - bootstrap_ci[0])
+                errors_sup.append(bootstrap_ci[1] - probability_list[i_bin])
+        else:
+            global_time_in_patch_bins = global_time_in_patch_bins[:i_bin]  # cut it to remove the excluded bins
+            break
 
-    return binned_times_in_patch, probability_list, [errors_inf, errors_sup]
+    return global_time_in_patch_bins, probability_list, [errors_inf, errors_sup], nb_of_worms_each_bin
 
 
-def xy_to_bins(x, y, bin_size, bootstrap=True):
+def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
     """
     Will take an x and a y iterable.
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
@@ -790,12 +807,13 @@ def xy_to_bins(x, y, bin_size, bootstrap=True):
         bin_list.append(current_bin)
         current_bin += bin_size
     bin_list.append(current_bin)  # add the last value
+    bin_list.sort()
     nb_of_bins = len(bin_list)
 
     # Create a list with one sublist of y values for each bin
     binned_y_values = [[] for _ in range(nb_of_bins)]
     for i in range(len(y)):
-        if i % 200000 == 0:
+        if print_progress and i % 200000 == 0:
             print("Binning in xy_to_bins... ", int(100*i/(i+len(y))), "% done")
         current_y = y.pop()
         current_x = x.pop()
