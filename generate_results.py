@@ -32,7 +32,7 @@ def spline_value(angular_position, spline_breaks, spline_coefs):
 def in_patch(position, patch_center, spline_breaks, spline_coefs):
     """
     returns True if position = [x,y] is inside the patch
-    uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
+    YET TO IMPLEMENT: uses general parameter radial_tolerance: the worm is still considered inside the patch when its center is sticking out by that distance or less
     """
     # Compute radial coordinates
     # Compute the angle in radians measured counterclockwise from the positive x-axis, returns the angle t in the range (-π, π].
@@ -45,10 +45,43 @@ def in_patch(position, patch_center, spline_breaks, spline_coefs):
     return distance_from_center < local_radius
 
 
-def in_patch_list(traj):
+def in_patch_silhouette(silhouette_x, silhouette_y, patch_center, spline_breaks, spline_coefs):
+    """
+    Takes a list of x and y coordinates for the worm in one frame, and the coordinates of a patch and its spline contour.
+    Return True if any pixel of worm silhouette is inside the food patch.
+    """
+    # First check if rectangle in which the worm is inscribed intersects with the patch
+    min_x, max_x, min_y, max_y = np.min(silhouette_x), np.max(silhouette_x), np.min(silhouette_y), np.max(silhouette_y)
+    nb_of_corners_inside_patch = 0
+    for corner in [[min_x, min_y], [min_x, max_y], [max_x, min_y], [max_x, max_y]]:
+        if in_patch(corner, patch_center, spline_breaks, spline_coefs):
+            nb_of_corners_inside_patch += 1
+        # If at least two corners are inside, we can safely say that it is inside (?? I think ??)
+        if nb_of_corners_inside_patch == 2:
+            return True
+    # If no corner of the rectangle hangs inside the food patch, then we can safely say that the worm is not inside
+    if nb_of_corners_inside_patch == 0:
+        return False
+
+    # In case there is only one corner inside, then... well check the whole silhouette for any point inside
+    i_point = 0
+    # note: put i_point condition first to avoid list index out of range bugs (python checks conditions sequentially)
+    while i_point < len(silhouette_y) and not in_patch([silhouette_x[i_point], silhouette_y[i_point]], patch_center,
+                                                       spline_breaks,
+                                                       spline_coefs):
+        i_point += 1
+    if i_point == len(silhouette_y):  # if the while went all the way through the list, there was no point inside
+        return False
+    else:  # otherwise it stopped before and one point was inside
+        return True
+
+
+def in_patch_list(traj, using):
     """
     Function that takes in our trajectories dataframe, and returns a column with the patch where the worm is at
     each time step.
+    :using: if equal to "centroid", worm will be considered to be inside a food patch if its centroid is inside.
+            if equal to "silhouette", worm will be considered to be inside a food patch if any of its pixels is inside.
     """
     list_of_plates = pd.unique(traj["folder"])
     nb_of_plates = len(list_of_plates)
@@ -71,10 +104,23 @@ def in_patch_list(traj):
 
         # Extract positions
         current_data = traj[traj["folder"] == current_plate]
-        list_x = current_data["x"]
-        list_y = current_data["y"]
+        if using == "centroid":
+            list_x = current_data["x"]
+            list_y = current_data["y"]
+        if using == "silhouette":
+            current_silhouettes, _, frame_size = fd.load_silhouette(current_plate)
+            current_silhouettes = fd.reindex_silhouette(current_silhouettes, frame_size)
+            list_x = [[] for _ in range(len(current_silhouettes))]
+            list_y = [[] for _ in range(len(current_silhouettes))]
+            for i_frame in range(len(list_x)):
+                list_x[i_frame] = current_silhouettes[i_frame][0]
+                list_y[i_frame] = current_silhouettes[i_frame][1]
 
         # Analyze
+        # Here we choose to iterate on time and not on patches, two reasons:
+        # First, like that we just have to detect patch changes, and it's mostly bad when worm is outside and all patches have to be checked at each time step
+        # Second, worms spend most of their time inside food patches, so it's okay that it's worse outside
+        # However, it might be terrible because it requires loading patch polynomials over and over again
         patch_where_it_is = -1  # initializing variable with index of patch where the worm currently is
         # We go through the whole trajectory
         for time in range(len(list_x)):
@@ -87,16 +133,30 @@ def in_patch_list(traj):
 
             # In case the worm is in the same patch, don't try all the patches (doesn't work if worm is out):
             if patch_where_it_was != -1:
-                if in_patch([list_x[time], list_y[time]], patch_centers[patch_where_it_was],
-                            patch_spline_breaks[patch_where_it_was], patch_spline_coefs[patch_where_it_was]):
-                    patch_where_it_is = patch_where_it_was
+                if using == "centroid":
+                    if in_patch([list_x[time], list_y[time]], patch_centers[patch_where_it_was],
+                                patch_spline_breaks[patch_where_it_was], patch_spline_coefs[patch_where_it_was]):
+                        patch_where_it_is = patch_where_it_was
+                if using == "silhouette":
+                    if in_patch_silhouette(list_x[time], list_y[time], patch_centers[patch_where_it_was],
+                                           patch_spline_breaks[patch_where_it_was],
+                                           patch_spline_coefs[patch_where_it_was]):
+                        patch_where_it_is = patch_where_it_was
 
             # If the worm is out or changed patch, then look for it
             else:
-                for i_patch in range(len(patch_centers)):  # for every patch
-                    if in_patch([list_x[time], list_y[time]], patch_centers[i_patch], patch_spline_breaks[i_patch],
-                                patch_spline_coefs[i_patch]):  # check if the worm is in it:
-                        patch_where_it_is = i_patch  # if it's in it, keep that in mind
+                if using == "centroid":
+                    for i_patch in range(len(patch_centers)):  # for every patch
+                        if in_patch([list_x[time], list_y[time]], patch_centers[i_patch], patch_spline_breaks[i_patch],
+                                    patch_spline_coefs[i_patch]):  # check if the worm is in it:
+                            patch_where_it_is = i_patch  # if it's in it, keep that in mind
+
+                if using == "silhouette":
+                    for i_patch in range(len(patch_centers)):  # for every patch
+                        if in_patch_silhouette(list_x[time], list_y[time], patch_centers[i_patch],
+                                               patch_spline_breaks[i_patch],
+                                               patch_spline_coefs[i_patch]):  # check if the worm is in it:
+                            patch_where_it_is = i_patch  # if it's in it, keep that in mind
 
             # Update list accordingly
             list_of_patches[i] = patch_where_it_is  # still -1 if patch wasn't found
@@ -413,7 +473,8 @@ def make_results_per_id_table(data):
 
         # Computing the list of visits
         patch_list = current_metadata["patch_centers"]
-        raw_visit_timestamps, order_of_visits = single_traj_analysis(current_data["patch"], current_data["frame"],
+        raw_visit_timestamps, order_of_visits = single_traj_analysis(current_data["patch_silhouette"],
+                                                                     current_data["frame"],
                                                                      patch_list)
         # Adjusting it for MVT analyses
         adjusted_raw_visits = mvt_patch_visits(raw_visit_timestamps, order_of_visits, patch_list)
@@ -422,7 +483,7 @@ def make_results_per_id_table(data):
             raw_visit_timestamps, adjusted_raw_visits, patch_list, first_pos)
 
         # Computing average speed
-        average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch"], current_data["frame"],
+        average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch_silhouette"], current_data["frame"],
                                                                  current_data["distances"])
 
         # Fill up results table
@@ -440,12 +501,12 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "first_recorded_position"] = str(
             first_pos)  # first position for the whole plate (used to check trajectories)
         results_table.loc[i_track, "first_frame"] = current_data["frame"][0]
-        results_table.loc[i_track, "first_tracked_position_patch"] = current_data["patch"][
+        results_table.loc[i_track, "first_tracked_position_patch"] = current_data["patch_silhouette"][
             0]  # patch where the worm is when tracking starts (-1 = outside): one value per id
         results_table.loc[i_track, "last_frame"] = current_data["frame"].iloc[-1]
         results_table.loc[i_track, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[
             -1]])  # last position for the current worm (used to check tracking)
-        results_table.loc[i_track, "last_tracked_position_patch"] = current_data["patch"].iloc[
+        results_table.loc[i_track, "last_tracked_position_patch"] = current_data["patch_silhouette"].iloc[
             -1]  # patch where the worm is when tracking stops (-1 = outside)
         results_table.loc[i_track, "furthest_patch_position"] = str(furthest_patch_position)
         results_table.loc[i_track, "adjusted_raw_visits"] = str(adjusted_raw_visits)
@@ -577,7 +638,8 @@ def fill_holes(data_per_id):
 
             # We look for the next visit start and end
             if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
-                while not list_of_visits[i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
+                while not list_of_visits[
+                    i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
                     i_next_track += 1
                     skipped_empty_tracks = True
                 if list_of_visits[i_next_track]:  # if a non-empty track was found in the end
@@ -622,7 +684,8 @@ def fill_holes(data_per_id):
                     if current_visit_end == data_per_id["last_frame"][i_track]:
                         # Case where the next track starts while the worm is still in, and we didn't have sneaky empty tracks in the middle
                         # We also check that there is indeed a next next visit otherwise this line makes no sense
-                        if data_per_id["first_tracked_position_patch"][i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
+                        if data_per_id["first_tracked_position_patch"][
+                            i_next_track] != -1 and not skipped_empty_tracks and next_next_visit_start > 0:
                             # In this case we take the transit for the next visit now because the visit list loop will skip
                             # this value for the next loop
                             corrected_list_of_transits.append([next_visit_end, next_next_visit_start, -1])
@@ -640,7 +703,8 @@ def fill_holes(data_per_id):
             # If this is the end of this track, and not the last track, and the tracking stops during the visit
             if is_last_visit and not is_last_nonempty_track and current_visit_end == data_per_id["last_frame"][i_track]:
                 # Check if the hole in the tracking is valid (ends and then starts in the same patch)
-                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][i_track + 1]:
+                if data_per_id["last_tracked_position_patch"][i_track] == data_per_id["first_tracked_position_patch"][
+                    i_track + 1]:
                     # We increase i_track by 2, to not look at next visit as it has already been counted
                     init_visit_at_one = True
                     # Then the current visit in fact ends at the end of the first visit of the next track
@@ -816,11 +880,12 @@ def exclude_invalid_videos(trajectories, results_per_plate):
 
 def generate_trajectories(path):
     # Retrieve trajectories from the folder path and save them in one dataframe
-    trajectories = fd.trajmat_to_dataframe(fd.path_finding_traj(path))
+    trajectories = fd.trajcsv_to_dataframe(fd.path_finding_traj(path))
     print("Finished retrieving trajectories")
     # Add a column with
     print("Computing where the worm is...")
-    trajectories["patch"] = in_patch_list(trajectories)
+    trajectories["patch_centroid"] = in_patch_list(trajectories, using="centroid")
+    trajectories["patch_silhouette"] = in_patch_list(trajectories, using="silhouette")
     print("Finished computing in which patch the worm is at each time step")
     print("Computing distances...")
     # Add a column with the distance the worm crawled since last time step, for each time step
