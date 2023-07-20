@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mplcolors
 import random
 import seaborn as sns
+import os
 
 import analysis as ana
 import generate_results as gr
@@ -83,8 +84,6 @@ def patches(folder_list, show_composite=True, is_plot=True):
                 radiuses[i_angle] = gr.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
                                                     patch_spline_coefs[i_patch])
 
-            fig = plt.gcf()
-
             # Create lists of cartesian positions out of this
             x_pos = []
             y_pos = []
@@ -108,8 +107,9 @@ def patches(folder_list, show_composite=True, is_plot=True):
             return x_list, y_list
 
 
-def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
-                            plot_continuity=False, plot_speed=False, plot_time=False, plate_list=[], is_plot=True):
+def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
+                            plot_continuity=False, plot_speed=False, plot_time=False, plate_list=[], is_plot=True,
+                            save_fig=False):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -126,9 +126,20 @@ def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, s
         for i_plate in range(len(plate_list)):
             folder_list.append(traj[traj["folder"] == plate_list[i_plate]]["folder"])
         folder_list = np.unique(folder_list)
+        # Change condition accordingly
+        for plate in folder_list:
+            condition_list.append(fd.load_condition(plate))
+        condition_list = np.unique(condition_list)
     # Otherwise take all the plates of the condition
     else:
-        folder_list = fd.return_folders_condition_list(np.unique(traj["folder"]), [i_condition])
+        folder_list = fd.return_folders_condition_list(np.unique(traj["folder"]), [condition_list])
+
+    # If save_fig is True, check that there is a trajectory_plots folder in path, otherwise create it
+    path = gr.generate("")
+    if save_fig:
+        if not os.path.isdir(path + "trajectory_plots"):
+            os.mkdir(path + "trajectory_plots")
+
     nb_of_folders = len(folder_list)
     colors = plt.cm.jet(np.linspace(0, 1, nb_of_folders))
     previous_folder = 0
@@ -139,25 +150,29 @@ def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, s
         current_list_x = current_traj.reset_index()["x"]
         current_list_y = current_traj.reset_index()["y"]
         metadata = fd.folder_to_metadata(current_folder)
-        plt.suptitle("Trajectories for condition " + str(i_condition))
+        plt.suptitle("Trajectories for condition " + str(condition_list))
 
         # If we just changed plate or if it's the 1st, plot the background elements
         if previous_folder != current_folder or previous_folder == 0:
             if n_plate > n_max:  # If we exceeded the max nb of plates per graphic
-                plt.show()
+                if is_plot:
+                    plt.show()
+                if save_fig:
+                    plt.savefig(path+"trajectory_plots/condition_"+str(condition_list)+"_"+current_folder.split("/")[-2]+".png")
                 n_plate = 1
             if n_plate <= n_max or len(plate_list) > 1:
                 plt.subplot(n_max // 2, n_max // 2, n_plate)
                 n_plate += 1
             # Show background and patches
             fig = plt.gcf()
+            fig.set_size_inches(20, 20)
             ax = fig.gca()
             fig.set_tight_layout(True)  # make the margins tighter
             if show_composite:  # show composite with real patches
-                composite = plt.imread(current_folder[:-len("traj.csv")] + "composite_patches.tif")
+                composite = plt.imread(fd.load_image(current_folder, "composite_patches.tif"))
                 ax.imshow(composite)
             else:  # show cleaner background without the patches
-                background = plt.imread(current_folder[:-len("traj.csv")] + "background.tif")
+                background = plt.imread(fd.load_image(current_folder, "background.tif"))
                 ax.imshow(background, cmap='gray')
             ax.set_title(str(current_folder[-48:-9]))
             # Plot them patches
@@ -166,7 +181,7 @@ def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, s
                 patch_centers = metadata["patch_centers"]
                 x_list, y_list = patches([current_folder], is_plot=False)
                 for i_patch in range(len(patch_centers)):
-                    ax.plot(x_list[i_patch], y_list[i_patch], color='yellow')
+                    ax.plot(x_list[i_patch], y_list[i_patch], color="yellow")
                     # to show density, add this to previous call: , alpha=patch_densities[i_patch][0]
                     # ax.annotate(str(i_patch), xy=(patch_centers[i_patch][0] + 80, patch_centers[i_patch][1] + 80), color='white')
 
@@ -218,6 +233,9 @@ def trajectories_1condition(traj, i_condition, n_max=4, is_plot_patches=False, s
 
     if is_plot:
         plt.show()
+    if save_fig:
+        plt.savefig(path+"trajectory_plots/condition_"+str(condition_list)+"_"+folder_list[-1].split("/")[-2]+".png")
+
 
 
 # Analysis functions
@@ -582,7 +600,7 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
     threshold_list: list of thresholds for aggregation of visits
     """
     if scale_list is None:
-        scale_list = ["log"]  # could also be "linear
+        scale_list = ["linear"]  # could also be "linear"
     if variable_list is None:
         variable_list = ["visits", "same transits", "cross transits"]
 
@@ -644,7 +662,7 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
                 else:
                     values = ana.return_value_list(results, variable, cond, convert_to_duration=True)
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step",
-                        color=param.name_to_color[name])
+                        color=param.name_to_color[name], linewidth=3)
 
     if is_plot:
         plt.legend()
