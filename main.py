@@ -253,33 +253,33 @@ path = gr.generate(starting_from="")
 
 # Retrieve results from what generate_and_save has saved
 
-trajectories = pd.read_csv(path + "clean_trajectories.csv")
+#trajectories = pd.read_csv(path + "clean_trajectories.csv")
 results = pd.read_csv(path + "clean_results.csv")
-
 print("Finished retrieving stuff")
 
 # Possible arguments for plot_graphs:
-#               - "double_frames"
-#               - "bad_events"
-#               - "speed"
-#               - "visit_duration"
-#               - "visit_duration_mvt"
 #               - "aggregated_visit_duration"
-#               - "transit_duration"
-#               - "visit_duration_vs_previous_transit"
-#               - "visit_duration_vs_visit_start"
-#               - "visit_duration_vs_entry_speed"
-#               - "visit_rate"
-#               - "proportion_of_time"
+#               - "average_speed"
+#               - "bad_events"
 #               - "distribution"
 #               - "distribution_aggregated"
-#               - "transit_properties"
-#               - "aggregated_visits"
+#               - "double_frames"
 #               - "leaving_events"
 #               - "leaving_events_delay_distribution"
 #               - "leaving_probability"
+#               - "visit_duration"
+#               - "visit_duration_mvt"
+#               - "visit_rate"
+#               - "visit_duration_vs_previous_transit"
+#               - "visit_duration_vs_visit_start"
+#               - "visit_duration_vs_entry_speed"
+#               - "proportion_of_time"
+#               - "print_parameters_for_model"
+#               - "transit_duration"
 
-#plot_graphs("distribution", ["all"])
+#plot_graphs(["visit_duration"], ["all"])
+
+
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
 # TODO function that shows length of (first) visit to a patch as a function of last travel time / average feeding rate in window
 

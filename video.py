@@ -42,13 +42,6 @@ def show_frame(folder, frame, is_plot=True):
     return silhouette_x, silhouette_y, intensities
 
 
-def unravel_index_list(index_list, frame_size):
-    unraveled = []
-    for i in range(len(index_list)):
-        unraveled.append(np.unravel_index(index_list[i], frame_size))
-    return unraveled
-
-
 def show_frames(folder, first_frame):
     """
     Starts by showing first_frame of folder. Then, user can scroll to go through frames.
@@ -76,22 +69,12 @@ def show_frames(folder, first_frame):
 
     # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
     pixels, intensities, frame_size = fd.load_silhouette(folder)
-    for frame in range(len(pixels)):
-        pixels[frame] = unravel_index_list(pixels[frame], frame_size)
-    reformatted_pixels = []
-    for frame in range(len(pixels)):
-        x_list = []
-        y_list = []
-        for pixel in range(len(pixels[frame])):
-            x_list.append(pixels[frame][pixel][0])
-            y_list.append(pixels[frame][pixel][1])
-        reformatted_pixels.append([x_list, y_list])
-    pixels = reformatted_pixels
+    pixels = fd.reindex_silhouette(pixels, frame_size)
 
     # Load centers of mass from the tracking
-    centers_of_mass = fd.trajmat_to_dataframe([folder])
+    centers_of_mass = fd.trajcsv_to_dataframe([folder])
     # Get patch info
-    patch_list = gr.in_patch_list(centers_of_mass)
+    patch_list = gr.in_patch_list(fd.trajcsv_to_dataframe([folder]), using="silhouette")
 
     # Make a copy of full image limits, for zoom out purposes
     global img_xmin, img_xmax, img_ymin, img_ymax

@@ -105,6 +105,7 @@ def return_control_metadata(path, parent_folder, distance):
     source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
     # As long as it's not a valid set of points, keep looking
     while len(source_reference_points.errors["list_of_errors"]) > 0:
+        print("Folder with bad holes: ", the_chosen_one)
         # Pick a random one
         the_chosen_one = random.choice(same_distance_folders)
         # Load patch information for source folder
