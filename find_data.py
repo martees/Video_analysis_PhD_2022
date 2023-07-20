@@ -38,7 +38,7 @@ def path_finding_traj(path_prefix, target_name="traj.csv", include_fake_control_
     return listofpaths
 
 
-def trajmat_to_dataframe(paths_of_mat):
+def trajcsv_to_dataframe(paths_of_mat):
     """
     Takes a list of paths for .csv tables, and returns a pandas dataframe containing all their data concatenated
     The dataframe has the same columns as traj.csv : one line per timestep for each worm. See readme.txt for detailed info
@@ -173,6 +173,31 @@ def load_silhouette(path):
     return pixels, intensities, frame_size
 
 
+def unravel_index_list(index_list, frame_size):
+    unraveled = []
+    for i in range(len(index_list)):
+        unraveled.append(np.unravel_index(index_list[i], frame_size))
+    return unraveled
+
+
+def reindex_silhouette(pixels, frame_size):
+    """
+    Take a pixel table, with one set of pixels per frame, and the set of pixels is indexed linearly by MATLAB.
+    Return reindexed pixels (from MATLAB linear indexing to (x,y) coordinates).
+    """
+    for frame in range(len(pixels)):
+        pixels[frame] = unravel_index_list(pixels[frame], frame_size)
+    reformatted_pixels = []
+    for frame in range(len(pixels)):
+        x_list = []
+        y_list = []
+        for pixel in range(len(pixels[frame])):
+            x_list.append(pixels[frame][pixel][0])
+            y_list.append(pixels[frame][pixel][1])
+        reformatted_pixels.append([x_list, y_list])
+    return reformatted_pixels
+
+
 def return_folders_condition_list(full_folder_list, condition_list):
     if type(condition_list) is int:
         condition_list = [condition_list]
@@ -206,7 +231,7 @@ def load_index(folder, frame):
     Will load the traj.csv matrix in folder, and find at which index of the table it is the frame-th frame of the
     tracking (if there are holes in the tracking, frame 800 could be at index 750, because of 50 frames with no tracking)
     """
-    traj = trajmat_to_dataframe([folder])
+    traj = trajcsv_to_dataframe([folder])
     index = find_closest(traj["frame"], frame)
     return index
 
@@ -216,7 +241,7 @@ def load_frame(folder, index):
     Will load the traj.csv matrix in folder, and find at which frame of the table it is the index-th tracked frame of the
     tracking (if there are holes in the tracking, frame 800 could be at index 750, because of 50 frames with no tracking)
     """
-    traj = trajmat_to_dataframe([folder])
+    traj = trajcsv_to_dataframe([folder])
     return traj["frame"][index]
 
 
@@ -257,6 +282,11 @@ def load_image(folder, image_name):
     image_name = "composite_patches.tif" or "background.tif"
     """
     folder = folder[:-len("traj.csv")]  # in any case, remove traj.csv
+    # Add extension or _patches if it has been forgotten
+    if "composite" in image_name:
+        image_name = "composite_patches.tif"
+    if "background" in image_name:
+        image_name = "background.tif"
     # For non-control experiments it's just in the same folder
     if "control" not in folder:
         return folder + image_name
