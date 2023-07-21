@@ -57,10 +57,10 @@ def patches(folder_list, show_composite=True, is_plot=True):
         if is_plot:
             fig, ax = plt.subplots()
             if show_composite:
-                composite = plt.imread(fd.load_image(folder, "composite_patches.tif"))
+                composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
                 ax.imshow(composite)
             else:
-                background = plt.imread(fd.load_image(folder, "background.tif"))
+                background = plt.imread(fd.load_image_path(folder, "background.tif"))
                 ax.imshow(background, cmap='gray')
 
         # Load metadata
@@ -123,6 +123,7 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
     # If there is a plate list
     if plate_list:
         folder_list = []
+        condition_list = []
         for i_plate in range(len(plate_list)):
             folder_list.append(traj[traj["folder"] == plate_list[i_plate]]["folder"])
         folder_list = np.unique(folder_list)
@@ -169,10 +170,10 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
             ax = fig.gca()
             fig.set_tight_layout(True)  # make the margins tighter
             if show_composite:  # show composite with real patches
-                composite = plt.imread(fd.load_image(current_folder, "composite_patches.tif"))
+                composite = plt.imread(fd.load_image_path(current_folder, "composite_patches.tif"))
                 ax.imshow(composite)
             else:  # show cleaner background without the patches
-                background = plt.imread(fd.load_image(current_folder, "background.tif"))
+                background = plt.imread(fd.load_image_path(current_folder, "background.tif"))
                 ax.imshow(background, cmap='gray')
             ax.set_title(str(current_folder[-48:-9]))
             # Plot them patches

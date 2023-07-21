@@ -157,7 +157,7 @@ def load_silhouette(path):
     Takes a folder path, returns the content of the silhouette matrix found in this path.
     """
     lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
-    silhouette_path = path[:-lentoremove] + "silhouettes.mat"
+    silhouette_path = load_image_path(path, "silhouettes.mat")
     matrix = loadmat(silhouette_path)
 
     # Get the different arrays from the dictionnary output of loadmat
@@ -274,9 +274,9 @@ def control_folders(path, condition_names):
     return path_list
 
 
-def load_image(folder, image_name):
+def load_image_path(folder, image_name):
     """
-    Take a folder path ending in /traj.csv, and return the path of the corresponding composite_patches.tif / background.tif.
+    Take a folder path ending in /traj.csv, and return the path of the corresponding composite_patches.tif / background.tif / silhouettes.mat.
     In non-control conditions they are just in the same folder so it's easy, but for control sub-folders, you have to
     go look into the parent folder.
     image_name = "composite_patches.tif" or "background.tif"

@@ -20,7 +20,6 @@ def spline_value(angular_position, spline_breaks, spline_coefs):
     :spline_coefs: the coefficients for each subsection
     """
     i = 0
-    # angular_position = - angular_position
     while i < len(spline_breaks) - 1 and angular_position >= spline_breaks[i]:
         i += 1
     # invert coefficient order (matlab to numpy format)
@@ -93,8 +92,8 @@ def in_patch_list(traj, using):
     for i_plate in range(nb_of_plates):  # for every plate
         # Handmade progress bar
         if i_plate % 20 == 0 or i_plate == nb_of_plates:
-            print("patch_position for plate ", i_plate, "/", nb_of_plates)
-
+            print("patch_position_"+using+" for plate ", i_plate, "/", nb_of_plates)
+        # print("plate name: "+list_of_plates[i_plate])
         # Extract patch information
         current_plate = list_of_plates[i_plate]
         current_metadata = fd.folder_to_metadata(current_plate)
@@ -104,17 +103,16 @@ def in_patch_list(traj, using):
 
         # Extract positions
         current_data = traj[traj["folder"] == current_plate]
-        if using == "centroid":
-            list_x = current_data["x"]
-            list_y = current_data["y"]
+        list_x_centroid = current_data["x"]
+        list_y_centroid = current_data["y"]
         if using == "silhouette":
             current_silhouettes, _, frame_size = fd.load_silhouette(current_plate)
             current_silhouettes = fd.reindex_silhouette(current_silhouettes, frame_size)
-            list_x = [[] for _ in range(len(current_silhouettes))]
-            list_y = [[] for _ in range(len(current_silhouettes))]
-            for i_frame in range(len(list_x)):
-                list_x[i_frame] = current_silhouettes[i_frame][0]
-                list_y[i_frame] = current_silhouettes[i_frame][1]
+            list_x_silhouette = [[] for _ in range(len(current_silhouettes))]
+            list_y_silhouette = [[] for _ in range(len(current_silhouettes))]
+            for i_frame in range(len(list_x_silhouette)):
+                list_x_silhouette[i_frame] = current_silhouettes[i_frame][0]
+                list_y_silhouette[i_frame] = current_silhouettes[i_frame][1]
 
         # Analyze
         # Here we choose to iterate on time and not on patches, two reasons:
@@ -123,37 +121,40 @@ def in_patch_list(traj, using):
         # However, it might be terrible because it requires loading patch polynomials over and over again
         patch_where_it_is = -1  # initializing variable with index of patch where the worm currently is
         # We go through the whole trajectory
-        for time in range(len(list_x)):
+        for time in range(len(list_x_centroid)):
             if param.verbose and time % 100 == 0:
-                print(time, "/", len(list_x))
+                print(time, "/", len(list_x_centroid))
 
             # First we figure out where the worm is
             patch_where_it_was = patch_where_it_is  # index of the patch where it is
             patch_where_it_is = -1  # resetting the variable to "worm is out"
 
+            # Check if there is a silhouette for this time
+            no_silhouette_this_time = list_x_silhouette[time] == []
+
             # In case the worm is in the same patch, don't try all the patches (doesn't work if worm is out):
             if patch_where_it_was != -1:
-                if using == "centroid":
-                    if in_patch([list_x[time], list_y[time]], patch_centers[patch_where_it_was],
+                if using == "centroid" or no_silhouette_this_time:
+                    if in_patch([list_x_centroid[time], list_y_centroid[time]], patch_centers[patch_where_it_was],
                                 patch_spline_breaks[patch_where_it_was], patch_spline_coefs[patch_where_it_was]):
                         patch_where_it_is = patch_where_it_was
-                if using == "silhouette":
-                    if in_patch_silhouette(list_x[time], list_y[time], patch_centers[patch_where_it_was],
+                elif using == "silhouette":
+                    if in_patch_silhouette(list_x_silhouette[time], list_y_silhouette[time], patch_centers[patch_where_it_was],
                                            patch_spline_breaks[patch_where_it_was],
                                            patch_spline_coefs[patch_where_it_was]):
                         patch_where_it_is = patch_where_it_was
 
             # If the worm is out or changed patch, then look for it
             else:
-                if using == "centroid":
+                if using == "centroid" or no_silhouette_this_time:
                     for i_patch in range(len(patch_centers)):  # for every patch
-                        if in_patch([list_x[time], list_y[time]], patch_centers[i_patch], patch_spline_breaks[i_patch],
+                        if in_patch([list_x_centroid[time], list_y_centroid[time]], patch_centers[i_patch], patch_spline_breaks[i_patch],
                                     patch_spline_coefs[i_patch]):  # check if the worm is in it:
                             patch_where_it_is = i_patch  # if it's in it, keep that in mind
 
-                if using == "silhouette":
+                elif using == "silhouette":
                     for i_patch in range(len(patch_centers)):  # for every patch
-                        if in_patch_silhouette(list_x[time], list_y[time], patch_centers[i_patch],
+                        if in_patch_silhouette(list_x_silhouette[time], list_y_silhouette[time], patch_centers[i_patch],
                                                patch_spline_breaks[i_patch],
                                                patch_spline_coefs[i_patch]):  # check if the worm is in it:
                             patch_where_it_is = i_patch  # if it's in it, keep that in mind
@@ -245,7 +246,7 @@ def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
         - the average speed when outside a patch
     """
     # Concept: sum time inside and outside, distance inside and outside, and then DIVIDE (it's an ancient technique)
-    which_patch_list = which_patch_list.reset_index()["patch"]
+    which_patch_list = which_patch_list.reset_index()["patch_silhouette"]
     list_of_frames = list_of_frames.reset_index()["frame"]
     distance_list = distance_list.reset_index()["distances"]
     distance_inside_sum = 0
@@ -884,7 +885,7 @@ def generate_trajectories(path):
     print("Finished retrieving trajectories")
     # Add a column with
     print("Computing where the worm is...")
-    trajectories["patch_centroid"] = in_patch_list(trajectories, using="centroid")
+    #trajectories["patch_centroid"] = in_patch_list(trajectories, using="centroid")
     trajectories["patch_silhouette"] = in_patch_list(trajectories, using="silhouette")
     print("Finished computing in which patch the worm is at each time step")
     print("Computing distances...")
@@ -946,16 +947,19 @@ def generate_aggregated_visits(path, threshold_list):
     return new_results  # return this because this function is also used dynamically
 
 
-def generate(starting_from=""):
+def generate(starting_from="", test_pipeline=False):
     """
     Will generate the data tables starting more or less from scratch.
     Argument = from which level to regenerate stuff.
     Returns path.
+    test_pipeline: if set to True, will run in a subset of the path that has to be hardcoded in this function.
     """
 
     # Data path
     if fd.is_linux():  # Linux path
         path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/"
+        if test_pipeline:
+            path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/"
     else:  # Windows path
         path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
 

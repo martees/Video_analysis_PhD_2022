@@ -253,7 +253,7 @@ path = gr.generate(starting_from="")
 
 # Retrieve results from what generate_and_save has saved
 
-#trajectories = pd.read_csv(path + "clean_trajectories.csv")
+trajectories = pd.read_csv(path + "clean_trajectories.csv")
 results = pd.read_csv(path + "clean_results.csv")
 print("Finished retrieving stuff")
 
@@ -277,8 +277,10 @@ print("Finished retrieving stuff")
 #               - "print_parameters_for_model"
 #               - "transit_duration"
 
-#plot_graphs(["visit_duration"], ["all"])
-
+#video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221015T201543_SmallPatches_C5-CAM4/traj.csv", 11771)
+#plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221013T114735_SmallPatches_C1-CAM2/traj.csv"])
+#video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221013T114735_SmallPatches_C1-CAM2/traj.csv", 12868)
+#plot_graphs("visit_duration", ["all"])
 
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
 # TODO function that shows length of (first) visit to a patch as a function of last travel time / average feeding rate in window

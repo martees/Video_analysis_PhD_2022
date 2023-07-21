@@ -6,9 +6,12 @@ from matplotlib.patches import Patch
 
 results = pd.read_csv(path + "/backup_of_results_using_centroid_for_presence_in_patch/clean_results.csv")
 
+# Set to True to plot information about whether the worms have encountered both patch types or not
+plot_encountered_both = True
+
 # Parameters to look at only a subset of visits
-min_visit_start = 0
-max_visit_start = 10000
+min_visit_start = 10000
+max_visit_start = 40000
 
 # Systematically find mixed conditions and the corresponding pure densities using the fact that they have a "+" x)
 mixed_conditions_names = [list(param.name_to_nb.keys())[i] for i in range(len(param.name_to_nb)) if
@@ -132,19 +135,20 @@ for i_cond in range(len(condition_names)):
     color_list = ["red" if encountered_both_patches[current_condition_name][i] else "blue" for i in range(len(encountered_both_patches[current_condition_name]))]
     ax.scatter(x_list, avg_visit_duration_all_plates[current_condition_name], color=color_list, zorder=2, alpha=0.4)
 
-    # Plot average of subgroups of plates depending on whether they encountered both patch types or not
-    list_encountered_both = []
-    list_encountered_only_one = []
-    for i_plate in range(len(avg_visit_duration_all_plates[current_condition_name])):
-        if encountered_both_patches[current_condition_name][i_plate]:
-            list_encountered_both.append(avg_visit_duration_all_plates[current_condition_name][i_plate])
-        else:
-            list_encountered_only_one.append(avg_visit_duration_all_plates[current_condition_name][i_plate])
-    avg_both = np.nanmean(list_encountered_both)
-    avg_only_one = np.nanmean(list_encountered_only_one)
+    if plot_encountered_both:  # to plot information about whether worms have encountered both patches yet or not
+        # Plot average of subgroups of plates depending on whether they encountered both patch types or not
+        list_encountered_both = []
+        list_encountered_only_one = []
+        for i_plate in range(len(avg_visit_duration_all_plates[current_condition_name])):
+            if encountered_both_patches[current_condition_name][i_plate]:
+                list_encountered_both.append(avg_visit_duration_all_plates[current_condition_name][i_plate])
+            else:
+                list_encountered_only_one.append(avg_visit_duration_all_plates[current_condition_name][i_plate])
+        avg_both = np.nanmean(list_encountered_both)
+        avg_only_one = np.nanmean(list_encountered_only_one)
 
-    ax.scatter(range(len(condition_names))[i_cond], avg_both, color="salmon", marker="*", s=100, zorder=3)
-    ax.scatter(range(len(condition_names))[i_cond], avg_only_one, color="midnightblue", marker="*", s=100, zorder=3)
+        ax.scatter(range(len(condition_names))[i_cond], avg_both, color="salmon", marker="*", s=200, zorder=3)
+        ax.scatter(range(len(condition_names))[i_cond], avg_only_one, color="midnightblue", marker="*", s=200, zorder=3)
 
 
 # Plot error bars
@@ -156,7 +160,10 @@ ax.errorbar(range(len(condition_names)), avg_list, error_list, fmt='.k', capsize
 legend_list = []
 for density in corresponding_pure_densities:
     legend_list.append(Patch(facecolor=param.name_to_color[density], label=density))
-legend_list.append(Patch(facecolor="blue", label="Encountered 1 patch type"))
-legend_list.append(Patch(facecolor="red", label="Encountered 2 patch types"))
+
+if plot_encountered_both:  # to plot information about whether worms have encountered both patches yet or not
+    legend_list.append(Patch(facecolor="blue", label="Encountered 1 patch type"))
+    legend_list.append(Patch(facecolor="red", label="Encountered 2 patch types"))
+
 plt.legend(handles=legend_list)
 plt.show()
