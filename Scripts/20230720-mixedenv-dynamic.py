@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import warnings
 
-results = pd.read_csv(path + "/backup_of_results_using_centroid_for_presence_in_patch/clean_results.csv")
+results = pd.read_csv(path + "/clean_results.csv")
 
 # Systematically find mixed conditions and the corresponding pure densities using the fact that they have a "+" x)
 mixed_conditions_names = [list(param.name_to_nb.keys())[i] for i in range(len(param.name_to_nb)) if
@@ -22,10 +22,10 @@ full_folder_list = np.unique(results["folder"])
 
 # Parameters to look at only a subset of visits
 min_visit_start = 0
-max_visit_start = 25000
+max_visit_start = 30000
 
 # Parameters for the time bin list (to plot dynamic, one point per bin will be plotted)
-nb_of_bins = 4
+nb_of_bins = 10
 time_bins = [int(min_visit_start + i * (max_visit_start - min_visit_start)/nb_of_bins) for i in range(nb_of_bins + 1)]
 
 # These dictionaries will have one key per density in each condition, and as a value the time series of avg/errors
@@ -149,7 +149,6 @@ line_styles = {"0.2": "solid", "0.5": "solid", "1.25": "solid", "0.2+0.5": "dott
 condition_names = list(avg_visit_each_time.keys())
 for condition in condition_names:
     subplot_pos = list(corresponding_pure_densities).index(condition.split(" ")[0])  # look at "0.2" for "0.2 in med 0.2+0.5"
-    avg_list = [avg_visit_duration_list[cond] for cond in condition_names]
     axs[subplot_pos].plot(time_bins[:-1], avg_visit_each_time[condition], color=param.name_to_color[condition.split(" ")[0]], linestyle=line_styles[condition.split(" ")[-1]], label=condition)
     # Plot error bars
     axs[subplot_pos].errorbar(time_bins[:-1], avg_visit_each_time[condition], [errors_inf_each_time[condition], errors_sup_each_time[condition]], fmt='.k', capsize=5)

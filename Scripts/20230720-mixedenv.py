@@ -4,13 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
-results = pd.read_csv(path + "/backup_of_results_using_centroid_for_presence_in_patch/clean_results.csv")
+results = pd.read_csv(path + "/clean_results.csv")
 
 # Set to True to plot information about whether the worms have encountered both patch types or not
 plot_encountered_both = True
 
 # Parameters to look at only a subset of visits
-min_visit_start = 10000
+min_visit_start = 0
 max_visit_start = 40000
 
 # Systematically find mixed conditions and the corresponding pure densities using the fact that they have a "+" x)
