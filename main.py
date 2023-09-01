@@ -59,6 +59,7 @@ def plot_graphs(what_to_plot, curve_list=None):
                                     list_of_conditions]  # add to first curve all the different
         condition_colors[i_curve] = param.name_to_color[curve[0]]  # color of first curve element prevails, im tired xD
 
+    #TODO remove this loop, since the fork happens with if statements no need to run it once per element in what_to_plot
     for _ in range(len(what_to_plot)):
         # Transform "[["0.2"], ["med 0"]]" into '0.2 & med 0'
         plot_name = str(curve_list).replace("], [", " & ").replace("[[", "").replace("]]", "").replace("''", "")
@@ -166,20 +167,20 @@ def plot_graphs(what_to_plot, curve_list=None):
             if "visit_duration" in what_to_plot:
                 plots.plot_selected_data(results, "Average duration of visits in " + plot_name + " conditions",
                                          current_conditions, current_condition_names, "total_visit_time",
-                                         divided_by="nb_of_visits", mycolor=current_color, plot_model=True,
+                                         divided_by="nb_of_visits", mycolor=current_color, plot_model=False,
                                          is_plot=is_plot)
 
             if "visit_duration_mvt" in what_to_plot:
                 plots.plot_selected_data(results, "Average duration of MVT visits in " + plot_name + " conditions",
                                          current_conditions, current_condition_names, "total_visit_time",
-                                         divided_by="mvt_nb_of_visits", mycolor=current_color, plot_model=True,
+                                         divided_by="mvt_nb_of_visits", mycolor=current_color, plot_model=False,
                                          is_plot=is_plot)
 
-            # Rate of visits (number of visits per time unit)
+            # Rate of visits (number of visits per transit time unit)
             if "visit_rate" in what_to_plot:
                 plots.plot_selected_data(results, "Average visit rate in " + plot_name + " conditions",
                                          current_conditions, current_condition_names, "nb_of_visits",
-                                         divided_by="total_video_time", mycolor=current_color, is_plot=is_plot)
+                                         divided_by="total_transit_time", mycolor=current_color, is_plot=is_plot)
 
             if "visit_duration_vs_previous_transit" in what_to_plot:
                 plots.plot_visit_time(results, trajectories,
@@ -204,13 +205,19 @@ def plot_graphs(what_to_plot, curve_list=None):
                                          "Average proportion of time spent in patches in" + plot_name + "conditions",
                                          current_conditions, current_condition_names, "total_visit_time",
                                          divided_by="total_video_time", mycolor=current_color, is_plot=is_plot)
+            # Number of visited patches
+            if "number_of_visited_patches" in what_to_plot:
+                plots.plot_selected_data(results,
+                                         "Average proportion of visited patches in patches in" + plot_name + "conditions",
+                                         current_conditions, current_condition_names, "nb_of_visited_patches",
+                                         divided_by="", mycolor=current_color, is_plot=is_plot)
 
             # Proportion of visited patches
             if "proportion_of_visited_patches" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average proportion of visited patches in patches in" + plot_name + "conditions",
                                          current_conditions, current_condition_names, "proportion_of_visited_patches",
-                                         divided_by="total_video_time", mycolor=current_color, is_plot=is_plot)
+                                         divided_by="", mycolor=current_color, is_plot=is_plot)
 
             if "print_parameters_for_model" in what_to_plot:
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = ana.transit_properties(
@@ -274,13 +281,22 @@ print("Finished retrieving stuff")
 #               - "visit_duration_vs_visit_start"
 #               - "visit_duration_vs_entry_speed"
 #               - "proportion_of_time"
+#               - "number_of_visited_patches"
+#               - "proportion_of_visited_patches"
 #               - "print_parameters_for_model"
 #               - "transit_duration"
 
 #video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221015T201543_SmallPatches_C5-CAM4/traj.csv", 11771)
 #plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221013T114735_SmallPatches_C1-CAM2/traj.csv"])
-#video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221013T114735_SmallPatches_C1-CAM2/traj.csv", 12868)
-#plot_graphs("visit_duration", ["all"])
+#video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM1/traj.csv", 1466)
+#video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111318_SmallPatches_C2-CAM7/traj.csv", 15892)
+
+
+#plot_graphs("leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
+#plot_graphs("leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
+#plot_graphs("leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
+
+plots.trajectories_1condition(trajectories, [], plate_list = path+"20221011T111213_SmallPatches_C1-CAM2/traj.csv")
 
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
 # TODO function that shows length of (first) visit to a patch as a function of last travel time / average feeding rate in window

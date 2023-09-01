@@ -59,6 +59,8 @@ def show_frames(folder, first_frame):
     # Plot the patches
     fig = plt.gcf()
     top_ax = fig.gca()
+    fig.suptitle(folder)
+
     patches_x, patches_y = plots.patches([folder], show_composite=False, is_plot=False)
     for i_patch in range(len(patches_x)):
         top_ax.plot(patches_x[i_patch], patches_y[i_patch], color="black")
@@ -74,7 +76,10 @@ def show_frames(folder, first_frame):
     # Load centers of mass from the tracking
     centers_of_mass = fd.trajcsv_to_dataframe([folder])
     # Get patch info
-    patch_list = gr.in_patch_list(fd.trajcsv_to_dataframe([folder]), using="silhouette")
+    patch_list = gr.in_patch_list(centers_of_mass, using="silhouette")
+    # Get speeds
+    centers_of_mass["distances"] = gr.trajectory_distances(centers_of_mass)
+    speed_list = gr.trajectory_speeds(centers_of_mass)
 
     # Make a copy of full image limits, for zoom out purposes
     global img_xmin, img_xmax, img_ymin, img_ymax
@@ -95,7 +100,7 @@ def show_frames(folder, first_frame):
     center_of_mass_plot = top_ax.scatter([], [], zorder=3, color="orange")
     center_to_center_line = top_ax.plot([], [], color="white")
 
-    update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, patch_centers, current_metadata)
+    update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, speed_list)
 
     # Make the plot scrollable
     def key_event(e):
@@ -106,7 +111,7 @@ def show_frames(folder, first_frame):
             curr_index = max(0, curr_index - 1)
         else:
             return
-        update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, patch_centers, current_metadata)
+        update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, speed_list)
 
     fig.canvas.mpl_connect('scroll_event', key_event)
 
@@ -122,7 +127,7 @@ def show_frames(folder, first_frame):
         global curr_index
         global bottom_ax
         curr_index = int(frame_slider.val)
-        update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, patch_centers, current_metadata, zoom_out=True)
+        update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, speed_list, zoom_out=True)
 
     # Slider function update call
     frame_slider.on_changed(slider_update)
@@ -130,7 +135,17 @@ def show_frames(folder, first_frame):
     plt.show()
 
 
-def update_frame(folder, index, pixels, centers_of_mass, patch_list, patch_centers, current_metadata, zoom_out=False):
+def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list, zoom_out=False):
+    """
+    Function that is called every time the frame number has to be updated to a new index.
+    @param folder: path of the current video
+    @param index: new frame number
+    @param pixels: dataframe containing one line per frame, and in each frame a list of x,y coordinates for worm silhouette
+    @param centers_of_mass: center of mass of the worm
+    @param patch_list: list of patches where the worm is at each frame (for checking purposes, displayed in title)
+    @param speed_list: list of speeds at which the worm is going at each frame (for checking purposes, displayed as x legend)
+    @param zoom_out: if True, xlim and ylim will be set to image limits, otherwise narrow around worm
+    """
     global worm_plot
     global center_of_mass_plot
     global center_to_center_line
@@ -153,23 +168,8 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, patch_cente
         top_ax.set_xlim(xmin, xmax)
         top_ax.set_ylim(ymax, ymin)  # min and max values reversed because in our background image y-axis is reversed
 
-    # If worm is in a patch
-    if patch_list[curr_index] != -1:
-        # Draw a line between the patch center and the worm center of mass
-        curr_patch_center = patch_centers[curr_patch]
-        curr_worm_pos = [curr_x, curr_y]
-        center_to_center_line[0].set_data([curr_patch_center[0], curr_worm_pos[0]], [curr_patch_center[1], curr_worm_pos[1]])
-
-        # As a y-label, put distance of worm to center computed geometrically and spline value
-        worm_to_center = np.sqrt((curr_patch_center[0] - curr_worm_pos[0])**2 + (curr_patch_center[1] - curr_worm_pos[1])**2)
-        angular_position = np.arctan2((curr_worm_pos[1] - curr_patch_center[1]), (curr_worm_pos[0] - curr_patch_center[0]))
-        spline_value = gr.spline_value(angular_position, current_metadata["spline_breaks"][curr_patch], current_metadata["spline_coefs"][curr_patch])
-        # Plot spline value
-        top_ax.plot(patch_centers[curr_patch][0] + (spline_value * np.cos(angular_position)), patch_centers[curr_patch][1] + (spline_value * np.sin(angular_position)), marker="x", color="yellow")
-
-        top_ax.annotate(str(patch_centers[curr_patch][0])+", "+str(patch_centers[curr_patch][1]), [patch_centers[curr_patch][0], patch_centers[curr_patch][1]])
-
-        top_ax.set_xlabel("Worm_distance: "+str(worm_to_center)+", spline value: "+str(spline_value))
+    # Write as x label the speed of the worm
+    top_ax.set_xlabel("Speed of the worm: "+str(speed_list[index]))
 
     top_ax.set_title("Frame: " + str(fd.load_frame(folder, index)) + ", patch: " + str(curr_patch)+", worm xy: "+str(curr_x)+", "+str(curr_y))
 

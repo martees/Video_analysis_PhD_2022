@@ -14,7 +14,7 @@ radial_tolerance = 0
 verbose = False
 
 # Time threshold list for visit aggregation
-threshold_list = [0, 10, 100, 100000]
+threshold_list = [100000]
 
 # Time threshold for leaving probability (to compute P_leave of a worm, look at probability that it leaves in the next
 #   N time steps, with N being this threshold)
@@ -158,7 +158,7 @@ name_to_color = {"close": "slateblue", "med": "midnightblue", "far": "deepskyblu
                  "cluster": "forestgreen", "0": "bisque",
                  "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate",
                  "0.5+1.25": "orange",
-                 "control": "gray", "all": "pink",
+                 "control": "gray", "all": "teal",
                  "food": "brown"}
 
 # Add colors for single conditions, distance override but color is lighter when density is lower

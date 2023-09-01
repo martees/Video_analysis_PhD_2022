@@ -108,7 +108,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
 
 
 def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
-                            plot_continuity=False, plot_speed=False, plot_time=False, plate_list=[], is_plot=True,
+                            plot_continuity=False, plot_speed=False, plot_time=False, plate_list=None, is_plot=True,
                             save_fig=False):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
@@ -121,7 +121,9 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
     :return: trajectory plot
     """
     # If there is a plate list
-    if plate_list:
+    if plate_list is not None:
+        if type(plate_list) == str:
+            plate_list = [plate_list]
         folder_list = []
         condition_list = []
         for i_plate in range(len(plate_list)):
@@ -211,11 +213,12 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         # Plot black dots when the worm is inside
         if plot_in_patch:
             plt.scatter(current_list_x, current_list_y, color=colors[i_folder], s=.5)
-            indexes_in_patch = np.where(current_traj["patch"] != -1)
+            indexes_in_patch = np.where(current_traj["patch_silhouette"] != -1)
             plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black',
                         s=.5, zorder=1.5)
 
         # Plot markers where the tracks start, interrupt and restart
+        # THIS IS BROKEN: to fix it, look for tracking holes by looking for frames where worm id switches
         if plot_continuity:
             # Tracking stops
             plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color="red")
@@ -238,9 +241,7 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         plt.savefig(path+"trajectory_plots/condition_"+str(condition_list)+"_"+folder_list[-1].split("/")[-2]+".png")
 
 
-
 # Analysis functions
-
 def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_patch=False, out_patch=False, is_plot=True):
     # TODO take care of holes in traj.csv
     """
@@ -601,7 +602,7 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
     threshold_list: list of thresholds for aggregation of visits
     """
     if scale_list is None:
-        scale_list = ["linear"]  # could also be "linear"
+        scale_list = ["log"]  # could also be "linear"
     if variable_list is None:
         variable_list = ["visits", "same transits", "cross transits"]
 

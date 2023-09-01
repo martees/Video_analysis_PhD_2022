@@ -76,7 +76,6 @@ plot_graphs("leaving_probability", [["close 0.2"], ["med 0.2"], ["far 0.2"]])
 plot_graphs("leaving_probability", [["close 0.5"], ["med 0.5"], ["far 0.5"]])
 plot_graphs("leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
 plot_graphs("leaving_probability", [["far"], ["med"], ["close"]])
-plot_graphs("leaving_probability", ["cluster"])
 plot_graphs("leaving_probability", [["0"], ["0.2"], ["0.5"], ["1.25"]])
 
 ## Saving all trajectories
@@ -88,19 +87,13 @@ for i_cond in param.nb_to_name.keys():
 from main import *
 
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["close"], effect_of="density")
-##
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["med"], effect_of="density")
-##
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["far"], effect_of="density")
-##
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["cluster"], effect_of="density")
-##
+
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["0"], effect_of="distance")
-##
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["0.2"], effect_of="distance")
-##
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["0.5"], effect_of="distance")
-##
+
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["all"], effect_of="distance")
-##
 plots.plot_variable_distribution(results, condition_list=param.name_to_nb_list["all"], effect_of="density")

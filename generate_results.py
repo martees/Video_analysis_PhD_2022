@@ -172,7 +172,8 @@ def trajectory_distances(traj):
     when there's a tracking hole.
     """
     # Slice the traj file depending on the folder, because we only want to compare one worm to itself
-    folder_list = np.unique(traj["folder"])
+    # We use pd.unique because it doesn't sort outputs, otherwise the output won't be a column that we can add to traj
+    folder_list = pd.unique(traj["folder"])
     list_of_distances = []
 
     # For each folder, array operation to compute distance
@@ -200,7 +201,8 @@ def trajectory_speeds(traj):
     Will compute speeds from the distances and frame numbers in the trajectories columns
     """
     # Slice the traj file depending on the folder, because we only want to compare one worm to itself
-    folder_list = np.unique(traj["folder"])
+    # We use pd.unique because it doesn't sort outputs, otherwise the output won't be a column that we can add to traj
+    folder_list = pd.unique(traj["folder"])
     list_of_speeds = []
     # For each folder, array operation to compute speed
     # NOTE: distance and speed should be equal almost all the time, exceptions = points where the tracking is
@@ -932,8 +934,8 @@ def generate_clean_tables_and_speed(path):
     print("Computing speeds...")
     # For faster execution, we only compute speeds here (and not at the same time as distances), when invalid
     # trajectories have been excluded
-    clean_trajectories["speeds"] = trajectory_speeds(clean_trajectories)
-    clean_trajectories.to_csv(path + "clean_trajectories.csv")
+    #clean_trajectories["speeds"] = trajectory_speeds(clean_trajectories)
+    #clean_trajectories.to_csv(path + "clean_trajectories.csv")
     return 0
 
 
