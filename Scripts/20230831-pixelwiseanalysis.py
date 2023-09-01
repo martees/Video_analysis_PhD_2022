@@ -42,11 +42,20 @@ def pixelwise_one_traj(traj):
         current_frame_nb_of_pixels = len(silhouettes[time_index][0])
         # Fill the pixels table accordingly
         frame_col += [current_frame] * current_frame_nb_of_pixels
-        patch_col += [current_patch] * current_frame_nb_of_pixels
         folder_col += [folder] * current_frame_nb_of_pixels
         frame_size_col += [frame_size[0]] * current_frame_nb_of_pixels
         x_col += silhouettes[time_index][0]
         y_col += silhouettes[time_index][1]
+
+        # Some work for the patch column
+        # We use in_patch_list instead of at the end, like this we can profit from the fact that we have already computed
+        # when the worm was outside. It requires pretending the silhouette is a traj hehe.
+        if current_patch == -1:
+            patch_col += [current_patch] * current_frame_nb_of_pixels
+        else:
+            curr_silhouette = pd.DataFrame({"x": , "y": ,})
+            patch_list = gr.in_patch_list()
+
 
     # Our final pixel table should contain the same thing but with actual frame as a column.
     pixels = pd.DataFrame()
