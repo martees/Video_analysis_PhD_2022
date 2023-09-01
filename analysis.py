@@ -31,7 +31,7 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
             y.append(random.choice(data))
 
         if operation == "mean":
-            stat = np.mean(y)
+            stat = np.nanmean(y)
 
         if operation == "leaving_probability":
             stat = compute_leaving_probability(y)
@@ -79,11 +79,7 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 if np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
                 else:
-                    print("Trying to divide by 0... what a shame")
-                # if divided_by == "nb_of_visits" and column_name == "total_visit_time" and current_condition == 2: #detecting extreme far 0.2 cases
-                #    if list_of_values[i_plate]>800:
-                #        print(list_of_plates[i_plate])
-                #        print(list_of_values[i_plate])
+                    print("Trying to divide by 0 in plot_selected_data for plate" + str(list_of_plates[i_plate]) + "... what a shame")
 
             # When no division has to be made
             else:
@@ -94,14 +90,12 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                         list_of_values[i_plate] = np.average(list_speed_current_plate)
                 elif column_name == "proportion_of_visited_patches" or column_name == "nb_of_visited_patches":  # Special case: divide by total nb of patches in plate
                     current_plate = current_plate.reset_index()
-                    list_of_visited_patches = [json.loads(current_plate["list_of_visited_patches"][i]) for i in
-                                               range(len(current_plate["list_of_visited_patches"]))]
-                    list_of_visited_patches = [i for sublist in list_of_visited_patches for i in sublist]
+                    visited_patches_list = list_of_visited_patches(fd.load_list(current_plate, "no_hole_visits"))
                     if column_name == "nb_of_visited_patches":
-                        list_of_values[i_plate] = len(np.unique(list_of_visited_patches))
+                        list_of_values[i_plate] = len(visited_patches_list)
                     else:
                         list_total_patch = list(param.nb_to_nb_of_patches.values())  # total nb of patches for each cond
-                        list_of_values[i_plate] = len(np.unique(list_of_visited_patches)) / list_total_patch[
+                        list_of_values[i_plate] = len(np.unique(visited_patches_list)) / list_total_patch[
                             i_condition]
                 elif column_name == "furthest_patch_distance":  # in this case we want the maximal value and not the average
                     list_of_values[i_plate] = np.max(current_plate[column_name])
@@ -790,6 +784,18 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars
             break
 
     return global_time_in_patch_bins, probability_list, [errors_inf, errors_sup], nb_of_worms_each_bin
+
+
+def list_of_visited_patches(list_of_visits):
+    """
+    Takes a list of visits and returns a list with the ID number of visited patches.
+    @param list_of_visits: list in the [t0, t1, p] format (t0 = start time, t1 = end time, p = patch number)
+    @return: list_of_patches: list [p0, p1, p2, ...] of the patches that were visited at least once.
+    """
+    list_of_patches = []
+    for i_visit in range(len(list_of_visits)):
+        list_of_patches.append(list_of_visits[i_visit][2])
+    return np.unique(list_of_patches)
 
 
 def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
