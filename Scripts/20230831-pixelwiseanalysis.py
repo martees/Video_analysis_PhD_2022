@@ -8,26 +8,62 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.colors as mplcolors
 
 import generate_results as gr
 import find_data as fd
 import plots
 
+
+def in_patch_silhouette_each_pixel(silhouette_x, silhouette_y, patch_center, spline_breaks, spline_coefs):
+    """
+    Takes a list of x and y coordinates for the worm silhouette in one frame, and the coordinates of a patch and its spline contour.
+    Return a list of bools that corresponds to which pixels are inside.
+    """
+    # We look at intersects between patch boundary and the corners of the rectangle in which the worm is inscribed
+    min_x, max_x, min_y, max_y = np.min(silhouette_x), np.max(silhouette_x), np.min(silhouette_y), np.max(silhouette_y)
+    nb_of_corners_inside_patch = 0
+    for corner in [[min_x, min_y], [min_x, max_y], [max_x, min_y], [max_x, max_y]]:
+        if gr.in_patch(corner, patch_center, spline_breaks, spline_coefs):
+            nb_of_corners_inside_patch += 1
+        # If all four corners are inside, we can safely say that all pixels are inside
+        if nb_of_corners_inside_patch == 4:
+            return [True for _ in range(len(silhouette_x))]
+    # There shouldn't be any case where no corner is inside (because we only look at cases so defined)
+    if nb_of_corners_inside_patch == 0:
+        print("There's a bug in the in_patch_silhouette function in generate_results")
+
+    # In case there is 1, 2 or 3 corners inside, then... well check the whole silhouette hehe
+    in_patch_list = []
+    for i_point in range(len(silhouette_x)):
+        in_patch_list.append(gr.in_patch([silhouette_x[i_point], silhouette_y[i_point]], patch_center,
+                                                       spline_breaks,
+                                                       spline_coefs))
+    return in_patch_list
+
+
 def pixelwise_one_traj(traj):
     """
+    Runs on the data for ONE PLATE.
     Function that returns a dataframe with the list of the pixels visited by any part of the worm, at each (tracked) frame.
     (frames where the tracking failed have no info)
     @param traj: traj.csv dataframe, containing (x,y) coordinates for a plate.
     @return: pixelwise.csv dataframe, containing (x,y) coordinates visited by any silhouette pixel, the frame at which
     it was visited, and the patch where it is.
     """
+    # Extract necessary data
     folder = traj["folder"][0]
+    current_metadata = fd.folder_to_metadata(folder)
+    patch_centers = current_metadata["patch_centers"]
+    spline_breaks = current_metadata["spline_breaks"]
+    spline_coefs = current_metadata["spline_coefs"]
+
     # Get silhouette table, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
     silhouettes, _, frame_size = fd.load_silhouette(folder)
     silhouettes = fd.reindex_silhouette(silhouettes, frame_size)
 
     # Lists to fill the final table
+    # (I just copy them in a pandas dataframe in the end because I can't figure out how to fill a pandas on the go)
     frame_col = []
     folder_col = []
     patch_col = []
@@ -35,10 +71,10 @@ def pixelwise_one_traj(traj):
     x_col = []
     y_col = []
 
+    # For every time step of the video
     for time_index in range(len(silhouettes)):
         # Load frame, patch, and compute number of pixels in the silhouette for this frame
         current_frame = traj["frame"][time_index]
-        current_patch = traj["patch_silhouette"][time_index]
         current_frame_nb_of_pixels = len(silhouettes[time_index][0])
         # Fill the pixels table accordingly
         frame_col += [current_frame] * current_frame_nb_of_pixels
@@ -48,14 +84,24 @@ def pixelwise_one_traj(traj):
         y_col += silhouettes[time_index][1]
 
         # Some work for the patch column
-        # We use in_patch_list instead of at the end, like this we can profit from the fact that we have already computed
-        # when the worm was outside. It requires pretending the silhouette is a traj hehe.
+        current_patch = traj["patch_silhouette"][time_index]
+        # We can profit from the fact that we have already computed when the worm was outside.
         if current_patch == -1:
-            patch_col += [current_patch] * current_frame_nb_of_pixels
+            patch_col += [current_patch for _ in range(current_frame_nb_of_pixels)]
+        # And otherwise we can... suffer? :D
         else:
-            curr_silhouette = pd.DataFrame({"x": , "y": ,})
-            patch_list = gr.in_patch_list()
-
+            # We have a silhouette, and need to classify pixels between those that are inside and those that are outside
+            x_list = silhouettes[time_index][0]
+            y_list = silhouettes[time_index][1]
+            current_patch_center = patch_centers[current_patch]
+            current_spline_breaks = spline_breaks[current_patch]
+            current_spline_coefs = spline_coefs[current_patch]
+            in_patch_each_pixel = in_patch_silhouette_each_pixel(x_list, y_list, current_patch_center, current_spline_breaks, current_spline_coefs)
+            for i in range(len(in_patch_each_pixel)):
+                if in_patch_each_pixel[i] == False:
+                    patch_col.append(-1)
+                else:
+                    patch_col.append(current_patch)
 
     # Our final pixel table should contain the same thing but with actual frame as a column.
     pixels = pd.DataFrame()
@@ -83,6 +129,30 @@ def generate_pixelwise(traj):
         current_traj = traj[traj["folder"] == folder].reset_index()
         pixelwise = pixelwise_one_traj(current_traj)
         pixelwise.to_csv(folder[:-len("traj.csv")]+"worm_pixels_traj.csv")
+
+
+def plot_in_patch_silhouette(folder):
+    """
+    Just a function to check that the in_patch_silhouette function is working.
+    """
+    # Load pixelwise trajectory from current folder
+    pixels_path = folder[:-len("traj.csv")] + "worm_pixels_traj.csv"
+    if not os.path.isfile(pixels_path):  # Error message
+        print("Pixelwise trajectory file has not been generated yet. Run generate_pixelwise function in the current path.")
+    pixels = pd.read_csv(pixels_path)
+
+    # Show background and patches
+    # patches_x, patches_y = plots.patches(folder, is_plot=False)
+    # plt.scatter(patches_x, patches_y, color="blue", s=2)
+    composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
+    plt.imshow(composite)
+
+    pixels_in_patch = pixels[pixels["patch_silhouette"]!=-1]
+    pixels_out_of_patch = pixels[pixels["patch_silhouette"]==-1]
+    plt.scatter(pixels_in_patch["x"], pixels_in_patch["y"], color="yellow", s=.5)
+    plt.scatter(pixels_out_of_patch["x"], pixels_out_of_patch["y"], color="black", s=.5)
+
+    plt.show()
 
 
 def plot_depletion(folder, frame, depletion_rate):
@@ -115,13 +185,16 @@ def plot_depletion(folder, frame, depletion_rate):
 
     # Create a color map that becomes transparent when depletion value is 1
     nb_of_colors = 256
-    color_array = plt.get_cmap('hot_r')(range(nb_of_colors))
+    color_array = plt.get_cmap('viridis_r')(range(nb_of_colors))
     # change alpha values (one for every value except the last)
     color_array[:, -1] = np.append(np.ones(nb_of_colors - 1), 0)
     # create a colormap object
-    map_object = LinearSegmentedColormap.from_list(name='hot_alpha', colors=color_array)
+    map_object = mplcolors.LinearSegmentedColormap.from_list(name='viridis_alpha', colors=color_array)
     # register this new colormap with matplotlib
     plt.register_cmap(cmap=map_object)
+
+    # Create norm to better see depleted places
+    normalize = mplcolors.Normalize(vmin=1-100*depletion_rate, vmax=1)
 
     # Show background and patches
     # patches_x, patches_y = plots.patches(folder, is_plot=False)
@@ -130,16 +203,30 @@ def plot_depletion(folder, frame, depletion_rate):
     plt.imshow(composite)
 
     # Show depletion
-    dep = plt.imshow(np.transpose(depletion_matrix), cmap='hot_alpha')
+    dep = plt.imshow(np.transpose(depletion_matrix), cmap='viridis_alpha', norm=normalize)
     # # Show depletion EVERYWHEEERE
     # for i_x in range(len(depletion_matrix)):
     #     for i_y in range(len(depletion_matrix[i_x])):
     #         plt.scatter(i_x, i_y, color="yellow", alpha=depletion_matrix[i_x][i_y])
-    plt.colorbar(dep, cmap="hot_alpha")
+
+    plt.title("Plate " + folder[-48:-9] + ", depletion_rate = " + str(depletion_rate))
+    plt.colorbar(dep, cmap="viridis_alpha")
     plt.show()
 
 
 def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
+    """
+    Function that plots the level of depletion of the patches visited by the worm, as a function of time.
+    IMPORTANT NOTE: This level of depletion is dependent on the number of pixels in each patch, which currently I didn't
+    compute. All of this is based on visual estimates for now (5701 pixels per patch).
+    @param folder: a folder where generate_pixelwise was already run
+    @param nb_of_frames: frame at which to stop
+    @param depletion_rate: rate at which each pixel is depleted every time a worm pixel overlaps with it (pixel fullness ranges from 1 to 0)
+    @return: plots the overall level of depletion of the patches visited by the worm, as a function of time
+    """
+    # Badly measured parameter
+    nb_of_pixels_per_patch = 5701
+
     # Load pixelwise trajectory from current folder
     pixels_path = folder[:-len("traj.csv")] + "worm_pixels_traj.csv"
     if not os.path.isfile(pixels_path):  # Error message
@@ -147,29 +234,44 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
             "Pixelwise trajectory file has not been generated yet. Run generate_pixelwise function in the current path.")
     pixels = pd.read_csv(pixels_path)
 
+    # List of visited patches
     visited_patch_list = pd.unique(pixels["patch_silhouette"])
+    # Color map
     colors = plt.cm.jet(np.linspace(0,1, len(visited_patch_list)))
 
-    # depletion_curve = [np.ones(nb_of_frames) for _ in range(len(visited_patch_list))]  # one curve for each visited patch
-    # for i_patch in visited_patch_list:
-    #     patch = visited_patch_list[i_patch]
-    #     visited_pixels = pixels[pixels["patch"] == patch]
-    #     for frame in visited_pixels["frame"]:  # for each frame with a visit, deplete all subsequent points in the curve
-    #         nb_of_pixels_visited = len(visited_pixels[visited_pixels["frame"] == frame])
-    #         depletion_curve[i_patch][:-frame] -= nb_of_pixels_visited * depletion_rate
-
-    for i_patch in range(len(visited_patch_list)):
-        depletion_curve = []
+    for i_patch in range(1):
+        # Initialization
         patch = visited_patch_list[i_patch]
-        visited_pixels = pixels[pixels["patch_silhouette"] == patch]
-        list_of_visit_frames = pd.unique(visited_pixels["frame"])
-        depletion_value = 1
-        for frame in range(nb_of_frames):  # for each frame with a visit, reduce the depletion value of the patch
+        depletion_curve = [1]  # curve that we want to fill up (patch starts full, at 1)
+
+        # Retrieve information about the pixels visited by the worm
+        pixel_visits = pixels[pixels["patch_silhouette"] == patch]  # pixels that were counted as inside this patch
+        pixels_visited = pixel_visits.drop_duplicates()  # list of unique pixels visited by the worm
+        nb_of_visited_pixels = len(pixels_visited)
+        list_of_visit_frames = pd.unique(pixel_visits["frame"])  # frames at which those visits happened
+
+        # Initialize a column to record depletion level of all visited pixels (one item per unique visited pixel)
+        pixels_visited["fullness"] = [1 for _ in range(len(pixels_visited))]
+
+        for frame in range(nb_of_frames):
+            if frame % 1000 == 0:
+                print("Computing depletion for ", frame," / ", nb_of_frames)
+            # For each frame with a visit, reduce the fullness of relevant pixels
             if frame in list_of_visit_frames:
-                nb_of_pixels_visited = len(visited_pixels[visited_pixels["frame"] == frame])
-                depletion_value -= nb_of_pixels_visited * depletion_rate
-            depletion_curve.append(depletion_value)
-        plt.plot(range(nb_of_frames), depletion_curve, color=colors[i_patch], label=str(patch))
+                visited_pixels_this_frame = pixel_visits[pixel_visits["frame"] == frame].reset_index()
+                for i in range(len(visited_pixels_this_frame)):
+                    pixel = visited_pixels_this_frame.iloc[i,]
+                    # This big line is just to adjust the fullness of the right pixel in the pixels_visited dataframe
+                    pixels_visited.loc[(pixels_visited["x"]==pixel["x"])&(pixels_visited["y"]==pixel["y"]), "fullness"] -= depletion_rate
+                # Set any fullness value < 0 to 0
+                pixels_visited["fullness"] = np.where(pixels_visited["fullness"] > 0, pixels_visited["fullness"], 0)
+                # Patch fullness is equal to fullness of all pixels (visited + unvisited) divided by total number of pixels
+                patch_fullness = (np.sum(pixels_visited["fullness"]) + (nb_of_pixels_per_patch - nb_of_visited_pixels)) / nb_of_pixels_per_patch
+                # Update patch depletion accordingly
+                depletion_curve.append(patch_fullness)
+            else:  # if no new visit, depletion level is constant
+                depletion_curve.append(depletion_curve[-1])
+        plt.plot(range(nb_of_frames + 1), depletion_curve, color=colors[i_patch], label=str(patch))
 
     plt.title("Plate "+folder[-48:-9]+ ", depletion_rate = "+str(depletion_rate))
     plt.ylabel("Food level in each patch")
@@ -177,13 +279,16 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
     plt.legend()
     plt.show()
 
+# Load existing data
 path = gr.generate(test_pipeline=True)
 trajectories = pd.read_csv(path + "clean_trajectories.csv")
+
 # Run this line only to regenerate all pixelwise tables (I guess it might take a while)
 #generate_pixelwise(trajectories)
 
-#plot_depletion("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM2/traj.csv",100000, 0.001)
-patch_depletion_evolution("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM2/traj.csv", 33000, 0.00001)
+#plot_in_patch_silhouette("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM3/traj.csv")
+#plot_depletion("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221014T191303_SmallPatches_C2-CAM4/traj.csv",100000, 0.01)
+patch_depletion_evolution("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM3/traj.csv", 33000, 0.001)
 
 
 
