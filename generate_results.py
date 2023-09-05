@@ -91,7 +91,7 @@ def in_patch_list(traj, using):
 
     for i_plate in range(nb_of_plates):  # for every plate
         # Handmade progress bar
-        if i_plate % 20 == 0 or i_plate == nb_of_plates:
+        if param.verbose and (i_plate % 20 == 0 or i_plate == nb_of_plates):
             print("patch_position_"+using+" for plate ", i_plate, "/", nb_of_plates)
         # print("plate name: "+list_of_plates[i_plate])
         # Extract patch information
@@ -118,7 +118,7 @@ def in_patch_list(traj, using):
         # Here we choose to iterate on time and not on patches, two reasons:
         # First, like that we just have to detect patch changes, and it's mostly bad when worm is outside and all patches have to be checked at each time step
         # Second, worms spend most of their time inside food patches, so it's okay that it's worse outside
-        # However, it might be terrible because it requires loading patch polynomials over and over again
+        # However, it might as well be terrible because it requires loading patch polynomials over and over again
         patch_where_it_is = -1  # initializing variable with index of patch where the worm currently is
         # We go through the whole trajectory
         for time in range(len(list_x_centroid)):
@@ -130,7 +130,8 @@ def in_patch_list(traj, using):
             patch_where_it_is = -1  # resetting the variable to "worm is out"
 
             # Check if there is a silhouette for this time
-            no_silhouette_this_time = list_x_silhouette[time] == []
+            if using == "silhouette":
+                no_silhouette_this_time = list_x_silhouette[time] == []
 
             # In case the worm is in the same patch, don't try all the patches (doesn't work if worm is out):
             if patch_where_it_was != -1:

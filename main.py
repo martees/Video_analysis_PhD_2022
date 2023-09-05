@@ -296,7 +296,6 @@ print("Finished retrieving stuff")
 #plot_graphs("leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
 #plot_graphs("leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
 
-plots.trajectories_1condition(trajectories, [], plate_list = path+"20221011T111213_SmallPatches_C1-CAM2/traj.csv")
 
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
 # TODO function that shows length of (first) visit to a patch as a function of last travel time / average feeding rate in window
