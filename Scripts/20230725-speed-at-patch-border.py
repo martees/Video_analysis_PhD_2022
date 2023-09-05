@@ -1,8 +1,6 @@
 from main import *
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-import warnings
 
 # Analysis of the worms' speeds near the patch border
 # The goal is to plot speed right before and after worm enters / exits a food patch
@@ -12,7 +10,7 @@ clean_results = pd.read_csv(path + "/clean_results.csv", index_col=0)
 clean_trajectories = pd.read_csv(path + "/clean_trajectories.csv", index_col=0)
 
 # Find conditions and folders
-condition_pool_name = "close 0"
+condition_pool_name = "far 0"
 condition_list = [param.name_to_nb[condition_pool_name]]
 condition_names = [param.nb_to_name[nb] for nb in condition_list]
 folder_list = fd.return_folders_condition_list(np.unique(clean_results["folder"]), condition_list)
@@ -20,7 +18,7 @@ folder_list = fd.return_folders_condition_list(np.unique(clean_results["folder"]
 # Number of time steps before and after exit/entry that we look at
 time_window = 10
 
-# Init: list with average for each time step for each plate
+# Init: lists to fill with average for each time step pre/post entry/exit for each plate
 avg_speed_around_entry_all_plates = [np.zeros(len(folder_list)) for _ in range(2*time_window)]
 avg_speed_around_exit_all_plates = [np.zeros(len(folder_list)) for _ in range(2*time_window)]
 
@@ -33,23 +31,31 @@ for i_folder in range(len(folder_list)):
     current_results = clean_results[clean_results["folder"] == folder]
     current_traj = clean_trajectories[clean_trajectories["folder"] == folder].reset_index(drop=True)
     list_of_visits = fd.load_list(current_results, "no_hole_visits")
-    # Lists of frames where worm enters / exits patches
-    entry_frames = [list_of_visits[i][0] for i in range(len(list_of_visits))]
-    exit_frames = [list_of_visits[i][1] for i in range(len(list_of_visits))]
-    # Fill lists
-    for i_frame in range(len(entry_frames)):
-        # Entry
-        current_entry_frame = entry_frames[i_frame]
+    list_of_transits = fd.load_list(current_results, "aggregated_raw_transits")
+    # Lists of frames where worm enters / exits patches (visit and transit starts) and it lasts more than time window
+    # (any visit or transit shorter than time window would lead to an "impure" behavior => excluded from analysis)
+    long_enough_visits = [list_of_visits[i] for i in range(len(list_of_visits)) if list_of_visits[i][1]-list_of_visits[i][0] >= time_window]
+    long_enough_transits = [list_of_transits[i] for i in range(len(list_of_transits)) if list_of_transits[i][1]-list_of_transits[i][0] >= time_window]
+    # Since we filtered the two lists, they now contain visits and transits that are not necessarily consecutive => fix that
+    entry_frames = [long_enough_visits[i][0] for i in range(len(long_enough_visits)) if any(long_enough_visits[i][0] in t for t in long_enough_transits)]
+    exit_frames = [long_enough_transits[i][0] for i in range(len(long_enough_transits)) if any(long_enough_transits[i][0] in t for t in long_enough_visits)]
+
+    # Fill entry list
+    for i_entry in range(len(entry_frames)):
+        current_entry_frame = entry_frames[i_entry]
         entry_index = fd.find_closest(current_traj["frame"], current_entry_frame)
         # Check if frames are continuous around entry: otherwise, exclude it completely (for now because I'm tired)
+        # (check if the difference between the indexes in the "frame" column is the same as the difference between the frames)
         pre_entry_index = fd.find_closest(current_traj["frame"], current_entry_frame - time_window)
         post_entry_index = fd.find_closest(current_traj["frame"], current_entry_frame + time_window)
         if pre_entry_index == entry_index - time_window and post_entry_index == entry_index + time_window:
             entry_speeds = current_traj["speeds"].iloc[pre_entry_index:post_entry_index].reset_index(drop=True)
             for time in range(2*time_window):
                 speed_around_entry[time].append(entry_speeds[time])
-        # Exit
-        current_exit_frame = exit_frames[i_frame]
+
+    # Fill exit list
+    for i_exit in range(len(exit_frames)):
+        current_exit_frame = exit_frames[i_exit]
         exit_index = fd.find_closest(current_traj["frame"], current_exit_frame)
         # Check if frames are continuous around exit: otherwise, exclude it completely (for now because I'm tired)
         pre_exit_index = fd.find_closest(current_traj["frame"], current_exit_frame - time_window)
