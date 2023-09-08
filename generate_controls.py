@@ -76,10 +76,6 @@ def generate_controls(path, show=False):
                 # shutil.copy(folder_without_traj+"composite.tif", current_control_folder)
                 # shutil.copy(folder_without_traj+"background.tif", current_control_folder)
 
-            if show:
-                #plots.patches([source_folder])
-                plots.patches([current_control_folder+"/traj.csv"])
-
 
 def return_control_metadata(path, parent_folder, distance):
     """
