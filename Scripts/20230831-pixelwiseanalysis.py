@@ -15,7 +15,102 @@ import find_data as fd
 import plots
 
 
-def in_patch_silhouette_each_pixel(silhouette_x, silhouette_y, patch_center, spline_breaks, spline_coefs):
+def in_patch_all_pixels(folder):
+    """
+    Will return a table containing the patch in which each pixel of the video from folder is.
+    (so if line 5 column 7 there is a -1, it means the point with x=7, y=5 is outside any food patch)
+    """
+    # In order to avoid having to classify all pixels one by one, we use an algorithm that's more fun :-)
+    # # First we generate a list of patch boundary points, enough of them so that for each patch there's at least one
+    #   of those points for each pixel row (patches are around 80 px in diameter, so let's do 480 to be sure)
+    # # Then, we convert these patch boundary points to integers => any pixel crossed by the spline becomes a boundary pixel
+    # # Finally, we go through every row of boundary pixels, and we fill the map using parity rules (first boundary px
+    #   encountered converts rest of the line for its belonging patch, then second boundary px of this patch converts px
+    #   after it back to -1 (outside patches)).
+
+    # Load image size
+    _, _, frame_size = fd.load_silhouette(folder)
+
+    # Table that will be filled with a number indicating whether a point is outside patches (-1) or inside (patch nb)
+    plate_map = -1 * np.ones((frame_size[0], frame_size[1]))  # for now only -1
+
+    # Load metadata for the plate
+    metadata = fd.folder_to_metadata(folder)
+    patch_centers = metadata["patch_centers"]
+    patch_spline_breaks = metadata["spline_breaks"]
+    patch_spline_coefs = metadata["spline_coefs"]
+
+    # List of discrete positions for the patch boundaries
+    boundary_position_list = []
+
+    # For each patch
+    for i_patch in range(len(patch_centers)):
+        # For a range of 480 angular positions
+        angular_pos = np.linspace(-np.pi, np.pi, 480)
+        radiuses = np.zeros(len(angular_pos))
+        # Compute the local spline value for each of those radiuses
+        for i_angle in range(len(angular_pos)):
+            radiuses[i_angle] = gr.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
+                                                patch_spline_coefs[i_patch])
+        # Add to position list discrete (int) cartesian positions
+        # (due to discretization, positions will be added multiple times, but we don't care)
+        for point in range(len(angular_pos)):
+            x = int(patch_centers[i_patch][0] + (radiuses[point] * np.cos(angular_pos[point])))
+            y = int(patch_centers[i_patch][1] + (radiuses[point] * np.sin(angular_pos[point])))
+            boundary_position_list.append((x, y, i_patch))  # 3rd tuple element is patch number
+
+    # Keep only unique boundary positions, and then sort them (pixels read in occidental reading order)
+    boundary_position_list = list(set(boundary_position_list))  # shady method to keep only unique tuples
+    boundary_position_list = sorted(boundary_position_list, key=lambda b: b[0])
+    boundary_position_list = sorted(boundary_position_list, key=lambda b: b[1])
+    # For each line and each patch, keep only the min and max points (to have a single boundary line)
+    cleaned_boundaries_list = []
+    for line in range(frame_size[1]):
+        if boundary_position_list:  # while there are points to look at!
+            # Find the points that sit on the current line
+            current_line_nb = boundary_position_list[-1][1]
+            current_line = []
+            while boundary_position_list and boundary_position_list[-1][1] == current_line_nb:
+                current_line.append(boundary_position_list.pop())  # remove them from boundary_position_list on the go
+            for i_patch in range(len(patch_centers)):
+                mini = 10000000
+                maxi = 0
+                for point in current_line:  # for each point of the line
+                    if point[2] == i_patch:
+                        if point[0] < mini:
+                            mini = point[0]
+                        if point[0] > maxi:
+                            maxi = point[0]
+                if mini != 10000000 and maxi != 0:
+                    cleaned_boundaries_list.append((mini, current_line_nb, i_patch))
+                    cleaned_boundaries_list.append((maxi, current_line_nb, i_patch))
+    # Re-sort it because
+    cleaned_boundaries_list = sorted(cleaned_boundaries_list, key=lambda b: b[0])
+    cleaned_boundaries_list = sorted(cleaned_boundaries_list, key=lambda b: b[1])
+
+    # Color the map :D
+    open_patch = -1
+    for boundary in cleaned_boundaries_list:
+        current_patch = boundary[2]  # patch number of the patch we're looking at
+        if open_patch == -1:  # if the current open_patch is -1, we should open the patch
+            plate_map[boundary[1]][boundary[0]:] = current_patch  # on the matrix line y, fill all points after x with patch nb
+            open_patch = current_patch
+        elif open_patch == current_patch:  # if the current open_patch is the current patch, we should close the patch
+            plate_map[boundary[1]][boundary[0]:] = -1
+            open_patch = -1
+        else:  # any other case would be a bug (trying to open a new patch while a different one was not closed)
+            print("There's a bug!")
+
+    #plt.imshow(plate_map)
+    # composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
+    # plt.imshow(composite)
+    # patches_x, patches_y = plots.patches([folder], is_plot=False)
+    # plt.scatter(patches_x, patches_y, color = "blue")
+    # plt.show()
+
+    pd.DataFrame(plate_map).to_csv(folder[:-len("traj.csv")]+"in_patch_matrix.csv", index=False)
+
+def in_patch_silhouette_each_pixel(silhouette_x, silhouette_y, patch_center, spline_breaks, spline_coefs, in_patch_map):
     """
     Takes a list of x and y coordinates for the worm silhouette in one frame, and the coordinates of a patch and its spline contour.
     Return a list of bools that corresponds to which pixels are inside.
@@ -24,7 +119,7 @@ def in_patch_silhouette_each_pixel(silhouette_x, silhouette_y, patch_center, spl
     min_x, max_x, min_y, max_y = np.min(silhouette_x), np.max(silhouette_x), np.min(silhouette_y), np.max(silhouette_y)
     nb_of_corners_inside_patch = 0
     for corner in [[min_x, min_y], [min_x, max_y], [max_x, min_y], [max_x, max_y]]:
-        if gr.in_patch(corner, patch_center, spline_breaks, spline_coefs):
+        if int(in_patch_map[str(corner[0])][corner[1]]) != -1:
             nb_of_corners_inside_patch += 1
         # If all four corners are inside, we can safely say that all pixels are inside
         if nb_of_corners_inside_patch == 4:
@@ -36,9 +131,8 @@ def in_patch_silhouette_each_pixel(silhouette_x, silhouette_y, patch_center, spl
     # In case there is 1, 2 or 3 corners inside, then... well check the whole silhouette hehe
     in_patch_list = []
     for i_point in range(len(silhouette_x)):
-        in_patch_list.append(gr.in_patch([silhouette_x[i_point], silhouette_y[i_point]], patch_center,
-                                                       spline_breaks,
-                                                       spline_coefs))
+        in_patch_list.append(int(in_patch_map[str(silhouette_y[i_point])][silhouette_x[i_point]]))  # line of the matrix is the y (vertical) coord
+        # str() around y coord because in_patch_map is now a dataframe, and column names are strings
     return in_patch_list
 
 
@@ -57,6 +151,7 @@ def pixelwise_one_traj(traj):
     patch_centers = current_metadata["patch_centers"]
     spline_breaks = current_metadata["spline_breaks"]
     spline_coefs = current_metadata["spline_coefs"]
+    in_patch_map = pd.read_csv(folder[:-len("traj.csv")]+"in_patch_matrix.csv")
 
     # Get silhouette table, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
     silhouettes, _, frame_size = fd.load_silhouette(folder)
@@ -96,7 +191,7 @@ def pixelwise_one_traj(traj):
             current_patch_center = patch_centers[current_patch]
             current_spline_breaks = spline_breaks[current_patch]
             current_spline_coefs = spline_coefs[current_patch]
-            in_patch_each_pixel = in_patch_silhouette_each_pixel(x_list, y_list, current_patch_center, current_spline_breaks, current_spline_coefs)
+            in_patch_each_pixel = in_patch_silhouette_each_pixel(x_list, y_list, current_patch_center, current_spline_breaks, current_spline_coefs, in_patch_map)
             for i in range(len(in_patch_each_pixel)):
                 if in_patch_each_pixel[i] == False:
                     patch_col.append(-1)
@@ -115,20 +210,25 @@ def pixelwise_one_traj(traj):
     return pixels
 
 
-def generate_pixelwise(traj):
+def generate_pixelwise(traj, do_regenerate=True):
     """
     Takes a trajectories.csv dataframe as outputted by generate_results (containing xy coordinates for all worms), and
     saves in each worm folder the corresponding pixelwise table.
     @param traj: full trajectories.csv dataframe
+    @param do_regenerate: if TRUE will regenerate all files. If FALSE will only generate worm_pixels_traj for the folders that don't already have it.
     @return: saves its output
     """
     folder_list = pd.unique(traj["folder"])
     for i_folder in range(len(folder_list)):
         print("Generating pixelwise trajectory for folder ", i_folder," / ", len(folder_list))
         folder = folder_list[i_folder]
-        current_traj = traj[traj["folder"] == folder].reset_index()
-        pixelwise = pixelwise_one_traj(current_traj)
-        pixelwise.to_csv(folder[:-len("traj.csv")]+"worm_pixels_traj.csv")
+        # If we should regenerate existing files, OR if the file is missing, generate it:
+        if do_regenerate or not os.path.isfile(folder[:-len("traj.csv")]+"in_patch_matrix.csv"):
+            in_patch_all_pixels(folder)
+        if do_regenerate or not os.path.isfile(folder[:-len("traj.csv")]+"worm_pixels_traj.csv"):
+            current_traj = traj[traj["folder"] == folder].reset_index()
+            pixelwise = pixelwise_one_traj(current_traj)
+            pixelwise.to_csv(folder[:-len("traj.csv")]+"worm_pixels_traj.csv")
 
 
 def plot_in_patch_silhouette(folder):
@@ -284,12 +384,13 @@ path = gr.generate(test_pipeline=True)
 trajectories = pd.read_csv(path + "clean_trajectories.csv")
 
 # Run this line only to regenerate all pixelwise tables (I guess it might take a while)
-#generate_pixelwise(trajectories)
+generate_pixelwise(trajectories, do_regenerate=True)
 
-#plot_in_patch_silhouette("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM3/traj.csv")
+plot_in_patch_silhouette("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM3/traj.csv")
 #plot_depletion("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221014T191303_SmallPatches_C2-CAM4/traj.csv",100000, 0.01)
-patch_depletion_evolution("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM3/traj.csv", 33000, 0.001)
+#patch_depletion_evolution("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM3/traj.csv", 33000, 0.001)
 
+#in_patch_all_pixels("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM3/traj.csv")
 
 
 
