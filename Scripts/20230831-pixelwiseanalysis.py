@@ -10,9 +10,8 @@ import matplotlib.pyplot as plt
 import os
 import matplotlib.colors as mplcolors
 
-import generate_results as gr
+from Generating_data_tables import generate_results as gr
 import find_data as fd
-import plots
 
 
 def in_patch_all_pixels(folder):

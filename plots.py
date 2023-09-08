@@ -7,9 +7,9 @@ import seaborn as sns
 import os
 
 import analysis as ana
-import generate_results as gr
+from Generating_data_tables import generate_results as gr
 import find_data as fd
-import parameters as param
+from Parameters import parameters as param
 
 
 # Sanity check functions

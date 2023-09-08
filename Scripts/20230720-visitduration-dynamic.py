@@ -1,10 +1,8 @@
 # Analysis of visit duration dynamics
 
-import parameters
 from main import *
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
 import warnings
 
 

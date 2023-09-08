@@ -7,7 +7,7 @@ import json
 import re
 
 # My code
-from parameters import *
+from Parameters.parameters import *
 
 
 def is_linux():  # returns true if you're using linux, otherwise false

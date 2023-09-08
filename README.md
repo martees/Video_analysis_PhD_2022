@@ -45,12 +45,52 @@ caught it again, this id will have been incremented. This means we have to do so
 
 
 ## Project structure
-### param.py
-_Contains global parameters, for easier editing._
 
-### find_data.py
-_Contains the auxiliary functions related to finding the data in a specific path, and reformatting it to dataframes._  
+### Generating_data_tables directory
+> #### generate_trajectories.py
+> _Functions to make trajectories.csv in path_  
+This contains function to preanalyze our trajectories.  
+Goes into our data folders, takes the "traj.csv", mixes them all
+into too big of a table, and then computes worm position and 
+speed.
 
+> #### generate_controls.py
+> _Functions to make control subfolders inside the folders 
+> corresponding to control conditions_  
+> Will take our existing control plates, and make new controls out of it, one corresponding to each patch
+layout used in our experiments.
+
+>#### generate_results.py
+> _Functions to generate results_per_id, results_per_plate and
+> results.csv in path_  
+> This contains trajectory analysis functions (compute number of visited patches, stuff like that). 
+Will extract and save the trajectories in "trajectories.csv"
+Run analyses on these trajectories, and save the results in a table in the original path inputted by the user, named "results.csv".
+
+> #### main.py
+> _Go there to actually generate the data tables_  
+> Will orchestrate all previously described "generate_XXX.py" 
+> functions, curate the data and save everything in
+> clean_trajectories.csv and clean_results.csv.
+
+### Parameters directory
+> #### param.py
+> Contains global parameters, for easier editing, as well as a pipeline
+to generate a lot of condition and graphical-related dictionaries 
+(to go from condition number to distance, density, color, etc.)
+
+> #### patch_coordinates
+>_Contains the x,y coordinates of our patches as extracted from 
+our pipetting robot scripts_
+
+### Scripts directory
+Contains scripts for performing specific analyses.
+They call functions from other files, but are not meant to be called
+for (if a script is that useful, it's integrated in the main pipeline).
+
+### Main directory
+>#### find_data.py
+>_Contains the auxiliary functions related to finding the data in a specific path, and reformatting it to dataframes._
 Converts .mat files to a pandas dataframe, containing tracking ID, trajectory, and folder name.  
 Trajectories are in the following format: [[x0, x1, ..., xN], [y0, y1, ..., yN]] (xi and yi being respectively the x and y coordinates 
 of the individual at time i).  
@@ -58,22 +98,12 @@ Also contains a function that takes a folder name, and returns "metadata" found 
 condition number, patch positions, patch densities, splines. This allows to not have this info copied in every line of the data
 table, which would make it uselessly large.
 
-### generate_controls.py
-Will take our existing control plates, and make new controls out of it, one corresponding to each patch
-layout used in our experiments.
-
-### generate_results.py
-This contains trajectory analysis functions (compute number of visited patches, stuff like that). Contains the generate_and_save
-function, that will:
-- Extract and save the trajectories in "trajectories.csv"
-- Run analyses on these trajectories, and save the results in a table in the original path inputted by the user, named "results.csv".
-
-### main.py 
+#### main.py 
 Contains functions to:
 - derive statistics from the results returned by generate_results.py
 - plot these statistics using mostly badly written functions
 
-### Output structure
+### Output tables structure
 #### results_per_id.csv
 
 - **folder** = folder from which the worm comes (so plate identifier)  

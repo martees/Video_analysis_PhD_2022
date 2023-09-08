@@ -5,7 +5,7 @@ from matplotlib.widgets import Slider
 # My code
 import find_data as fd
 import plots
-import generate_results as gr
+from Generating_data_tables import generate_results as gr
 
 
 def show_frame(folder, frame, is_plot=True):

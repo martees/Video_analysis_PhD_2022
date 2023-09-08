@@ -3,10 +3,8 @@ import shutil
 import pandas as pd
 import random
 import ReferencePoints
-import numpy as np
-import scipy
 
-import parameters
+from Parameters import parameters
 # My code
 import find_data as fd
 # import plots
@@ -135,7 +133,7 @@ def return_control_metadata(path, parent_folder, distance):
     control_metadata["spline_breaks"] = list(source_folder_metadata["spline_breaks"])
     control_metadata["spline_coefs"] = list(source_folder_metadata["spline_coefs"])
     control_metadata["patch_densities"] = [0 for _ in range(len(control_metadata["patch_centers"]))]
-    control_metadata["condition"] = parameters.name_to_nb[distance+" 0"]
+    control_metadata["condition"] = parameters.name_to_nb[distance + " 0"]
     control_metadata["folder_from_which_the_patches_come"] = [the_chosen_one for _ in range(len(control_metadata["patch_centers"]))]
     # metadata["patch_centers"] = [patch_centers[i][0] for i in range(len(patch_centers))]
     # metadata["spline_guides"] = [spline_guides[i].tolist() for i in range(len(spline_guides))]

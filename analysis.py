@@ -1,15 +1,14 @@
 import numpy as np
 import random
-import json
 from scipy import stats
 import time
 import copy
 
 # My code
-import parameters as param
+from Parameters import parameters as param
 import find_data as fd
 import model as model
-import generate_results as gr
+from Generating_data_tables import generate_results as gr
 
 
 def r2(x, y):
@@ -462,8 +461,9 @@ def transit_properties(results, condition_list, split_conditions, is_print=False
         return revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch
 
 
-def pool_conditions_by(condition_list, pool_by_variable, pool_conditions=True):
+def pool_conditions_by(condition_list, pool_by_variable):
     """
+    NOTE: made before the proper condition dictionaries. It would probably be way more efficient to use them.
     Takes a list of condition numbers ([c0,c1,c2]) and will pool them into sublist based on
     variable in argument ([[c0],[c1,c2]]) and the corresponding names (["close", "med"]). Eg by distance or density.
     If pool_conditions = True, then like what's on top.

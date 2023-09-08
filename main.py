@@ -4,12 +4,10 @@
 import pandas as pd
 
 import analysis as ana
-import parameters as param
+from Parameters import parameters as param
 # My code
 import plots
-import generate_results as gr
-import find_data as fd
-import video
+from Generating_data_tables import generate_results as gr
 
 
 def plot_graphs(what_to_plot, curve_list=None):
