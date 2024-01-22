@@ -1,11 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
+from matplotlib.backend_bases import MouseButton
 
 # My code
 import find_data as fd
 import plots
-from Generating_data_tables import generate_results as gr
+from Generating_data_tables import generate_trajectories as gt
+from Generating_data_tables import smooth_trajectories as smoo
 
 
 def show_frame(folder, frame, is_plot=True):
@@ -42,7 +44,7 @@ def show_frame(folder, frame, is_plot=True):
     return silhouette_x, silhouette_y, intensities
 
 
-def show_frames(folder, first_frame):
+def show_frames(folder, first_frame, is_smoothing = False):
     """
     Starts by showing first_frame of folder. Then, user can scroll to go through frames.
     """
@@ -52,9 +54,18 @@ def show_frames(folder, first_frame):
     fig.set_size_inches(15, 15)
     top_ax = fig.gca()
 
+    # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
+    pixels, intensities, frame_size = fd.load_silhouette(folder)
+    pixels = fd.reindex_silhouette(pixels, frame_size)
+
+    # Load centers of mass from the tracking
+    centers_of_mass = fd.trajcsv_to_dataframe([folder])
+    if is_smoothing:
+        smoothed_traj = smoo.smooth_trajectory(centers_of_mass, 6)
+
     # Plot the background
     composite = plt.imread(folder[:-len('traj.csv')] + "composite_patches.tif")
-    top_ax.imshow(composite)
+    top_ax.imshow(composite, extent=(0, frame_size[0], frame_size[1], 0))
 
     # Plot the patches
     fig = plt.gcf()
@@ -69,17 +80,11 @@ def show_frames(folder, first_frame):
     patch_centers = current_metadata["patch_centers"]
     plt.scatter(np.transpose(patch_centers)[0], np.transpose(patch_centers)[1])
 
-    # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
-    pixels, intensities, frame_size = fd.load_silhouette(folder)
-    pixels = fd.reindex_silhouette(pixels, frame_size)
-
-    # Load centers of mass from the tracking
-    centers_of_mass = fd.trajcsv_to_dataframe([folder])
     # Get patch info
-    patch_list = gr.in_patch_list(centers_of_mass, using="silhouette")
+    patch_list = gt.in_patch_list(centers_of_mass, using="silhouette")
     # Get speeds
-    centers_of_mass["distances"] = gr.trajectory_distances(centers_of_mass)
-    speed_list = gr.trajectory_speeds(centers_of_mass)
+    centers_of_mass["distances"] = gt.trajectory_distances(centers_of_mass)
+    speed_list = gt.trajectory_speeds(centers_of_mass)
 
     # Make a copy of full image limits, for zoom out purposes
     global img_xmin, img_xmax, img_ymin, img_ymax
@@ -99,21 +104,21 @@ def show_frames(folder, first_frame):
     worm_plot = top_ax.plot([], [], color=plt.cm.Greys(np.linspace(0, 1, 256))[80], marker="o", linewidth=0)
     center_of_mass_plot = top_ax.scatter([], [], zorder=3, color="orange")
     center_to_center_line = top_ax.plot([], [], color="white")
-
+    # Call the update frame once to initialize the plot
     update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, speed_list)
 
     # Make the plot scrollable
-    def key_event(e):
+    def scroll_event(event):
         global curr_index
-        if e.button == "up":
+        if event.button == "up":
             curr_index = curr_index + 1
-        elif e.button == "down":
+        elif event.button == "down":
             curr_index = max(0, curr_index - 1)
         else:
             return
         update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, speed_list)
 
-    fig.canvas.mpl_connect('scroll_event', key_event)
+    fig.canvas.mpl_connect('scroll_event', scroll_event)
 
     # Create a slider
     global bottom_ax
@@ -121,9 +126,9 @@ def show_frames(folder, first_frame):
     bottom_ax = fig.add_axes([0.25, 0.1, 0.65, 0.03])
     frame_slider = Slider(bottom_ax, 'Index', 0, 30000, valinit=first_frame)
     plt.subplots_adjust(left=0.25, bottom=.2, right=None, top=.9, wspace=.2, hspace=.2)
-
     # Slider update function
-    def slider_update(val):
+
+    def slider_update(val):  # val argument gives "unused" warning in PyCharm but is necessary
         global curr_index
         global bottom_ax
         curr_index = int(frame_slider.val)
@@ -131,6 +136,29 @@ def show_frames(folder, first_frame):
 
     # Slider function update call
     frame_slider.on_changed(slider_update)
+
+    # If we're interested in trajectory smoothing, plot the trajectory, and smooth it on right click
+    if is_smoothing:
+        global traj_plot
+        global smooth_plot
+        # Plot the raw trajectory
+        traj_plot = top_ax.plot(centers_of_mass["x"], centers_of_mass["y"], color="white")
+        smooth_plot = top_ax.plot(smoothed_traj["x"], smoothed_traj["y"], color="black")
+
+        def click_event(event):
+            global centers_of_mass
+            global traj_plot
+            global smooth_plot
+            if event.button is MouseButton.LEFT:
+                traj_plot.set_data([centers_of_mass["x"]], [centers_of_mass["y"]])
+            elif event.button is MouseButton.RIGHT:
+                traj_plot.set_data([smoothed_traj["x"]], [smoothed_traj["y"]])
+
+        fig.canvas.mpl_connect('button_press_event', click_event)
+
+    print("=== INSTRUCTION GUIDE! :-) ===")
+    print("In order to move through the trajectory slowly, use the mouse scroll. If it freezes, just wait, it's loading.")
+    print("In order to jump to a faraway timestep, use the slider below the graph.")
 
     plt.show()
 
@@ -177,4 +205,5 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list,
     curr_fig.canvas.draw()
 
 
-
+if __name__ == "__main__":
+    show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM1/traj.csv", 21053, is_smoothing=True)
