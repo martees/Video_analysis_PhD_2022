@@ -104,6 +104,19 @@ Contains functions to:
 - plot these statistics using mostly badly written functions
 
 ### Output tables structure
+#### trajectories.csv
+
+- **id_conservative** = ID of the current tracked object (there's usually multiple of those for each worm)
+- **frame** = current video frame
+- **time** = corresponding time (unfilled for now)
+- **x** = current x position of the object
+- **y** = current y position
+- **quality** = some column returned by Alfonso's tracking (unfilled)
+- **folder** = path to the folder containing all the data about this point
+- **patch_silhouette** = patch where the worm is (if any pixel of the worm touches a patch, it is considered inside it) 
+- **distances** = distance since last point (0 for first point of the video)
+- **speeds** = distance covered / frames elapsed (same as distance except when there are missing frames in tracking)
+
 #### results_per_id.csv
 
 - **folder** = folder from which the worm comes (so plate identifier)  
