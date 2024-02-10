@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import os
 import matplotlib.colors as mplcolors
 
-from Generating_data_tables import generate_results as gr
+from Generating_data_tables import main as gen
+from Generating_data_tables import generate_trajectories as gt
 import find_data as fd
 
 
@@ -49,7 +50,7 @@ def in_patch_all_pixels(folder):
         radiuses = np.zeros(len(angular_pos))
         # Compute the local spline value for each of those radiuses
         for i_angle in range(len(angular_pos)):
-            radiuses[i_angle] = gr.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
+            radiuses[i_angle] = gt.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
                                                 patch_spline_coefs[i_patch])
         # Add to position list discrete (int) cartesian positions
         # (due to discretization, positions will be added multiple times, but we don't care)
@@ -379,7 +380,7 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
     plt.show()
 
 # Load existing data
-path = gr.generate(test_pipeline=True)
+path = gen.generate(test_pipeline=True)
 trajectories = pd.read_csv(path + "clean_trajectories.csv")
 
 # Run this line only to regenerate all pixelwise tables (I guess it might take a while)

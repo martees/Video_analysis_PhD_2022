@@ -66,9 +66,9 @@ if recompute == True:
     results.to_csv(path + "clean_results.csv")
 
 
-plot_graphs(results, "visit_smoothed_speeds", [["close 0", "med 0", "far 0"]])
-plot_graphs(results, "visit_smoothed_speeds", [["close 0.2", "med 0.2", "far 0.2"]])
-plot_graphs(results, "visit_smoothed_speeds", [["close 0.5", "med 0.5", "far 0.5"]])
+plot_graphs(results, "visit_duration_dist_speeds", [["close 0", "med 0", "far 0"]])
+plot_graphs(results, "visit_duration_dist_speeds", [["close 0.2", "med 0.2", "far 0.2"]])
+plot_graphs(results, "visit_duration_dist_speeds", [["close 0.5", "med 0.5", "far 0.5"]])
 
 # Garbage, code for recomputing the inverse of speeds fast
 # # Folder list

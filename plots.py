@@ -7,12 +7,10 @@ import seaborn as sns
 import os
 
 import analysis as ana
-from Generating_data_tables import generate_results as gr
+from Generating_data_tables import main as gen
+from Generating_data_tables import generate_trajectories as gt
 import find_data as fd
 from Parameters import parameters as param
-
-
-# Sanity check functions
 
 
 def data_coverage(traj):
@@ -81,7 +79,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
             radiuses = np.zeros(len(angular_pos))
             # Compute the local spline value for each of those radiuses
             for i_angle in range(len(angular_pos)):
-                radiuses[i_angle] = gr.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
+                radiuses[i_angle] = gt.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
                                                     patch_spline_coefs[i_patch])
 
             # Create lists of cartesian positions out of this
@@ -138,7 +136,7 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         folder_list = fd.return_folders_condition_list(np.unique(traj["folder"]), [condition_list])
 
     # If save_fig is True, check that there is a trajectory_plots folder in path, otherwise create it
-    path = gr.generate("")
+    path = gen.generate("")
     if save_fig:
         if not os.path.isdir(path + "trajectory_plots"):
             os.mkdir(path + "trajectory_plots")
@@ -614,7 +612,7 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
             column_name = "aggregated_visits_thresh_" + str(threshold_list[i_thresh])
             if column_name not in results.columns:
                 # If the aggregated visits have not been generated yet for this threshold values
-                results = gr.generate_aggregated_visits(gr.generate(), [
+                results = gen.generate_aggregated_visits(gen.generate(), [
                     threshold_list[i_thresh]])  # add them to the clean_results.csv table
         if "aggregated_visits" in variable_list:
             for thresh in threshold_list:
@@ -733,6 +731,9 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, worm
     if is_plot:
         plt.legend()
         plt.show()
+
+        # Plot an exponential on top
+        # plt.plot()
 
 
 def plot_test(results):

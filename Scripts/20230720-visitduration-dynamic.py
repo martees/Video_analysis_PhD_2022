@@ -1,9 +1,11 @@
-# Analysis of visit duration dynamics
+# Analysis of visit duration dynamics (look at visit duration but by looking only at visits that start/end
+# at specific times of the experiments)
 
 from main import *
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
+import find_data as fd
 
 
 def visit_duration_dynamic(result_table, condition_list, min_visit_start, max_visit_start, nb_of_bins):
@@ -77,23 +79,29 @@ def visit_duration_dynamic(result_table, condition_list, min_visit_start, max_vi
 
     fig = plt.gcf()
     plt.title("Evolution of visit duration in all densities, visits starting between "+str(min_visit_start)+" & "+str(max_visit_start))
-    fig.set_size_inches(8, 5)
+    fig.set_size_inches(len(condition_list)+0.5, 5)
 
     if nb_of_bins > 1:
         # Plot condition averages, one curve per possible density
         for condition in all_condition_names:
-            plt.plot(time_bins[:-1], avg_visit_each_time[condition], color=param.name_to_color[condition.split(" ")[0]], label=condition)
+            plt.plot(time_bins[:-1], avg_visit_each_time[condition], color=param.name_to_color[condition.split(" ")[1]], label=condition)
             # Plot error bars
             plt.errorbar(time_bins[:-1], avg_visit_each_time[condition], [errors_inf_each_time[condition], errors_sup_each_time[condition]], fmt='.k', capsize=5)
         plt.legend()
 
     else:
         # If only one bin, make a bar plot
-        plt.bar(range(len(all_condition_names)), [avg_visit_each_time[cond][0] for cond in all_condition_names], color=[param.name_to_color[name] for name in all_condition_names])
+        # For color, the name.split part is to have density override distance for the color
+        plt.bar(range(len(all_condition_names)), [avg_visit_each_time[cond][0] for cond in all_condition_names], color=[param.name_to_color[name.split(" ")[1]] for name in all_condition_names])
         # Plot error bars
         plt.errorbar(range(len(all_condition_names)), [avg_visit_each_time[cond][0] for cond in all_condition_names],
                      [[errors_inf_each_time[cond][0] for cond in all_condition_names],
                       [errors_sup_each_time[cond][0] for cond in all_condition_names]], fmt='.k', capsize=5)
+
+        for i in range(len(condition_list)):
+            plt.scatter([range(len(condition_list))[i] for _ in range(len(avg_visit_duration_all_plates[all_condition_names[i]]))],
+                       avg_visit_duration_all_plates[all_condition_names[i]], color="red", zorder=2)
+
         ax = fig.gca()
         ax.set_xticks(range(len(all_condition_names)))
         ax.set_xticklabels(all_condition_names, rotation=60)
@@ -103,6 +111,10 @@ def visit_duration_dynamic(result_table, condition_list, min_visit_start, max_vi
 
 results = pd.read_csv(path + "/clean_results.csv")
 
-visit_duration_dynamic(results, param.name_to_nb_list["all"], 0, 10000, 1)
-visit_duration_dynamic(results, param.name_to_nb_list["all"], 10000, 40000, 1)
+visit_duration_dynamic(results, [12, 13, 14], 0, 10000, 1)
+visit_duration_dynamic(results, [0, 1, 2], 0, 10000, 1)
+visit_duration_dynamic(results, [4, 5, 6], 0, 10000, 1)
+visit_duration_dynamic(results, [12, 13, 14], 10000, 40000, 1)
+visit_duration_dynamic(results, [0, 1, 2], 10000, 40000, 1)
+visit_duration_dynamic(results, [4, 5, 6], 10000, 40000, 1)
 

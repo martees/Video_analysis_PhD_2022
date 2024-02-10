@@ -75,7 +75,10 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
 
             # When we want to divide column name by another one
             if divided_by != "":
-                if np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
+                if divided_by == "nb_of_patches":
+                    list_total_patch = list(param.nb_to_nb_of_patches.values())  # total nb of patches for each cond
+                    list_of_values[i_plate] = np.sum(current_plate[column_name]) / list_total_patch[i_condition]
+                elif np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
                 else:
                     print("Trying to divide by 0 in plot_selected_data for plate" + str(list_of_plates[i_plate]) + "... what a shame")

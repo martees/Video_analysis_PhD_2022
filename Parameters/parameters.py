@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mc
 import colorsys
 
-import patch_coordinates
+from Parameters import patch_coordinates
 
 # General parameters
 

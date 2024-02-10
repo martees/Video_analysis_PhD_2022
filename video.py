@@ -7,7 +7,6 @@ from matplotlib.backend_bases import MouseButton
 import find_data as fd
 import plots
 from Generating_data_tables import generate_trajectories as gt
-from Generating_data_tables import smooth_trajectories as smoo
 
 
 def show_frame(folder, frame, is_plot=True):
@@ -44,7 +43,7 @@ def show_frame(folder, frame, is_plot=True):
     return silhouette_x, silhouette_y, intensities
 
 
-def show_frames(folder, first_frame, is_smoothing = False):
+def show_frames(folder, first_frame, is_smoothing=False):
     """
     Starts by showing first_frame of folder. Then, user can scroll to go through frames.
     """
@@ -61,7 +60,7 @@ def show_frames(folder, first_frame, is_smoothing = False):
     # Load centers of mass from the tracking
     centers_of_mass = fd.trajcsv_to_dataframe([folder])
     if is_smoothing:
-        smoothed_traj = smoo.smooth_trajectory(centers_of_mass, 6)
+        smoothed_traj = gt.smooth_trajectory(centers_of_mass, 2)
 
     # Plot the background
     composite = plt.imread(folder[:-len('traj.csv')] + "composite_patches.tif")
@@ -101,7 +100,7 @@ def show_frames(folder, first_frame, is_smoothing = False):
     global worm_plot  # worm silhouette
     global center_of_mass_plot
     global center_to_center_line  # a line between the center of the patch and the center of the worm
-    worm_plot = top_ax.plot([], [], color=plt.cm.Greys(np.linspace(0, 1, 256))[80], marker="o", linewidth=0)
+    worm_plot = top_ax.plot([], [], color=plt.cm.Greys(np.linspace(0, 1, 256))[60], marker="o", markersize=5, linewidth=0)
     center_of_mass_plot = top_ax.scatter([], [], zorder=3, color="orange")
     center_to_center_line = top_ax.plot([], [], color="white")
     # Call the update frame once to initialize the plot
@@ -142,17 +141,17 @@ def show_frames(folder, first_frame, is_smoothing = False):
         global traj_plot
         global smooth_plot
         # Plot the raw trajectory
-        traj_plot = top_ax.plot(centers_of_mass["x"], centers_of_mass["y"], color="white")
-        smooth_plot = top_ax.plot(smoothed_traj["x"], smoothed_traj["y"], color="black")
+        traj_plot = top_ax.plot(centers_of_mass["x"], centers_of_mass["y"], color="white", marker="x")
+        smooth_plot = top_ax.plot(smoothed_traj["x"], smoothed_traj["y"], color="black", marker="o")
 
         def click_event(event):
             global centers_of_mass
             global traj_plot
             global smooth_plot
             if event.button is MouseButton.LEFT:
-                traj_plot.set_data([centers_of_mass["x"]], [centers_of_mass["y"]])
+                traj_plot.set_data([centers_of_mass["x"]], [centers_of_mass["y"]], color="white", marker="x")
             elif event.button is MouseButton.RIGHT:
-                traj_plot.set_data([smoothed_traj["x"]], [smoothed_traj["y"]])
+                traj_plot.set_data([smoothed_traj["x"]], [smoothed_traj["y"]], color="black", marker="o")
 
         fig.canvas.mpl_connect('button_press_event', click_event)
 
@@ -192,7 +191,7 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list,
         top_ax.set_xlim(img_xmin, img_xmax)
         top_ax.set_ylim(img_ymin, img_ymax)
     else:
-        xmin, xmax, ymin, ymax = curr_x - 100, curr_x + 100, curr_y - 100, curr_y + 100
+        xmin, xmax, ymin, ymax = curr_x - 30, curr_x + 30, curr_y - 30, curr_y + 30
         top_ax.set_xlim(xmin, xmax)
         top_ax.set_ylim(ymax, ymin)  # min and max values reversed because in our background image y-axis is reversed
 
@@ -206,4 +205,4 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list,
 
 
 if __name__ == "__main__":
-    show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM1/traj.csv", 21053, is_smoothing=True)
+    show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM1/traj.csv", 22092, is_smoothing=True)

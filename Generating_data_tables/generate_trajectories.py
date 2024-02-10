@@ -3,6 +3,8 @@ import pandas as pd
 
 from Parameters import parameters as param
 import find_data as fd
+import matplotlib.pyplot as plt
+import copy
 
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
@@ -95,7 +97,7 @@ def in_patch_list(traj, using):
         patch_spline_coefs = current_metadata["spline_coefs"]
 
         # Extract positions
-        current_data = traj[traj["folder"] == current_plate]
+        current_data = traj[traj["folder"] == current_plate].reset_index(drop=True)
         list_x_centroid = current_data["x"]
         list_y_centroid = current_data["y"]
         if using == "silhouette":
@@ -230,4 +232,77 @@ def trajectory_speeds(traj):
 
     return list_of_speeds
 
+
+def smooth_trajectory(trajectory, radius):
+    """
+    Function that takes a trajectory and samples it spatially with a certain radius: the worm is only considered to have
+    moved to a different position if its displacement since last trajectory point is > radius.
+    @param trajectory: a trajectory in a dataframe format, with an "x" column and a "y" column
+    @param radius: a number
+    @return: a new trajectory with fewer points, resampled as described above
+    """
+    trajectory = trajectory.reset_index(drop=True)
+    trajectory = trajectory.drop(["time"], axis=1)  # remove time because it's all nan
+    current_circle_center_x = trajectory["x"][0]
+    current_circle_center_y = trajectory["y"][0]
+    for i_time in range(len(trajectory)):
+        if i_time % 10000 == 0:
+            print("Smoothing time point ", i_time, " / ", len(trajectory))
+        current_x = trajectory["x"][i_time]
+        current_y = trajectory["y"][i_time]
+        # If the point is far enough, it's kept in the trajectory, and we set it as the reference center for the next point
+        if np.sqrt((current_x - current_circle_center_x) ** 2 + (current_y - current_circle_center_y) ** 2) > radius:
+            current_circle_center_x = current_x
+            current_circle_center_y = current_y
+        else:
+            #trajectory["x"][i_time] = np.nan
+            trajectory.loc[i_time, "x"] = np.nan  # we add a nan to mark the rows that we will drop at the end
+    smoothed_trajectory = trajectory.dropna()  # drop the rows with any nan value
+    return smoothed_trajectory.reset_index()
+
+
+def plot_smoothed_traj(traj, t1, t2, radius1, radius2, radius3):
+    """
+    Crappy function for tests.
+    Will take the trajectories.csv folder, and smooth the lines from t1 to t2, with three different smoothing radii.
+    It will plot 4 subplots, one with the original trajectory, and the others with smoothing.
+    ! Does not work if the folder changes between t1 and t2 !
+    """
+    traj = traj[t1:t2].reset_index()
+    traj_smooth0 = smooth_trajectory(traj, radius1)
+    traj_smooth1 = smooth_trajectory(traj, radius2)
+    traj_smooth2 = smooth_trajectory(traj, radius3)
+
+    pixels, intensities, frame_size = fd.load_silhouette(traj["folder"][0])
+    pixels = fd.reindex_silhouette(pixels, frame_size)
+
+    fig, axs = plt.subplots(2, 2)
+
+    for i in range(t1, t2-1, 200):
+        axs[0, 0].plot(pixels[i][0], pixels[i][1])
+    axs[0, 0].plot(traj["x"], traj["y"], color="black", marker="x")
+    axs[0, 0].set_title('Original trajectory, length=' + str(len(traj)))
+
+    for i in range(t1, t2-1, 210):
+        axs[0, 1].plot(pixels[i][0], pixels[i][1])
+    axs[0, 1].plot(traj_smooth0["x"], traj_smooth0["y"], color="black", marker="x")
+    axs[0, 1].set_title('Smoothing radius' + str(radius1) + ', length=' + str(len(traj_smooth0)))
+
+    for i in range(t1, t2-1, 190):
+        axs[1, 0].plot(pixels[i][0], pixels[i][1])
+    axs[1, 0].plot(traj_smooth1["x"], traj_smooth1["y"], color="black", marker="x")
+    axs[1, 0].set_title('Smoothing radius' + str(radius2) + ', length=' + str(len(traj_smooth1)))
+
+    for i in range(t1, t2-1, 215):
+        axs[1, 1].plot(pixels[i][0], pixels[i][1])
+    axs[1, 1].plot(traj_smooth2["x"], traj_smooth2["y"], color="black", marker="x")
+    axs[1, 1].set_title('Smoothing radius' + str(radius3) + ', length=' + str(len(traj_smooth2)))
+
+    plt.show()
+
+# Example call
+#path = gr.generate(starting_from="")
+#trajectories = pd.read_csv(path + "clean_trajectories.csv")
+#results = pd.read_csv(path + "clean_results.csv")
+#plot_smoothed_traj(trajectories, 29000, 30000, 2, 4, 6)
 

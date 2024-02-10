@@ -7,10 +7,10 @@ import analysis as ana
 from Parameters import parameters as param
 # My code
 import plots
-from Generating_data_tables import generate_results as gr
+from Generating_data_tables import main as gr
 
 
-def plot_graphs(what_to_plot, curve_list=None):
+def plot_graphs(results, what_to_plot, curve_list=None):
     """
     Global plotting function.
     :what_to_plot: list that contains strings that indicate what to plot xD see big loop of the function for the options.
@@ -55,9 +55,10 @@ def plot_graphs(what_to_plot, curve_list=None):
         conditions_each_curve[i_curve] = list_of_conditions  # add to first curve all the condition numbers
         condition_names[i_curve] = [param.nb_to_name[i] for i in
                                     list_of_conditions]  # add to first curve all the different
-        condition_colors[i_curve] = param.name_to_color[curve[0]]  # color of first curve element prevails, im tired xD
+        condition_colors[i_curve] = param.name_to_color[param.nb_to_density[
+            param.name_to_nb[curve[0]]]]  # color of first curve element density prevails, im tired xD
 
-    #TODO remove this loop, since the fork happens with if statements no need to run it once per element in what_to_plot
+    # TODO remove this loop, since the fork happens with if statements no need to run it once per element in what_to_plot
     for _ in range(len(what_to_plot)):
         # Transform "[["0.2"], ["med 0"]]" into '0.2 & med 0'
         plot_name = str(curve_list).replace("], [", " & ").replace("[[", "").replace("]]", "").replace("''", "")
@@ -79,7 +80,7 @@ def plot_graphs(what_to_plot, curve_list=None):
                                              current_conditions, current_condition_names,
                                              "aggregated_visits_thresh_" + str(thresh) + "_total_visit_time",
                                              divided_by="aggregated_visits_thresh_" + str(thresh) + "_nb_of_visits",
-                                             mycolor=current_color, plot_model=True, is_plot=is_plot)
+                                             mycolor=current_color, plot_model=False, is_plot=is_plot)
 
             # Speed plots
             if "average_speed" in what_to_plot:
@@ -152,7 +153,8 @@ def plot_graphs(what_to_plot, curve_list=None):
             if "leaving_probability" in what_to_plot:
                 plots.plot_leaving_probability(results,
                                                "Probability of leaving as a function of in_patch time (" + plot_name + ")",
-                                               current_conditions, bin_size=1000, worm_limit=10, color=current_color, label=curve_name,
+                                               current_conditions, bin_size=1000, worm_limit=10, color=current_color,
+                                               label=curve_name,
                                                split_conditions=False, is_plot=is_plot)
 
             # Number of visits
@@ -161,6 +163,12 @@ def plot_graphs(what_to_plot, curve_list=None):
                                          "Average number of visits in " + plot_name + "conditions",
                                          current_conditions, current_condition_names, "nb_of_visits",
                                          divided_by="", mycolor=current_color, is_plot=is_plot)
+            # Number of visits per patch
+            if "number_of_visits_per_patch" in what_to_plot:
+                plots.plot_selected_data(results,
+                                         "Average number of visits per patch in " + plot_name + "conditions",
+                                         current_conditions, current_condition_names, "nb_of_visits",
+                                         divided_by="nb_of_patches", mycolor=current_color, is_plot=is_plot)
             # Visits plots
             if "visit_duration" in what_to_plot:
                 plots.plot_selected_data(results, "Average duration of visits in " + plot_name + " conditions",
@@ -172,6 +180,22 @@ def plot_graphs(what_to_plot, curve_list=None):
                 plots.plot_selected_data(results, "Average duration of MVT visits in " + plot_name + " conditions",
                                          current_conditions, current_condition_names, "total_visit_time",
                                          divided_by="mvt_nb_of_visits", mycolor=current_color, plot_model=False,
+                                         is_plot=is_plot)
+
+            if "visit_duration_dist_speeds" in what_to_plot:
+                # This should only be called from the 20240117-visitdistanceandspeed script
+                plots.plot_selected_data(results, "Average distance of visits in " + plot_name + " conditions",
+                                         current_conditions, current_condition_names, "average_distance_each_visit",
+                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         is_plot=is_plot)
+                plots.plot_selected_data(results, "Average speed during visits in " + plot_name + " conditions",
+                                         current_conditions, current_condition_names, "average_speed_each_visit",
+                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         is_plot=is_plot)
+                plots.plot_selected_data(results,
+                                         "Average of inverse of speed during visits in " + plot_name + " conditions",
+                                         current_conditions, current_condition_names, "average_speed_each_visit_inv",
+                                         divided_by="", mycolor=current_color, plot_model=False,
                                          is_plot=is_plot)
 
             # Rate of visits (number of visits per transit time unit)
@@ -241,59 +265,63 @@ def plot_graphs(what_to_plot, curve_list=None):
                                          divided_by="nb_of_visits", mycolor=current_color, is_plot=is_plot)
 
 
-#   Saves the results in a path that is returned:
-# "trajectories" will generate everything starting here ->
-#       "trajectories.csv": raw trajectories, one line per tracked point
-# "results_per_id" will generate everything starting here ->
-#       "results_per_id.csv": one line per id_conservative in the tracking, ie one line per continuous tracking track
-# "results_per_plate" will generate everything starting here ->
-#       "results_per_plate.csv": one line per plate in the tracking, so hopefully one line per worm :p
-# "clean" will generate everything starting here ->
-#       "clean_results.csv": same but removing some plates (see generate_results.exclude_invalid_videos)
-#       "clean_trajectories.csv": trajectories csv but with only the tracks corresponding to the valid plates
-# "" will simply return the working directory path, adapted for Linux or Windows
-# NOTE: lists are stored as strings in the csv, so we retrieve the values with json loads function
-path = gr.generate(starting_from="")
-# Only generate the results in the beginning of your analysis!
+if __name__ == "__main__":
+    #   Saves the results in a path that is returned (only needed at the beginning!)
+    path = gr.generate(starting_from="", test_pipeline=False)
+    # starting_from determines where to start generating results:
+    # "trajectories" will generate everything starting here ->
+    #       "trajectories.csv": raw trajectories, one line per tracked point
+    # "results_per_id" will generate everything starting here ->
+    #       "results_per_id.csv": one line per id_conservative in the tracking, ie one line per continuous tracking track
+    # "results_per_plate" will generate everything starting here ->
+    #       "results_per_plate.csv": one line per plate in the tracking, so hopefully one line per worm :p
+    # "clean" will generate everything starting here ->
+    #       "clean_results.csv": same but removing some plates (see generate_results.exclude_invalid_videos)
+    #       "clean_trajectories.csv": trajectories csv but with only the tracks corresponding to the valid plates
+    # "" will simply return the working directory path, adapted for Linux or Windows
+    # NOTE: lists are stored as strings in the csv, so we retrieve the values with json loads function
 
-# Retrieve results from what generate_and_save has saved
+    # Retrieve results from what generate_and_save has saved
+    trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    results = pd.read_csv(path + "clean_results.csv")
+    print("Finished retrieving stuff")
 
-trajectories = pd.read_csv(path + "clean_trajectories.csv")
-results = pd.read_csv(path + "clean_results.csv")
-print("Finished retrieving stuff")
+    #plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
+    #                                             ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
+    #plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
+    #plot_graphs(results, "leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
+    #plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
 
-# Possible arguments for plot_graphs:
-#               - "aggregated_visit_duration"
-#               - "average_speed"
-#               - "bad_events"
-#               - "distribution"
-#               - "distribution_aggregated"
-#               - "double_frames"
-#               - "leaving_events"
-#               - "leaving_events_delay_distribution"
-#               - "leaving_probability"
-#               - "visit_duration"
-#               - "visit_duration_mvt"
-#               - "visit_rate"
-#               - "visit_duration_vs_previous_transit"
-#               - "visit_duration_vs_visit_start"
-#               - "visit_duration_vs_entry_speed"
-#               - "proportion_of_time"
-#               - "number_of_visited_patches"
-#               - "proportion_of_visited_patches"
-#               - "print_parameters_for_model"
-#               - "transit_duration"
+    #plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0"]])
+    #plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
+    #plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
 
-#video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221015T201543_SmallPatches_C5-CAM4/traj.csv", 11771)
-plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221013T114735_SmallPatches_C1-CAM2/traj.csv"])
-#video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM1/traj.csv", 1466)
-#video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111318_SmallPatches_C2-CAM7/traj.csv", 15892)
+    # Possible arguments for plot_graphs:
+    #               - "aggregated_visit_duration"
+    #               - "average_speed"
+    #               - "bad_events"
+    #               - "distribution"
+    #               - "distribution_aggregated"
+    #               - "double_frames"
+    #               - "leaving_events"
+    #               - "leaving_events_delay_distribution"
+    #               - "leaving_probability"
+    #               - "visit_duration"
+    #               - "visit_duration_mvt"
+    #               - "visit_rate"
+    #               - "visit_duration_vs_previous_transit"
+    #               - "visit_duration_vs_visit_start"
+    #               - "visit_duration_vs_entry_speed"
+    #               - "proportion_of_time"
+    #               - "number_of_visited_patches"
+    #               - "proportion_of_visited_patches"
+    #               - "print_parameters_for_model"
+    #               - "transit_duration"
 
-
-#plot_graphs("leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
-#plot_graphs("leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
-#plot_graphs("leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
-
+    # video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221015T201543_SmallPatches_C5-CAM4/traj.csv", 11771)
+    # plots.patches(["/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221013T114735_SmallPatches_C1-CAM2/traj.csv"])
+    # video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111213_SmallPatches_C1-CAM1/traj.csv", 1466)
+    # video.show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/20221011T111318_SmallPatches_C2-CAM7/traj.csv", 15892)
 
 # TODO function that shows speed as a function of time since patch has been entered (ideally, concatenate all visits)
 # TODO function that shows length of (first) visit to a patch as a function of last travel time / average feeding rate in window

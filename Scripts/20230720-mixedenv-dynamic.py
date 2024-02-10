@@ -1,5 +1,6 @@
 # Analysis of visits in mixed environments
 from main import *
+import find_data as fd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
