@@ -40,8 +40,8 @@ def path_finding_traj(path_prefix, target_name="traj.csv", include_fake_control_
 
 def trajcsv_to_dataframe(paths_of_mat):
     """
-    Takes a list of paths for .csv tables, and returns a pandas dataframe containing all their data concatenated
-    The dataframe has the same columns as traj.csv : one line per timestep for each worm. See readme.txt for detailed info
+    Takes a list of paths for traj.csv tables, and returns a pandas dataframe containing all their data concatenated
+    The output dataframe has the same columns as trajectories.csv : one line per timestep for each worm. See readme.txt for detailed info
         x,y,time: position at a given time
         id_conservative: id of the worm
         folder: path of where the data was extracted from (to keep computer - camera - date info)
@@ -226,23 +226,24 @@ def load_condition(folder):
     return folder_to_metadata(folder)["condition"][0]
 
 
-def load_index(folder, frame):
+def load_index(trajectories, folder, frame):
     """
-    Will load the traj.csv matrix in folder, and find at which index of the table it is the frame-th frame of the
-    tracking (if there are holes in the tracking, frame 800 could be at index 750, because of 50 frames with no tracking)
+    Will load the part of trajectories that corresponds to the folder, and find at which index of the table it is the
+    frame-th frame of the tracking (if there are holes in the tracking, frame 800 could be at index 750, because of
+    50 frames with no tracking)
     """
-    traj = trajcsv_to_dataframe([folder])
-    index = find_closest(traj["frame"], frame)
+    current_traj = trajectories[trajectories["folder"] == folder]
+    index = find_closest(current_traj["frame"], frame)
     return index
 
 
-def load_frame(folder, index):
+def load_frame(trajectories, folder, index):
     """
     Will load the traj.csv matrix in folder, and find at which frame of the table it is the index-th tracked frame of the
     tracking (if there are holes in the tracking, frame 800 could be at index 750, because of 50 frames with no tracking)
     """
-    traj = trajcsv_to_dataframe([folder])
-    return traj["frame"][index]
+    current_traj = trajectories[trajectories["folder"] == folder].reset_index()
+    return current_traj["frame"][index]
 
 
 def find_closest(iterable, value):

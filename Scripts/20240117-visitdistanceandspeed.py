@@ -40,8 +40,8 @@ if recompute == True:
 
         for i_visit in range(nb_of_visits):
             current_visit = current_visit_list[i_visit]
-            visit_start_index = fd.load_index(current_folder, current_visit[0])
-            visit_end_index = fd.load_index(current_folder, current_visit[1])
+            visit_start_index = fd.load_index(trajectories, current_folder, current_visit[0])
+            visit_end_index = fd.load_index(trajectories, current_folder, current_visit[1])
             distance_all_visits += np.sum(trajectories["distances"][visit_start_index: visit_end_index + 1])
 
             # Working a bit more for the speeds

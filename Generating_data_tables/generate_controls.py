@@ -19,7 +19,7 @@ import find_data as fd
 
 def rename_original_control_traj(path):
     """
-    Look for condition 11 folders, and replace the name of the traj.csv inside by traj_control.csv.
+    Look for condition 11 folders, and replace the name of the traj.csv inside by traj_parent.csv.
     This is because we rebuild a "med" control in a subfolder, and don't want the old control to appear in future searches.
     This should only do anything if you have just imported new folders.
     """

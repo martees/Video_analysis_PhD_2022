@@ -226,7 +226,8 @@ def make_results_per_id_table(data):
             raw_visit_timestamps, adjusted_raw_visits, patch_list, first_pos)
 
         # Computing average speed
-        average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch_silhouette"], current_data["frame"],
+        average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch_silhouette"],
+                                                                 current_data["frame"],
                                                                  current_data["distances"])
 
         # Fill up results table
@@ -642,4 +643,3 @@ def add_aggregate_visit_info_to_results(results, threshold_list):
                 leaving_events)
 
     return results
-

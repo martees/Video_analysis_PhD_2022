@@ -2,11 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
 from matplotlib.backend_bases import MouseButton
+import pandas as pd
 
 # My code
 import find_data as fd
 import plots
 from Generating_data_tables import generate_trajectories as gt
+from Generating_data_tables import main as gr
 
 
 def show_frame(folder, frame, is_plot=True):
@@ -43,7 +45,7 @@ def show_frame(folder, frame, is_plot=True):
     return silhouette_x, silhouette_y, intensities
 
 
-def show_frames(folder, first_frame, is_smoothing=False):
+def show_frames(folder, trajectories, first_frame, is_smoothing=False):
     """
     Starts by showing first_frame of folder. Then, user can scroll to go through frames.
     """
@@ -54,13 +56,14 @@ def show_frames(folder, first_frame, is_smoothing=False):
     top_ax = fig.gca()
 
     # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
-    pixels, intensities, frame_size = fd.load_silhouette(folder)
+    pixels, _, frame_size = fd.load_silhouette(folder)
     pixels = fd.reindex_silhouette(pixels, frame_size)
 
     # Load centers of mass from the tracking
-    centers_of_mass = fd.trajcsv_to_dataframe([folder])
-    if is_smoothing:
-        smoothed_traj = gt.smooth_trajectory(centers_of_mass, 2)
+    centers_of_mass = trajectories[trajectories["folder"] == folder]
+
+    # Resample silhouettes to match trajectory smoothing
+    pixels = np.array(pixels, dtype=object)[centers_of_mass["pre_smoothing_index"]]
 
     # Plot the background
     composite = plt.imread(folder[:-len('traj.csv')] + "composite_patches.tif")
@@ -80,7 +83,8 @@ def show_frames(folder, first_frame, is_smoothing=False):
     plt.scatter(np.transpose(patch_centers)[0], np.transpose(patch_centers)[1])
 
     # Get patch info
-    patch_list = gt.in_patch_list(centers_of_mass, using="silhouette")
+    #patch_list = gt.in_patch_list(centers_of_mass, using="silhouette")
+    patch_list = trajectories["patch_silhouette"]
     # Get speeds
     centers_of_mass["distances"] = gt.trajectory_distances(centers_of_mass)
     speed_list = gt.trajectory_speeds(centers_of_mass)
@@ -94,7 +98,7 @@ def show_frames(folder, first_frame, is_smoothing=False):
 
     # Define frame index counter (will be incremented/decremented depending on what user does)
     global curr_index
-    curr_index = fd.load_index(folder, first_frame)
+    curr_index = fd.load_index(trajectories, folder, first_frame)
 
     # Initialize the plot objects
     global worm_plot  # worm silhouette
@@ -135,25 +139,6 @@ def show_frames(folder, first_frame, is_smoothing=False):
 
     # Slider function update call
     frame_slider.on_changed(slider_update)
-
-    # If we're interested in trajectory smoothing, plot the trajectory, and smooth it on right click
-    if is_smoothing:
-        global traj_plot
-        global smooth_plot
-        # Plot the raw trajectory
-        traj_plot = top_ax.plot(centers_of_mass["x"], centers_of_mass["y"], color="white", marker="x")
-        smooth_plot = top_ax.plot(smoothed_traj["x"], smoothed_traj["y"], color="black", marker="o")
-
-        def click_event(event):
-            global centers_of_mass
-            global traj_plot
-            global smooth_plot
-            if event.button is MouseButton.LEFT:
-                traj_plot.set_data([centers_of_mass["x"]], [centers_of_mass["y"]], color="white", marker="x")
-            elif event.button is MouseButton.RIGHT:
-                traj_plot.set_data([smoothed_traj["x"]], [smoothed_traj["y"]], color="black", marker="o")
-
-        fig.canvas.mpl_connect('button_press_event', click_event)
 
     print("=== INSTRUCTION GUIDE! :-) ===")
     print("In order to move through the trajectory slowly, use the mouse scroll. If it freezes, just wait, it's loading.")
@@ -198,11 +183,13 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list,
     # Write as x label the speed of the worm
     top_ax.set_xlabel("Speed of the worm: "+str(speed_list[index]))
 
-    top_ax.set_title("Frame: " + str(fd.load_frame(folder, index)) + ", patch: " + str(curr_patch)+", worm xy: "+str(curr_x)+", "+str(curr_y))
+    top_ax.set_title("Frame: " + str(fd.load_frame(trajectories, folder, index)) + ", patch: " + str(curr_patch)+", worm xy: "+str(curr_x)+", "+str(curr_y))
 
     curr_fig = plt.gcf()
     curr_fig.canvas.draw()
 
 
 if __name__ == "__main__":
-    show_frames("/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/20221011T111213_SmallPatches_C1-CAM1/traj.csv", 22092, is_smoothing=True)
+    path = gr.generate(starting_from="", test_pipeline=True)
+    trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    show_frames("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/20221013T115434_SmallPatches_C5-CAM4/traj.csv", trajectories, 2007, is_smoothing=True)

@@ -8,7 +8,7 @@ I am using Python 3.8, and the following libraries are installed:
 DateTime 4.7  	
 Pillow	9.2.0  
 contourpy	1.0.5  
-cycler	0.11.0  
+cycler	0.11.0
 fonttools	4.37.4  
 importlib-metadata	5.0.0  
 kiwisolver	1.4.4  

@@ -267,7 +267,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
 if __name__ == "__main__":
     #   Saves the results in a path that is returned (only needed at the beginning!)
-    path = gr.generate(starting_from="", test_pipeline=False)
+    path = gr.generate(starting_from="trajectories", test_pipeline=True)
     # starting_from determines where to start generating results:
     # "trajectories" will generate everything starting here ->
     #       "trajectories.csv": raw trajectories, one line per tracked point
@@ -286,15 +286,15 @@ if __name__ == "__main__":
     results = pd.read_csv(path + "clean_results.csv")
     print("Finished retrieving stuff")
 
-    #plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
+    # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
     #                                             ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
     #plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
     #plot_graphs(results, "leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
     #plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
 
-    #plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0"]])
-    #plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
-    #plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
+    # plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0"]])
+    # plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
+    # plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
 
     # Possible arguments for plot_graphs:
     #               - "aggregated_visit_duration"

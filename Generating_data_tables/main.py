@@ -24,6 +24,7 @@ def generate_trajectories(path):
     print("Finished retrieving trajectories")
     # Smooth the trajectory
     trajectories = gt.smooth_trajectory(trajectories, 2)
+    # trajectories.to_csv(path + "trajectories.csv")
     # Add a column with the patch where the worm is (-1 is outside)
     print("Computing where the worm is...")
     #trajectories["patch_centroid"] = in_patch_list(trajectories, using="centroid")
@@ -98,9 +99,9 @@ def generate(starting_from="", test_pipeline=False):
 
     # Data path
     if fd.is_linux():  # Linux path
-        path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_20221108_clean_fp/"
+        path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/"
         if test_pipeline:
-            path = "/home/admin/Desktop/Camera_setup_analysis/Results_minipatches_subset_for_tests/"
+            path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/"
     else:  # Windows path
         path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
 
