@@ -145,18 +145,31 @@ def in_patch_all_pixels(folder):
     cleaned_boundaries_list = sorted(cleaned_boundaries_list, key=lambda b: b[1])
 
     # Color the map :D
+    # In this algorithm, we go through each line, and fill the map depending on the boundaries that we encounter.
+    # When we encounter a boundary, it means that we either enter or exit a patch.
+    # In order to know whether we should do one or the other, we record in the :open_patch: variable the patch that is
+    # currently open (if open_patch is -1, all patches are currently closed).
+    # If we encounter a boundary while open_patch is -1, we are entering, so we set all values of the line after the
+    # boundary to the patch value.
+    # If we encounter a boundary while open_patch is not -1, we are exiting the patch, so we set all values of the line
+    # after the current boundary to -1.
     open_patch = -1
+    # Bool that we set to True if there are overlapping patches (which shouldn't happen + is badly handled by algorithm)
+    is_bad = False
     for boundary in cleaned_boundaries_list:
         current_patch = boundary[2]  # patch number of the patch we're looking at
         if open_patch == -1:  # if the current open_patch is -1, we should open the patch
-            plate_map[boundary[1]][
-            boundary[0]:] = current_patch  # on the matrix line y, fill all points after x with patch nb
+            plate_map[boundary[1]][boundary[0]:] = current_patch  # on the matrix line y, fill all points after x with patch nb
             open_patch = current_patch
         elif open_patch == current_patch:  # if the current open_patch is the current patch, we should close the patch
             plate_map[boundary[1]][boundary[0]:] = -1
             open_patch = -1
         else:  # any other case would be a bug (trying to open a new patch while a different one was not closed)
-            print("There's a bug!")
+            is_bad = True
+            # Still handle this case, which happens because of bad patch tracking
+            # Open the current patch even if previous one was not closed
+            plate_map[boundary[1]][boundary[0]:] = current_patch
+            open_patch = current_patch
 
     # plt.imshow(plate_map)
     # composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
@@ -167,7 +180,7 @@ def in_patch_all_pixels(folder):
 
     pd.DataFrame(plate_map).to_csv(folder[:-len("traj.csv")] + "in_patch_matrix.csv", index=False)
 
-    return plate_map
+    return plate_map, is_bad
 
 
 def in_patch_list(traj, using):
@@ -183,6 +196,11 @@ def in_patch_list(traj, using):
     # List where we'll put the patch where the worm is at each timestep
     list_of_patches = [-1 for i in range(len(traj["x"]))]
     i = 0  # global counter, because we output a single list for all the plates in the trajectory
+
+    # List where we record plates that have bad patch tracking
+    is_bad = pd.DataFrame()
+    is_bad["overlapping_patches"] = [False for _ in range(nb_of_plates)]
+    is_bad["folder"] = list_of_plates
 
     for i_plate in range(nb_of_plates):  # for every plate
         # Handmade progress bar
@@ -206,21 +224,19 @@ def in_patch_list(traj, using):
                 list_y_silhouette[i_frame] = current_silhouettes[i_frame][1]
 
         # Generate pixel map of the plate
-        in_patch_map = in_patch_all_pixels(current_plate)
+        in_patch_map, is_bad[i_plate] = in_patch_all_pixels(current_plate)
 
         # Fill the table
         # We go through the whole trajectory
         # and register for each time step the patch that contains centroid / intersects with silhouette
         for time in range(len(list_x_centroid)):
-            if time == 1333:
-                print("hihi")
             if using == "centroid":
                 list_of_patches[i] = in_patch_map[list_y_centroid[time], list_x_centroid[time]]
             if using == "silhouette":
                 list_of_patches[i] = in_patch_silhouette(list_x_silhouette[time], list_y_silhouette[time], in_patch_map)
             i = i + 1
 
-    return list_of_patches
+    return list_of_patches, is_bad
 
 
 def trajectory_distances(traj):
@@ -309,8 +325,8 @@ def smooth_trajectory(trajectory, radius):
     current_circle_center_x = trajectory["x"][0]
     current_circle_center_y = trajectory["y"][0]
     for i_time in range(1, len(trajectory)):
-        if i_time % 10000 == 0:
-            print("Smoothing time point ", i_time, " / ", len(trajectory))
+        if i_time % 100000 == 0:
+            print("Computing which time points should be smoothed ", i_time, " / ", len(trajectory))
         current_x = trajectory["x"][i_time]
         current_y = trajectory["y"][i_time]
         # If the point is far enough, it's kept in the trajectory, and we set it as the reference center for the next point
@@ -331,6 +347,8 @@ def smooth_trajectory(trajectory, radius):
     # A: (xA, yA), B: ((xA+xC)/2, (yA+yC)/2), C: (xC, yC)
     false_indices = np.where(trajectory["is_smoothed"] == False)[0]
     for i_gap in range(len(false_indices) - 1):
+        if i_gap % 50000 == 0:
+            print("Smoothing time point ", i_gap, " / ", len(false_indices))
         previous_false_index = false_indices[i_gap]
         next_false_index = false_indices[i_gap + 1]
         nb_of_points_to_smooth = next_false_index - previous_false_index - 1
