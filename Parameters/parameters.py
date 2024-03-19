@@ -8,7 +8,7 @@ from Parameters import patch_coordinates
 # General parameters
 
 # Just a parameter to toggle extensive printing in the functions (for debugging purposes)
-verbose = False
+verbose = True
 
 # Time threshold list for visit aggregation
 threshold_list = [100000]
