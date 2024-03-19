@@ -62,9 +62,6 @@ def show_frames(folder, trajectories, first_frame, is_smoothing=False):
     # Load centers of mass from the tracking
     centers_of_mass = trajectories[trajectories["folder"] == folder]
 
-    # Resample silhouettes to match trajectory smoothing
-    pixels = np.array(pixels, dtype=object)[centers_of_mass["pre_smoothing_index"]]
-
     # Plot the background
     composite = plt.imread(folder[:-len('traj.csv')] + "composite_patches.tif")
     top_ax.imshow(composite, extent=(0, frame_size[0], frame_size[1], 0))
@@ -192,4 +189,4 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list,
 if __name__ == "__main__":
     path = gr.generate(starting_from="", test_pipeline=True)
     trajectories = pd.read_csv(path + "clean_trajectories.csv")
-    show_frames("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/20221013T115434_SmallPatches_C5-CAM4/traj.csv", trajectories, 2007, is_smoothing=True)
+    show_frames("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/20221013T115434_SmallPatches_C5-CAM4/traj.csv", trajectories, 1908, is_smoothing=True)

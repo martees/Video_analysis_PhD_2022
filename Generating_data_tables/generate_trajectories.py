@@ -68,7 +68,7 @@ def in_patch_silhouette(silhouette_x, silhouette_y, patch_map):
     if i_point == len(silhouette_y):  # if the while went all the way through the list, there was no point inside
         return -1
     else:  # otherwise it stopped before and one point was inside
-        return int(patch_map[silhouette_x[i_point], silhouette_y[i_point]])
+        return int(patch_map[silhouette_y[i_point], silhouette_x[i_point]])
 
 
 def in_patch_all_pixels(folder):
@@ -107,7 +107,7 @@ def in_patch_all_pixels(folder):
         # Compute the local spline value for each of those radiuses
         for i_angle in range(len(angular_pos)):
             radiuses[i_angle] = spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
-                                                patch_spline_coefs[i_patch])
+                                             patch_spline_coefs[i_patch])
         # Add to position list discrete (int) cartesian positions
         # (due to discretization, positions will be added multiple times, but we don't care)
         for point in range(len(angular_pos)):
@@ -149,7 +149,8 @@ def in_patch_all_pixels(folder):
     for boundary in cleaned_boundaries_list:
         current_patch = boundary[2]  # patch number of the patch we're looking at
         if open_patch == -1:  # if the current open_patch is -1, we should open the patch
-            plate_map[boundary[1]][boundary[0]:] = current_patch  # on the matrix line y, fill all points after x with patch nb
+            plate_map[boundary[1]][
+            boundary[0]:] = current_patch  # on the matrix line y, fill all points after x with patch nb
             open_patch = current_patch
         elif open_patch == current_patch:  # if the current open_patch is the current patch, we should close the patch
             plate_map[boundary[1]][boundary[0]:] = -1
@@ -157,14 +158,14 @@ def in_patch_all_pixels(folder):
         else:  # any other case would be a bug (trying to open a new patch while a different one was not closed)
             print("There's a bug!")
 
-    #plt.imshow(plate_map)
+    # plt.imshow(plate_map)
     # composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
     # plt.imshow(composite)
     # patches_x, patches_y = plots.patches([folder], is_plot=False)
     # plt.scatter(patches_x, patches_y, color = "blue")
     # plt.show()
 
-    pd.DataFrame(plate_map).to_csv(folder[:-len("traj.csv")]+"in_patch_matrix.csv", index=False)
+    pd.DataFrame(plate_map).to_csv(folder[:-len("traj.csv")] + "in_patch_matrix.csv", index=False)
 
     return plate_map
 
@@ -201,11 +202,8 @@ def in_patch_list(traj, using):
             list_x_silhouette = [[] for _ in range(len(current_silhouettes))]
             list_y_silhouette = [[] for _ in range(len(current_silhouettes))]
             for i_frame in range(len(current_data)):
-                # When we smooth the trajectories, we abandon some lines of the trajectory file, but not the silhouettes
-                # one. In order to retrieve the right silhouette, we look at the pre_smoothing_index column.
-                pre_smoothing_index = current_data["pre_smoothing_index"][i_frame]
-                list_x_silhouette[i_frame] = current_silhouettes[pre_smoothing_index][0]
-                list_y_silhouette[i_frame] = current_silhouettes[pre_smoothing_index][1]
+                list_x_silhouette[i_frame] = current_silhouettes[i_frame][0]
+                list_y_silhouette[i_frame] = current_silhouettes[i_frame][1]
 
         # Generate pixel map of the plate
         in_patch_map = in_patch_all_pixels(current_plate)
@@ -214,7 +212,7 @@ def in_patch_list(traj, using):
         # We go through the whole trajectory
         # and register for each time step the patch that contains centroid / intersects with silhouette
         for time in range(len(list_x_centroid)):
-            if time == 872:
+            if time == 1333:
                 print("hihi")
             if using == "centroid":
                 list_of_patches[i] = in_patch_map[list_y_centroid[time], list_x_centroid[time]]
@@ -306,11 +304,11 @@ def smooth_trajectory(trajectory, radius):
     @return: a new trajectory with fewer points, resampled as described above
     """
     trajectory = trajectory.reset_index(drop=True)
-    # Create a column that will keep the pre-smoothing index (useful to retrieve the correct silhouettes later)
-    trajectory["pre_smoothing_index"] = range(len(trajectory))
+    # Create a column with whether this time point was "smoothed out" (its coordinate were changed during smoothing)
+    trajectory["is_smoothed"] = np.array([False for _ in range(len(trajectory))])
     current_circle_center_x = trajectory["x"][0]
     current_circle_center_y = trajectory["y"][0]
-    for i_time in range(len(trajectory)):
+    for i_time in range(1, len(trajectory)):
         if i_time % 10000 == 0:
             print("Smoothing time point ", i_time, " / ", len(trajectory))
         current_x = trajectory["x"][i_time]
@@ -321,9 +319,38 @@ def smooth_trajectory(trajectory, radius):
             current_circle_center_y = current_y
         else:
             # trajectory["x"][i_time] = np.nan
-            trajectory.loc[i_time, "x"] = np.nan  # we add a nan to mark the rows that we will drop at the end
-    smoothed_trajectory = trajectory.dropna()  # drop the rows with any nan value
-    return smoothed_trajectory.reset_index(drop=True)
+            trajectory.loc[i_time, "is_smoothed"] = True  # we mark as True points that are not far enough
+
+    # Make a copy of pre-smoothing x and y coordinates, for verification purposes
+    trajectory["pre_smoothing_x"] = copy.copy(trajectory["x"])
+    trajectory["pre_smoothing_y"] = copy.copy(trajectory["y"])
+
+    # At this point we have the trajectory with points that have to be smoothed out marked as True in "is_smoothed" col
+    # For each of those points, we interpolate linearly between the previous and next False points to redefine them
+    # So if in three points A, B, C, B has to be smoothed out, their new coordinates become
+    # A: (xA, yA), B: ((xA+xC)/2, (yA+yC)/2), C: (xC, yC)
+    false_indices = np.where(trajectory["is_smoothed"] == False)[0]
+    for i_gap in range(len(false_indices) - 1):
+        previous_false_index = false_indices[i_gap]
+        next_false_index = false_indices[i_gap + 1]
+        nb_of_points_to_smooth = next_false_index - previous_false_index - 1
+        # If smoothing needs to be done, define coordinates of the points between which to smooth
+        if nb_of_points_to_smooth > 0:
+            x1 = trajectory.loc[previous_false_index, "x"]
+            y1 = trajectory.loc[previous_false_index, "y"]
+            x2 = trajectory.loc[next_false_index, "x"]
+            y2 = trajectory.loc[next_false_index, "y"]
+        # Loop runs only if there is at least one index between the two current false indices
+        for i_point in range(previous_false_index + 1, next_false_index):
+            # We interpolate linearly between the two points
+            # i_point is the index of the current point being smoothed, and its value depends on its rank among the
+            # points to smooth (so if we smooth between index 20 and 24, we will smooth point 21, 22 and 23, and their
+            # new coordinates are based on the fact that they are the 1st, 2nd and 3rd points on the interpolation).
+            rank_of_point = i_point - previous_false_index
+            trajectory.loc[i_point, "x"] = x1 + rank_of_point * (x2 - x1) / (nb_of_points_to_smooth + 1)
+            trajectory.loc[i_point, "y"] = y1 + rank_of_point * (y2 - y1) / (nb_of_points_to_smooth + 1)
+
+    return trajectory
 
 
 def plot_smoothed_traj(traj, t1, t2, radius1, radius2, radius3):
