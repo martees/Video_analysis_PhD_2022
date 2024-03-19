@@ -267,10 +267,14 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
 if __name__ == "__main__":
     #   Saves the results in a path that is returned (only needed at the beginning!)
-    path = gr.generate(starting_from="trajectories", test_pipeline=False)
+    path = gr.generate(starting_from="trajectories", test_pipeline=True)
     # starting_from determines where to start generating results:
+    # "controls" will generate everything starting here ->
+    #       will generate control subfolders with fake patches of each distance in the control folders
+    # "smoothing" will generate everything starting here ->
+    #       "trajectories.csv": will put all traj.csv together in a big .csv, and smooth it (see smooth_trajectory())
     # "trajectories" will generate everything starting here ->
-    #       "trajectories.csv": raw trajectories, one line per tracked point
+    #       "trajectories.csv": one line per time point, and information about the patch where the worm is, and speed
     # "results_per_id" will generate everything starting here ->
     #       "results_per_id.csv": one line per id_conservative in the tracking, ie one line per continuous tracking track
     # "results_per_plate" will generate everything starting here ->

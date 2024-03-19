@@ -8,9 +8,10 @@ from Generating_data_tables import generate_controls as gc
 from Generating_data_tables import generate_trajectories as gt
 
 
-def exclude_invalid_videos(trajectories, results_per_plate):
+def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders):
     cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
     cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
+    cleaned_results = cleaned_results[cleaned_results["folder"] not in bad_patches_folders["folder"]]
     valid_folders = np.unique(cleaned_results["folder"])
     cleaned_traj = pd.DataFrame(columns=trajectories.columns)
     for plate in valid_folders:
@@ -18,17 +19,22 @@ def exclude_invalid_videos(trajectories, results_per_plate):
     return cleaned_traj, cleaned_results
 
 
-def generate_trajectories(path):
+def generate_smooth_trajectories(path):
     # Retrieve trajectories from the folder path and save them in one dataframe
     trajectories = fd.trajcsv_to_dataframe(fd.path_finding_traj(path))
     print("Finished retrieving trajectories")
     # Smooth the trajectory
     trajectories = gt.smooth_trajectory(trajectories, 2)
-    # trajectories.to_csv(path + "trajectories.csv")
+    trajectories.to_csv(path + "trajectories.csv")
+
+
+def generate_trajectories(path):
+    trajectories = pd.read_csv(path + "trajectories.csv")
     # Add a column with the patch where the worm is (-1 is outside)
     print("Computing where the worm is...")
     #trajectories["patch_centroid"] = in_patch_list(trajectories, using="centroid")
-    trajectories["patch_silhouette"] = gt.in_patch_list(trajectories, using="silhouette")
+    trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouette")
+    overlapping_patches.to_csv(path + "overlapping_patches.csv")
     print("Finished computing in which patch the worm is at each time step")
     print("Computing distances...")
     # Add a column with the distance the worm crawled since last time step, for each time step
@@ -39,7 +45,6 @@ def generate_trajectories(path):
     trajectories["distances"] = gt.trajectory_distances(trajectories)
     trajectories.to_csv(path + "trajectories.csv")
     print("Finished computing distance covered by the worm at each time step")
-    return 0
 
 
 def generate_results_per_id(path):
@@ -68,8 +73,9 @@ def generate_clean_tables_and_speed(path):
     print("Retrieving results and trajectories...")
     results_per_plate = pd.read_csv(path + "results_per_plate.csv", index_col=0)
     trajectories = pd.read_csv(path + "trajectories.csv", index_col=0)
+    overlapping_patches = pd.read_csv(path + "overlapping_patches.csv")
     print("Cleaning results...")
-    clean_trajectories, clean_results = exclude_invalid_videos(trajectories, results_per_plate)
+    clean_trajectories, clean_results = exclude_invalid_videos(trajectories, results_per_plate, overlapping_patches)
     clean_results.to_csv(path + "clean_results.csv")
     print("Computing speeds...")
     # For faster execution, we only compute speeds here (and not at the same time as distances), when invalid
@@ -107,6 +113,15 @@ def generate(starting_from="", test_pipeline=False):
 
     if starting_from == "controls":
         gc.generate_controls(path)
+        generate_smooth_trajectories(path)
+        generate_trajectories(path)
+        generate_results_per_id(path)
+        generate_results_per_plate(path)
+        generate_clean_tables_and_speed(path)
+        generate_aggregated_visits(path, param.threshold_list)
+
+    if starting_from == "smoothing":
+        generate_smooth_trajectories(path)
         generate_trajectories(path)
         generate_results_per_id(path)
         generate_results_per_plate(path)
