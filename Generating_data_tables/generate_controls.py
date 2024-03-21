@@ -7,6 +7,7 @@ import ReferencePoints
 from Parameters import parameters
 # My code
 import find_data as fd
+from Generating_data_tables import generate_trajectories as gt
 # import plots
 
 # Originally, our controls are saved in some folder. In order to have one control per inter-patch distance, we create
@@ -32,13 +33,13 @@ def rename_original_control_traj(path):
         os.rename(folder, folder[:-len("traj.csv")]+"traj_parent.csv")
 
 
-def generate_controls(path, show=False):
+def generate_controls(path):
     """
     Takes a path prefix, finds the files of all control conditions inside.
     Will create subfolders (named parentfolder_control_close, parentfolder_control_med, etc.) each containing:
         - a copy of the traj.csv file from the parent folder
-        - a foodpatches.mat folder containing a new condition number
-        - a foodpatches_new
+        - a metadata.csv file with information about condition, and patches boundaries coming from a non-control plate
+          with the corresponding distance (close, cluster, med or far)
     """
     print("Starting to generate controls...")
     # Rename any (new) control traj.csv into traj_control.csv
@@ -61,11 +62,11 @@ def generate_controls(path, show=False):
             # Make the metadata.csv files
             current_distance_condition = current_control_folder.split("_")[-1]  # eg "control_med" => "med" will be the last element of "_" split
 
-            metadata, source_folder = return_control_metadata(path, folder, current_distance_condition)
+            metadata, source_folder = steal_metadata_from_another_plate(path, folder, current_distance_condition)
             metadata.to_csv(current_control_folder+"/metadata.csv")
 
             # Check if there is a traj.csv file in the current_control_folder, otherwise copy it from parent
-            # Do this AFTER creating metadata otherwise find_data functions can find a traj.csv file with no metadata in the folder (and get pissed)
+            # Do this AFTER creating metadata otherwise find_data functions can find a traj.csv file with no metadata in the folder (and gets pissed)
             if not os.path.isfile(current_control_folder + "/traj.csv"):
                 # Copy the traj.csv from folder into current_control_folder
                 # (all folder names have /traj.csv in the end, but not current_control_folder) (output of fd.control_folders)
@@ -75,7 +76,7 @@ def generate_controls(path, show=False):
                 # shutil.copy(folder_without_traj+"background.tif", current_control_folder)
 
 
-def return_control_metadata(path, parent_folder, distance):
+def steal_metadata_from_another_plate(path, parent_folder, distance):
     """
     Input:
         :path: path where all the experimental folders live
@@ -97,15 +98,21 @@ def return_control_metadata(path, parent_folder, distance):
     source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
     source_xy_holes = source_folder_metadata["holes"][0]
     source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
+    # Load in_patch_map to check if patches are overlapping
+    patch_map, are_patches_overlapping = gt.in_patch_all_pixels(the_chosen_one)
     # As long as it's not a valid set of points, keep looking
-    while len(source_reference_points.errors["list_of_errors"]) > 0:
-        print("Folder with bad holes: ", the_chosen_one)
-        # Pick a random one
+    while are_patches_overlapping or len(source_reference_points.errors["list_of_errors"]) > 0:
+        print("Folder with bad holes: ", the_chosen_one, ", has overlapping patches: ", are_patches_overlapping)
+        # Remove the previous folder
+        same_distance_folders.remove(the_chosen_one)
+        # Pick a new random one
         the_chosen_one = random.choice(same_distance_folders)
         # Load patch information for source folder
         source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
         source_xy_holes = source_folder_metadata["holes"][0]
         source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
+        # Load in_patch_map to check if patches are overlapping
+        patch_map, are_patches_overlapping = gt.in_patch_all_pixels(the_chosen_one)
 
     print("the chosen one = ", the_chosen_one)
 
