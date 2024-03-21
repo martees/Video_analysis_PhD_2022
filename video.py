@@ -45,7 +45,7 @@ def show_frame(folder, frame, is_plot=True):
     return silhouette_x, silhouette_y, intensities
 
 
-def show_frames(folder, trajectories, first_frame, is_smoothing=False):
+def show_frames(folder, trajectories, first_frame):
     """
     Starts by showing first_frame of folder. Then, user can scroll to go through frames.
     """
@@ -189,4 +189,4 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list,
 if __name__ == "__main__":
     path = gr.generate(starting_from="", test_pipeline=True)
     trajectories = pd.read_csv(path + "clean_trajectories.csv")
-    show_frames("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/20221013T115434_SmallPatches_C5-CAM4/traj.csv", trajectories, 1908, is_smoothing=True)
+    show_frames("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/20221011T111213_SmallPatches_C1-CAM1/traj.csv", trajectories, 1467)
