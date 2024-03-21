@@ -224,7 +224,7 @@ def in_patch_list(traj, using):
                 list_y_silhouette[i_frame] = current_silhouettes[i_frame][1]
 
         # Generate pixel map of the plate
-        in_patch_map, is_bad[i_plate] = in_patch_all_pixels(current_plate)
+        in_patch_map, is_bad.loc[i_plate, "overlapping_patches"] = in_patch_all_pixels(current_plate)
 
         # Fill the table
         # We go through the whole trajectory
@@ -233,7 +233,8 @@ def in_patch_list(traj, using):
             if using == "centroid":
                 list_of_patches[i] = in_patch_map[list_y_centroid[time], list_x_centroid[time]]
             if using == "silhouette":
-                list_of_patches[i] = in_patch_silhouette(list_x_silhouette[time], list_y_silhouette[time], in_patch_map)
+                if list_x_silhouette[time]:
+                    list_of_patches[i] = in_patch_silhouette(list_x_silhouette[time], list_y_silhouette[time], in_patch_map)
             i = i + 1
 
     return list_of_patches, is_bad
