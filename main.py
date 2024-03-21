@@ -267,7 +267,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
 if __name__ == "__main__":
     #   Saves the results in a path that is returned (only needed at the beginning!)
-    path = gr.generate(starting_from="trajectories", test_pipeline=True)
+    path = gr.generate(starting_from="", test_pipeline=False)
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -291,14 +291,15 @@ if __name__ == "__main__":
     print("Finished retrieving stuff")
 
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
-    #                                             ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
-    #plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
-    #plot_graphs(results, "leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
-    #plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
+    #                                              ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
+    # plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
+    # plot_graphs(results, "leaving_probability", [["med 0"], ["med 0.2"], ["med 0.5"], ["med 1.25"]])
+    # plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
+    # plot_graphs(results, "leaving_probability", [["cluster 0"], ["cluster 0.2"], ["cluster 0.5"]])
 
-    plot_graphs(results, "visit_duration_dist_speeds", [["close 0", "med 0", "far 0"]])
-    plot_graphs(results, "visit_duration_dist_speeds", [["close 0.2", "med 0.2", "far 0.2"]])
-    plot_graphs(results, "visit_duration_dist_speeds", [["close 0.5", "med 0.5", "far 0.5"]])
+    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "cluster 0"]])
+    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
+    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
 
     # Possible arguments for plot_graphs:
     #               - "aggregated_visit_duration"

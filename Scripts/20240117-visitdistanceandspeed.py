@@ -11,6 +11,7 @@ trajectories = pd.read_csv(path + "clean_trajectories.csv")
 results = pd.read_csv(path + "clean_results.csv")
 
 # Parameter you can set to False if you want to use already existing data
+# For 325 folders it took > 5 hours (March 21, 2024)
 recompute = False
 
 if recompute == True:
@@ -25,7 +26,7 @@ if recompute == True:
 
     for i_folder in range(nb_of_folders):
         if i_folder % 10 == 0:
-            print("Computing for folder ", i_folder, " / ", nb_of_folders)
+            print("Computing distance and speed for folder ", i_folder, " / ", nb_of_folders)
 
         # Define current visits
         current_folder = folder_list[i_folder]
