@@ -9,11 +9,20 @@ from Generating_data_tables import generate_trajectories as gt
 
 
 def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders):
+    # Remove the plates which have overlapping patches
+    folders_with_bad_patches = bad_patches_folders[bad_patches_folders["overlapping_patches"] == True].reset_index(drop=True)
+    for i_folder in range(len(results_per_plate)):
+        if results_per_plate.loc[i_folder, "folder"] in list(folders_with_bad_patches["folder"]):
+            results_per_plate.drop([i_folder], inplace=True)
+
+    # Remove plates which don't have enough video time, or have more than ~10-30 double frames (=> could be two worms)
     cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
     cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
-    cleaned_results = cleaned_results[cleaned_results["folder"] not in bad_patches_folders["folder"]]
+
+    # Once the bad folders have been excluded from clean_results, remove them from the trajectory file
     valid_folders = np.unique(cleaned_results["folder"])
     cleaned_traj = pd.DataFrame(columns=trajectories.columns)
+    cleaned_traj["is_smoothed"] = cleaned_traj["is_smoothed"].astype(bool)
     for plate in valid_folders:
         cleaned_traj = pd.concat([cleaned_traj, trajectories[trajectories["folder"] == plate]])
     return cleaned_traj, cleaned_results
