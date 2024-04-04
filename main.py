@@ -290,6 +290,25 @@ if __name__ == "__main__":
     results = pd.read_csv(path + "clean_results.csv")
     print("Finished retrieving stuff")
 
+    #plot_graphs(results, "visit_duration_vs_entry_speed",
+    #            [["close 0"]])
+    #plot_graphs(results, "visit_duration_vs_entry_speed",
+    #            [["med 0"]])
+    #plot_graphs(results, "visit_duration_vs_entry_speed",
+    #            [["far 0"]])
+    # plot_graphs(results, "visit_duration_vs_entry_speed",
+    #             [["close 0.2"]])
+    # plot_graphs(results, "visit_duration_vs_entry_speed",
+    #             [["med 0.2"]])
+    # plot_graphs(results, "visit_duration_vs_entry_speed",
+    #             [["far 0.2"]])
+    # plot_graphs(results, "visit_duration_vs_entry_speed",
+    #             [["close 0.5"]])
+    # plot_graphs(results, "visit_duration_vs_entry_speed",
+    #             [["med 0.5"]])
+    # plot_graphs(results, "visit_duration_vs_entry_speed",
+    #             [["far 0.5"]])
+
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
     #                                              ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
     # plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
@@ -297,9 +316,9 @@ if __name__ == "__main__":
     # plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
     # plot_graphs(results, "leaving_probability", [["cluster 0"], ["cluster 0.2"], ["cluster 0.5"]])
 
-    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "cluster 0"]])
-    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
-    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
+    plot_graphs(results, "", [["close 0", "med 0", "far 0", "cluster 0"]])
+    plot_graphs(results, "proportion_of_visited_patches", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
+    plot_graphs(results, "proportion_of_visited_patches", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
 
     # Possible arguments for plot_graphs:
     #               - "aggregated_visit_duration"

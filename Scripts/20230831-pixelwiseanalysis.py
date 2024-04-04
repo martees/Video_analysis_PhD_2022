@@ -129,7 +129,7 @@ def generate_pixelwise(traj, do_regenerate=True):
         folder = folder_list[i_folder]
         # If we should regenerate existing files, OR if the file is missing, generate it:
         if do_regenerate or not os.path.isfile(folder[:-len("traj.csv")]+"in_patch_matrix.csv"):
-            in_patch_all_pixels(folder)
+            gt.in_patch_all_pixels(folder)
         if do_regenerate or not os.path.isfile(folder[:-len("traj.csv")]+"worm_pixels_traj.csv"):
             current_traj = traj[traj["folder"] == folder].reset_index()
             pixelwise = pixelwise_one_traj(current_traj)
@@ -152,8 +152,8 @@ def plot_in_patch_silhouette(folder):
     composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
     plt.imshow(composite)
 
-    pixels_in_patch = pixels[pixels["patch_silhouette"]!=-1]
-    pixels_out_of_patch = pixels[pixels["patch_silhouette"]==-1]
+    pixels_in_patch = pixels[pixels["patch_silhouette"] != -1]
+    pixels_out_of_patch = pixels[pixels["patch_silhouette"] == -1]
     plt.scatter(pixels_in_patch["x"], pixels_in_patch["y"], color="yellow", s=.5)
     plt.scatter(pixels_out_of_patch["x"], pixels_out_of_patch["y"], color="black", s=.5)
 
