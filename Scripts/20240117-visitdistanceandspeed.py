@@ -12,7 +12,7 @@ results = pd.read_csv(path + "clean_results.csv")
 
 # Parameter you can set to False if you want to use already existing data
 # For 325 folders it took > 5 hours (March 21, 2024)
-recompute = False
+recompute = True
 
 if recompute == True:
     # Folder list
@@ -21,8 +21,10 @@ if recompute == True:
 
     # Output lists, will have one average value for each plate/folder
     list_of_avg_distances = []
-    list_of_avg_speeds = []
-    list_of_avg_speeds_inv = []
+    list_of_avg_speeds_each_timestep = []
+    list_of_inv_avg_speeds_each_timestep = []
+    list_of_avg_speeds_whole_visit = []
+    list_of_inv_avg_speeds_whole_visit = []
 
     for i_folder in range(nb_of_folders):
         if i_folder % 10 == 0:
@@ -35,34 +37,42 @@ if recompute == True:
         nb_of_visits = len(current_visit_list)
 
         # Variable to store sums (in order to compute average per visit after the for loop)
-        distance_all_visits = 0
-        speed_all_visits = 0
-        speed_all_visits_inv = 0
+        distance_sum_all_visits = 0
+        duration_sum_all_visits = 0
+        avg_speed_sum_all_visits = 0
+        inverse_avg_speed_all_visits = 0
 
         for i_visit in range(nb_of_visits):
             current_visit = current_visit_list[i_visit]
             visit_start_index = fd.load_index(trajectories, current_folder, current_visit[0])
             visit_end_index = fd.load_index(trajectories, current_folder, current_visit[1])
-            distance_all_visits += np.sum(trajectories["distances"][visit_start_index: visit_end_index + 1])
+            duration_sum_all_visits += current_visit[1] - current_visit[0] + 1
+            distance_sum_all_visits += np.sum(trajectories["distances"][visit_start_index: visit_end_index + 1])
 
             # Working a bit more for the speeds
             speed_list = trajectories["speeds"][visit_start_index: visit_end_index + 1]
-            speed_all_visits += np.mean(speed_list)
+            avg_speed_sum_all_visits += np.mean(speed_list)
             # For the inverse, exclude null speeds
-            speed_all_visits_inv += 1/np.mean(speed_list)
+            inverse_avg_speed_all_visits += 1 / np.mean(speed_list)
 
         if nb_of_visits != 0:
-            list_of_avg_distances.append(distance_all_visits / nb_of_visits)
-            list_of_avg_speeds.append(speed_all_visits / nb_of_visits)
-            list_of_avg_speeds_inv.append(speed_all_visits_inv / nb_of_visits)
+            list_of_avg_distances.append(distance_sum_all_visits / nb_of_visits)
+            list_of_avg_speeds_each_timestep.append(avg_speed_sum_all_visits / nb_of_visits)
+            list_of_inv_avg_speeds_each_timestep.append(inverse_avg_speed_all_visits / nb_of_visits)
+            list_of_avg_speeds_whole_visit.append(distance_sum_all_visits / duration_sum_all_visits)
+            list_of_inv_avg_speeds_whole_visit.append(duration_sum_all_visits / distance_sum_all_visits)
         else:
             list_of_avg_distances.append(0)
-            list_of_avg_speeds.append(0)
-            list_of_avg_speeds_inv.append(0)
+            list_of_avg_speeds_each_timestep.append(0)
+            list_of_inv_avg_speeds_each_timestep.append(0)
+            list_of_avg_speeds_whole_visit.append(0)
+            list_of_inv_avg_speeds_whole_visit.append(0)
 
     results["average_distance_each_visit"] = list_of_avg_distances
-    results["average_speed_each_visit"] = list_of_avg_speeds
-    results["average_speed_each_visit_inv"] = list_of_avg_speeds_inv
+    results["average_speed_per_timestep_each_visit"] = list_of_avg_speeds_each_timestep
+    results["average_speed_per_timestep_each_visit_inv"] = list_of_inv_avg_speeds_each_timestep
+    results["average_speed_each_visit"] = list_of_avg_speeds_whole_visit
+    results["average_speed_each_visit_inv"] = list_of_inv_avg_speeds_whole_visit
 
     results.to_csv(path + "clean_results.csv")
 
