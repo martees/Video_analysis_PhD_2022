@@ -242,7 +242,7 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
     # List of visited patches
     visited_patch_list = pd.unique(pixels["patch_silhouette"])
     # Color map
-    colors = plt.cm.jet(np.linspace(0,1, len(visited_patch_list)))
+    colors = plt.cm.jet(np.linspace(0, 1, len(visited_patch_list)))
 
     for i_patch in range(1):
         # Initialization
@@ -260,14 +260,14 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
 
         for frame in range(nb_of_frames):
             if frame % 1000 == 0:
-                print("Computing depletion for ", frame," / ", nb_of_frames)
+                print("Computing depletion for ", frame, " / ", nb_of_frames)
             # For each frame with a visit, reduce the fullness of relevant pixels
             if frame in list_of_visit_frames:
                 visited_pixels_this_frame = pixel_visits[pixel_visits["frame"] == frame].reset_index()
                 for i in range(len(visited_pixels_this_frame)):
                     pixel = visited_pixels_this_frame.iloc[i,]
                     # This big line is just to adjust the fullness of the right pixel in the pixels_visited dataframe
-                    pixels_visited.loc[(pixels_visited["x"]==pixel["x"])&(pixels_visited["y"]==pixel["y"]), "fullness"] -= depletion_rate
+                    pixels_visited.loc[(pixels_visited["x"] == pixel["x"])&(pixels_visited["y"] == pixel["y"]), "fullness"] -= depletion_rate
                 # Set any fullness value < 0 to 0
                 pixels_visited["fullness"] = np.where(pixels_visited["fullness"] > 0, pixels_visited["fullness"], 0)
                 # Patch fullness is equal to fullness of all pixels (visited + unvisited) divided by total number of pixels
@@ -283,6 +283,7 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
     plt.xlabel("Frame")
     plt.legend()
     plt.show()
+
 
 # Load existing data
 path = gen.generate(test_pipeline=True)
