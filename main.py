@@ -221,6 +221,17 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                                       current_conditions, "Speed when entering", current_condition_names,
                                       is_plot=is_plot)
 
+            if "pixels_avg_visit_duration" in what_to_plot:
+                # This should be called from the 20240313-pixelwiseleavingprob.py script
+                plots.plot_selected_data(results, "Average duration of visits to pixels inside food patches in " + plot_name + " conditions",
+                                         current_conditions, current_condition_names, "avg_visit_duration_to_pixels_inside_patches",
+                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         is_plot=is_plot)
+                plots.plot_selected_data(results, "Average duration of visits to pixels outside food patches in " + plot_name + " conditions",
+                                         current_conditions, current_condition_names, "avg_visit_duration_to_pixels_outside_patches",
+                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         is_plot=is_plot)
+
             # Proportion of time spent in patches
             if "proportion_of_time" in what_to_plot:
                 plots.plot_selected_data(results,
