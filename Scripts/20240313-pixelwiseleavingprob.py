@@ -251,7 +251,7 @@ def save_pixel_visit_duration_in_results_table():
         else:
             in_patch_matrix = gt.in_patch_all_pixels(plate)
 
-        # Select only visit durations of pixels inside the food patch
+        # Separate inside / outside food patch visit durations
         current_pixel_wise_visit_durations_inside = current_pixel_wise_visit_durations[in_patch_matrix != -1]
         current_pixel_wise_visit_durations_outside = current_pixel_wise_visit_durations[in_patch_matrix == -1]
         # Remove the pixelwise structure (from sublists in lists of lists, just a list with all the visit durations)
@@ -273,5 +273,82 @@ def save_pixel_visit_duration_in_results_table():
     return results
 
 
-results = save_pixel_visit_duration_in_results_table()
-main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
+def visit_duration_previous_visit_pixel(condition_list):
+    """
+        Function that plots the visit duration to a pixel as a function of the sum of the previous visits made to that
+        same pixel. Does that for a few plates (for now)
+    """
+
+    # Load path and clean_results.csv, because that's where the list of folders we work on is stored
+    path = gen.generate(test_pipeline=False)
+    results = pd.read_csv(path + "clean_results.csv")
+    plate_list = results["folder"]
+
+    current_visit_durations_by_condition = [[] for _ in range(len(condition_list))]
+    previous_visit_durations_by_condition = [[] for _ in range(len(condition_list))]
+    for i_plate, plate in enumerate(plate_list):
+        if i_plate % 10 == 0:
+            print("Computing average visit duration in pixels for plate ", i_plate, " / ", len(plate_list))
+
+        current_condition = fd.load_condition(plate)
+
+        if current_condition in condition_list:
+            # If it's not already done, compute the pixel visit durations
+            pixelwise_durations_path = plate[:-len("traj.csv")] + "pixelwise_visit_durations.npy"
+            if not os.path.isfile(pixelwise_durations_path):
+                pixel_wise_visit_durations(plate)
+            # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
+            current_pixel_wise_visit_durations = np.load(pixelwise_durations_path, allow_pickle=True)
+
+            # Load patch info for this folder
+            in_patch_matrix_path = plate[:-len("traj.csv")] + "in_patch_matrix.csv"
+            if os.path.isfile(in_patch_matrix_path):
+                in_patch_matrix = pd.read_csv(in_patch_matrix_path)
+            else:
+                in_patch_matrix = gt.in_patch_all_pixels(plate)
+
+            # Separate inside / outside food patch visit durations
+            current_pixel_wise_visit_durations_inside = current_pixel_wise_visit_durations[in_patch_matrix != -1]
+            # Add values to the relevant lists (current visit duration and corresponding "time already spent")
+            curr_condition_index = np.where(condition_list == current_condition)[0][0]
+            for i_pixel in range(len(current_pixel_wise_visit_durations_inside)):  # for every pixel
+                current_visit_list = current_pixel_wise_visit_durations_inside[i_pixel]
+                time_already_spent = 0
+                for i_visit in range(len(current_visit_list)):  # for every visit
+                    current_visit_duration = current_visit_list[i_visit]
+                    current_visit_durations_by_condition[curr_condition_index].append(current_visit_duration)
+                    previous_visit_durations_by_condition[curr_condition_index].append(time_already_spent)
+                    time_already_spent += current_visit_duration
+
+    plot_title = "Current vs previous visits in conditions: "
+    for i_condition, condition in enumerate(condition_list):
+        condition_name = parameters.nb_to_name[condition]
+        condition_color = parameters.name_to_color[condition_name]
+        plot_title += condition_name + " "
+        previous_visit_bins, curr_visit_values, [errors_inf, errors_sup], _ = ana.xy_to_bins(
+            previous_visit_durations_by_condition[i_condition],
+            current_visit_durations_by_condition[i_condition], 100, print_progress=False)
+        plt.plot(previous_visit_bins, curr_visit_values, label=condition_name, color=condition_color)
+        plt.errorbar(previous_visit_bins, curr_visit_values, [errors_inf, errors_sup], fmt='.k', capsize=5)
+
+        # plt.scatter(previous_visit_durations_by_condition[i_condition], current_visit_durations_by_condition[i_condition], label=condition_name, color=condition_color, alpha=0.2)
+
+    plt.title(plot_title)
+    plt.xlabel("Time spent there before this visit (to a pixel)")
+    plt.ylabel("Current visit duration (to a pixel)")
+    plt.legend()
+    plt.show()
+
+    return 0
+
+
+# results = save_pixel_visit_duration_in_results_table()
+# path = gen.generate(test_pipeline=False)
+# results = pd.read_csv(path + "clean_results.csv")
+# main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0", "med 0", "far 0", "cluster 0"]])
+# main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
+# main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
+
+#visit_duration_previous_visit_pixel([0, 1, 2, 3])
+#visit_duration_previous_visit_pixel([4, 5, 6, 7])
+visit_duration_previous_visit_pixel([12, 13, 14, 15])
