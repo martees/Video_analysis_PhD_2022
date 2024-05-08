@@ -7,7 +7,7 @@ import copy
 # My code
 from Parameters import parameters as param
 import find_data as fd
-import model as model
+import model_mvt as model
 from Generating_data_tables import generate_results as gr
 
 
@@ -807,10 +807,12 @@ def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
     With errorbars if bootstrap is set to True.
     """
+    x_copy = copy.deepcopy(x)
+    y_copy = copy.deepcopy(y)
 
     # Create bin list, with left limit of each bin
     bin_list = []
-    x_values = np.unique(x)
+    x_values = np.unique(x_copy)
     current_bin = np.min(x_values)
     while current_bin < np.max(x_values):
         bin_list.append(current_bin)
@@ -821,11 +823,11 @@ def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
 
     # Create a list with one sublist of y values for each bin
     binned_y_values = [[] for _ in range(nb_of_bins)]
-    for i in range(len(y)):
+    for i in range(len(y_copy)):
         if print_progress and i % 200000 == 0:
-            print("Binning in xy_to_bins... ", int(100*i/(i+len(y))), "% done")
-        current_y = y.pop()
-        current_x = x.pop()
+            print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
+        current_y = y_copy.pop()
+        current_x = x_copy.pop()
         i_bin = np.searchsorted(bin_list, current_x)  # looks for first index at which x can be inserted in the bin list
         binned_y_values[i_bin].append(current_y)
 
