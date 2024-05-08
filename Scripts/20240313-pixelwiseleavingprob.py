@@ -346,6 +346,8 @@ def visit_duration_previous_visit_pixel(condition_list):
         condition_color = parameters.name_to_color[condition_name]
         plot_title += condition_name + " "
 
+        bin_size = 10
+
         # Build a list with one sublist per bin of time_already_spent_in_pixel, and in each sublist, the average current
         # visit lengths corresponding to that time for plates which have more than some critical nb of data points
         # So we go from current_visit_durations_by_condition_and_plate[i_condition] = [ [0, 1, 1], [0, 20] ]
@@ -353,27 +355,40 @@ def visit_duration_previous_visit_pixel(condition_list):
         # to an average for each of those bins => list_of_plate_avg_each_bin = [[0.6666, 0], [1], [20]]
         list_of_plate_avg_each_bin = []
         # For each plate of this condition, bin the values and get an average current_visit length for every time spent
-        for i_plate in len(current_visit_durations_by_condition_and_plate[i_condition]):
-            previous_visit_bins, curr_visit_values, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
-                previous_visit_durations_by_condition_and_plate[i_condition][i_plate],
-                current_visit_durations_by_condition_and_plate[i_condition][i_plate], 10, print_progress=False)
-            for i_bin in range(len(previous_visit_bins)):
-                # If this bin has never been encountered yet, add an element to the list for it
-                # We do this even if this plate does not have enough values for this bin in order to keep the i_bin
-                # ordered and corresponding to the right time_already_spent
-                if i_bin > len(list_of_plate_avg_each_bin):
-                    list_of_plate_avg_each_bin.append([])
-                # If the bin contains enough values, put its average
-                if len(binned_current_visits[i_bin]) > 3:
-                    list_of_plate_avg_each_bin[i_bin].append(curr_visit_values[i_bin])
+        for i_plate in range(len(current_visit_durations_by_condition_and_plate[i_condition])):
+            if previous_visit_durations_by_condition_and_plate[i_condition][i_plate] and current_visit_durations_by_condition_and_plate[i_condition][i_plate]:
+                previous_visit_bins, curr_visit_values, [inf, sup], binned_current_visits = ana.xy_to_bins(
+                    previous_visit_durations_by_condition_and_plate[i_condition][i_plate],
+                    current_visit_durations_by_condition_and_plate[i_condition][i_plate], bin_size, print_progress=False)
+                for i_bin in range(len(previous_visit_bins)):
+                    # If this bin has never been encountered yet, add an element to the list for it
+                    # We do this even if this plate does not have enough values for this bin in order to keep the i_bin
+                    # ordered and corresponding to the right time_already_spent
+                    if i_bin > len(list_of_plate_avg_each_bin) - 1:
+                        list_of_plate_avg_each_bin.append([])
+                    # If the bin contains enough values, put its average
+                    if len(binned_current_visits[i_bin]) > 10:
+                        list_of_plate_avg_each_bin[i_bin].append(curr_visit_values[i_bin])
+                # plt.plot(previous_visit_bins, curr_visit_values, color=condition_color, linewidth=6, alpha=0.1)
 
-        # Keep only bins with > 1200 visits (by looking at the length of the i-th element in binned_current_visits)
+        # Then, for every time_already_spent bin, bootstrappppppp
+        previous_visit_bins = [bin_size*i for i in range(len(list_of_plate_avg_each_bin))]
+        current_visits_avg = [-1 for i in range(len(list_of_plate_avg_each_bin))]
+        errors_inf = [-1 for i in range(len(list_of_plate_avg_each_bin))]
+        errors_sup = [-1 for i in range(len(list_of_plate_avg_each_bin))]
+        for i_bin in range(len(list_of_plate_avg_each_bin)):
+            current_visits_avg[i_bin] = np.mean(list_of_plate_avg_each_bin[i_bin])
+            bootstrap_ci = ana.bottestrop_ci(list_of_plate_avg_each_bin[i_bin], 100)
+            # bootstrap_ci returns error bar absolute positions => convert them to error bar lengths
+            [errors_inf[i_bin], errors_sup[i_bin]] = [current_visits_avg[i_bin] - bootstrap_ci[0], bootstrap_ci[1] - current_visits_avg[i_bin]]
+
+        # Keep only bins with > 10 plates
         valid_bins = [previous_visit_bins[i] for i in range(len(previous_visit_bins)) if
-                      len(binned_current_visits[i]) > 1200]
-        valid_visits = [curr_visit_values[i] for i in range(len(curr_visit_values)) if
-                        len(binned_current_visits[i]) > 1200]
-        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 1200]
-        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 1200]
+                      len(list_of_plate_avg_each_bin[i]) > 10]
+        valid_visits = [current_visits_avg[i] for i in range(len(current_visits_avg)) if
+                        len(list_of_plate_avg_each_bin[i]) > 10]
+        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(list_of_plate_avg_each_bin[i]) > 10]
+        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(list_of_plate_avg_each_bin[i]) > 10]
 
         plt.plot(valid_bins, valid_visits, label=condition_name, color=condition_color, linewidth=4)
         plt.errorbar(valid_bins, valid_visits, [errors_inf, errors_sup], fmt='.k', capsize=5)
@@ -381,7 +396,7 @@ def visit_duration_previous_visit_pixel(condition_list):
         # plt.scatter(previous_visit_durations_by_condition_and_plate[i_condition], current_visit_durations_by_condition_and_plate[i_condition], label=condition_name, color=condition_color, alpha=0.2)
 
     plt.title(plot_title)
-    plt.yscale("log")
+    # plt.yscale("log")
     plt.xlabel("Time spent there before this visit (to a pixel)")
     plt.ylabel("Current visit duration (to a pixel)")
     plt.legend()
@@ -389,8 +404,7 @@ def visit_duration_previous_visit_pixel(condition_list):
 
     return 0
 
-
-plot_pixel_wise_leaving_probability([0, 4])
+# plot_pixel_wise_leaving_probability([0, 4])
 
 # results = save_pixel_visit_duration_in_results_table()
 # path = gen.generate(test_pipeline=False)
@@ -399,6 +413,6 @@ plot_pixel_wise_leaving_probability([0, 4])
 # main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
 # main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
 
-# visit_duration_previous_visit_pixel([0, 1, 2])
-# visit_duration_previous_visit_pixel([4, 5, 6])
-# visit_duration_previous_visit_pixel([12, 13, 14])
+visit_duration_previous_visit_pixel([0, 1, 2])
+visit_duration_previous_visit_pixel([4, 5, 6])
+visit_duration_previous_visit_pixel([12, 13, 14])
