@@ -42,7 +42,7 @@ def generate_controls(path):
           with the corresponding distance (close, cluster, med or far)
     """
     print("Starting to generate controls...")
-    # Rename any (new) control traj.csv into traj_control.csv
+    # Rename any (new) control traj.csv into traj_parent.csv
     rename_original_control_traj(path)
     # Full list of paths for the traj_parent.csv files that can be found in the arborescence starting in path
     folder_list = fd.path_finding_traj(path, target_name="traj_parent.csv", include_fake_control_folders=False)
@@ -101,7 +101,7 @@ def steal_metadata_from_another_plate(path, parent_folder, distance):
     # Load in_patch_map to check if patches are overlapping
     patch_map, are_patches_overlapping = gt.in_patch_all_pixels(the_chosen_one)
     # As long as it's not a valid set of points, keep looking
-    while are_patches_overlapping or len(source_reference_points.errors["list_of_errors"]) > 0:
+    while are_patches_overlapping or len(source_reference_points.errors["list_of_errors"]) > 0 and len(same_distance_folders) > 1:
         print("Folder with bad holes: ", the_chosen_one, ", has overlapping patches: ", are_patches_overlapping)
         # Remove the previous folder
         same_distance_folders.remove(the_chosen_one)
