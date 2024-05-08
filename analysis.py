@@ -837,7 +837,7 @@ def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
     errors_sup = np.zeros(nb_of_bins)
     if bootstrap:
         for i_bin in range(nb_of_bins):
-            if i_bin % 10 == 0:
+            if i_bin % 10 == 0 and print_progress:
                 print("Averaging xy_to_bins... ", int(100*i_bin/nb_of_bins), "% done")
             current_values = binned_y_values[i_bin]
             if current_values:  # if there are values there
