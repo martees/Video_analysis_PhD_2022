@@ -156,7 +156,6 @@ def load_silhouette(path):
     """
     Takes a folder path, returns the content of the silhouette matrix found in this path.
     """
-    lentoremove = len('traj.csv')  # removes traj from the current path, to get to the parent folder
     silhouette_path = load_image_path(path, "silhouettes.mat")
     matrix = loadmat(silhouette_path)
 
@@ -293,7 +292,7 @@ def load_image_path(folder, image_name):
         return folder + image_name
     # For control experiments, it's in the parent folder
     else:
-        folder = folder[:-1]  # remove end "/" (leftover after we only removed "traj.csv"
+        folder = folder[:-1]  # remove end "/" (leftover after we only removed "traj.csv")
         parse_path = folder.split("/")  # get a list of the folders along the path
         return folder[:-len(parse_path[-1])] + image_name  # remove last folder to get to parent, then add composite
 
