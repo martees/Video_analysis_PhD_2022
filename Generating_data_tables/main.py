@@ -104,7 +104,7 @@ def generate_aggregated_visits(path, threshold_list):
     return new_results  # return this because this function is also used dynamically
 
 
-def generate(starting_from="", test_pipeline=False):
+def generate(starting_from="", test_pipeline=False, modeled_data=False):
     """
     Will generate the data tables starting more or less from scratch.
     Argument = from which level to regenerate stuff.
@@ -117,6 +117,8 @@ def generate(starting_from="", test_pipeline=False):
         path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/"
         if test_pipeline:
             path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/"
+        if modeled_data:
+            path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
     else:  # Windows path
         path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
 
