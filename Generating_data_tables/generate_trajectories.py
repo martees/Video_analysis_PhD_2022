@@ -230,7 +230,7 @@ def in_patch_list(traj, using):
         # We go through the whole trajectory
         # and register for each time step the patch that contains centroid / intersects with silhouette
         for time in range(len(list_x_centroid)):
-            if using == "centroid":
+            if using == "centroid":  # This probably does not work!!! because centroids are not int
                 list_of_patches[i] = in_patch_map[list_y_centroid[time], list_x_centroid[time]]
             if using == "silhouette":
                 if list_x_silhouette[time]:
