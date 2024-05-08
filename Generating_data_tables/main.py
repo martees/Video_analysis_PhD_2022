@@ -161,4 +161,9 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False):
         generate_clean_tables_and_speed(path)
         generate_aggregated_visits(path, param.threshold_list)
 
+    elif starting_from == "beginning":
+        gc.generate_controls(path)
+        generate_smooth_trajectories(path)
+        generate_trajectories(path)
+
     return path
