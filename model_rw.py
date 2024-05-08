@@ -1,3 +1,4 @@
+## Random walk model
 # In this code, I will generate random trajectories (in the sense that at each time step, the agent reorients itself
 # in a random direction), with a step-length that depends on whether the agent is inside or outside the patch.
 # I will copy metadata (about condition, and patch location) from existing data folders, but replace the traj.csv file
@@ -11,6 +12,7 @@ import random
 from Generating_data_tables import generate_trajectories as gt
 from Generating_data_tables import main as gen
 import find_data as fd
+import plots
 
 
 def generate_rw_trajectory(speed_in, speed_out, model_folder, duration):
@@ -25,10 +27,9 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, duration):
     """
 
     # Load matrix with patch information for every pixel of the arena
-    if os.path.isfile(model_folder[:-len("traj.csv")] + "in_patch_matrix.csv"):
-        patch_map = pd.read_csv(model_folder[:-len("traj.csv")] + "in_patch_matrix.csv")
-    else:
-        patch_map = gt.in_patch_all_pixels(model_folder)
+    if not os.path.isfile(model_folder[:-len("traj.csv")] + "in_patch_matrix.csv"):
+        gt.in_patch_all_pixels(model_folder)
+    patch_map = pd.read_csv(model_folder[:-len("traj.csv")] + "in_patch_matrix.csv")
 
     # Load initial position of the worm
     original_folder_path = np.load(model_folder[:-len("traj.csv")] + "original_folder.npy")[0]
@@ -37,14 +38,17 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, duration):
     # Initialize outputs
     x_list = [-2 for _ in range(duration)]
     y_list = [-2 for _ in range(duration)]
-    time_list = range(duration)
 
-    current_x = initial_position[0]
-    current_y = initial_position[1]
+    current_x = int(initial_position[0])
+    current_y = int(initial_position[1])
     for time in range(duration):
         x_list[time] = current_x
         y_list[time] = current_y
-        current_patch = patch_map[current_y][current_x]
+
+        if type(current_x) != int:
+            print("jjoojo")
+
+        current_patch = patch_map[str(current_y)][current_x]
         turning_angle = 360 * random.random()
         # If worm is outside
         if current_patch == -1:
@@ -54,10 +58,14 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, duration):
         else:
             current_x += speed_in * np.cos(turning_angle)
             current_y += speed_in * np.sin(turning_angle)
+        # Force the worm to stay inside the camera field
+        current_x = int(np.clip(current_x, 0, 1943))
+        current_y = int(np.clip(current_y, 0, 1943))
 
     trajectory = pd.DataFrame()
-    trajectory["frame"] = time_list
-    trajectory["time"] = time_list
+    trajectory["id_conservative"] = [0 for _ in range(duration)]
+    trajectory["frame"] = list(range(duration))
+    trajectory["time"] = list(range(duration))
     trajectory["x"] = x_list
     trajectory["y"] = y_list
 
@@ -75,24 +83,52 @@ def generate_model_folders(data_folder_list, modeled_data_path):
     @return: None.
     """
     for i_folder, folder in enumerate(data_folder_list):
+        # First, copy the folders from the experimental part of the world
         source_folder_name = folder.split("/")[-2]  # take the last subfolder (split[-1] is "traj.csv")
-        experimental_data_path = folder[:-len("traj.csv")]
+        experimental_data_path = folder[:-len(
+            folder.split("/")[-1])]  # same thing but without file name (either "traj.csv" or "traj_parent.csv")
         model_folder_path = modeled_data_path + source_folder_name + "_model"
-        shutil.copytree(experimental_data_path, model_folder_path)
-        
-        model_trajectory = generate_rw_trajectory(1.4, 3.5, model_folder_path, 30000)
-        model_trajectory.to_csv(model_folder_path+"/traj.csv")
+        # If the model folder does not exist yet, copy pasta
+        if not os.path.isdir(model_folder_path):
+            os.copytree(model_folder_path)
+            # If it's a control folder, remove the original control folders
+            original_controls = fd.path_finding_traj(model_folder_path, include_fake_control_folders=True)
+            for i_ctrl, ctrl in enumerate(original_controls):
+                parent_folder = ctrl[:-len("traj.csv")]
+                shutil.rmtree(parent_folder)
+        # Add to the folders a .npy containing their origin
+        original_folder = [folder]
+        np.save(model_folder_path + "/original_folder.npy", original_folder)
+        # If the trajectory was named traj_parent, rename it into
+
+    # Then look for the traj.csv paths in the modeled_data_path
+    model_folder_list = fd.path_finding_traj(model_folder_path)
+    # And replace them by new, modeled traj.csv
+    for i_folder, folder in enumerate(model_folder_list):
+        # Find length of silhouettes to find out how many tracked time points the original video had
+        current_silhouettes, _, _ = fd.load_silhouette(model_folder_list[i_folder])
+        model_trajectory = generate_rw_trajectory(1.4, 3.5, folder, len(current_silhouettes))
+        model_trajectory.to_csv(folder)
+
     return 0
 
 
+regenerate = True
+
 data_path = gen.generate("", test_pipeline=True)
 model_path = gen.generate("", modeled_data=True)
-list_of_experimental_folders = fd.path_finding_traj(data_path)
-# Create modelled data
-generate_model_folders(list_of_experimental_folders, model_path)
-# Generate same datasets as for experimental data
-gen.generate("controls", modeled_data=True)
 
+if regenerate:
+    # Find the path of non-control folders, and then add the control folders by looking for "traj_parent.csv" folders
+    list_of_experimental_folders = fd.path_finding_traj(data_path, include_fake_control_folders=False)
+    list_of_experimental_folders += fd.path_finding_traj(data_path, target_name="traj_parent.csv")
+    # Create modelled data
+    generate_model_folders(list_of_experimental_folders, model_path)
+    # Generate same datasets as for experimental data
+    gen.generate("beginning", modeled_data=True)
 
+# Look at the trajectoriessss
+trajectories = pd.read_csv(model_path + "trajectories.csv")
+plots.trajectories_1condition(trajectories, [0, 1, 2, 3])
 
 
