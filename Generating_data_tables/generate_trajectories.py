@@ -178,7 +178,7 @@ def in_patch_all_pixels(folder):
     # plt.scatter(patches_x, patches_y, color = "blue")
     # plt.show()
 
-    pd.DataFrame(plate_map).to_csv(folder[:-len("traj.csv")] + "in_patch_matrix.csv", index=False)
+    pd.DataFrame(plate_map).to_csv(folder[:-len(folder.split("/")[-1])] + "in_patch_matrix.csv", index=False)
 
     return plate_map, is_bad
 

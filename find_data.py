@@ -281,14 +281,21 @@ def load_image_path(folder, image_name):
     go look into the parent folder.
     image_name = "composite_patches.tif" or "background.tif"
     """
-    folder = folder[:-len("traj.csv")]  # in any case, remove traj.csv
+    folder = folder[:-len(folder.split("/")[-1])]  # in any case, remove traj.csv (or traj_parent.csv, only used for model_rw.py)
     # Add extension or _patches if it has been forgotten
     if "composite" in image_name:
         image_name = "composite_patches.tif"
     if "background" in image_name:
         image_name = "background.tif"
+
+    # For model folders, look for the "original_folder.npy" string and load the image from there
+    if "model" in folder:
+        if "control" not in folder:
+            return load_image_path(np.load(folder + "original_folder.npy")[0], image_name)
+        else:  # if it's a control subfolder from a model folder, go look for the original_folder.npy in the parent
+            return load_image_path(np.load(folder[:-len(folder.split("/")[-1])] + "original_folder.npy")[0], image_name)
     # For non-control experiments it's just in the same folder
-    if "control" not in folder:
+    elif "control" not in folder:
         return folder + image_name
     # For control experiments, it's in the parent folder
     else:

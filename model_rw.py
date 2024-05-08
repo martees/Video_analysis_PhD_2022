@@ -25,15 +25,14 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, duration):
     @param duration: length of the simulated trajectory
     @return: returns a traj.csv table with x-y-time info
     """
-
-    # Load matrix with patch information for every pixel of the arena
-    if not os.path.isfile(model_folder[:-len("traj.csv")] + "in_patch_matrix.csv"):
-        gt.in_patch_all_pixels(model_folder)
-    patch_map = pd.read_csv(model_folder[:-len("traj.csv")] + "in_patch_matrix.csv")
-
     # Load initial position of the worm
-    original_folder_path = np.load(model_folder[:-len("traj.csv")] + "original_folder.npy")[0]
+    original_folder_path = np.load(model_folder[:-len(model_folder.split("/")[-1])] + "original_folder.npy")[0]
     initial_position = [pd.read_csv(original_folder_path)["x"][0], pd.read_csv(original_folder_path)["y"][0]]
+
+    # Load matrix with patch information for every pixel of  the arena
+    if not os.path.isfile(original_folder_path[:-len(original_folder_path.split("/")[-1])] + "in_patch_matrix.csv"):
+        gt.in_patch_all_pixels(original_folder_path)
+    patch_map = pd.read_csv(original_folder_path[:-len(original_folder_path.split("/")[-1])] + "in_patch_matrix.csv")
 
     # Initialize outputs
     x_list = [-2 for _ in range(duration)]
@@ -85,28 +84,29 @@ def generate_model_folders(data_folder_list, modeled_data_path):
     for i_folder, folder in enumerate(data_folder_list):
         # First, copy the folders from the experimental part of the world
         source_folder_name = folder.split("/")[-2]  # take the last subfolder (split[-1] is "traj.csv")
-        experimental_data_path = folder[:-len(
-            folder.split("/")[-1])]  # same thing but without file name (either "traj.csv" or "traj_parent.csv")
         model_folder_path = modeled_data_path + source_folder_name + "_model"
-        # If the model folder does not exist yet, copy pasta
+        # If the model folder does not exist yet, create folder
         if not os.path.isdir(model_folder_path):
-            os.copytree(model_folder_path)
-            # If it's a control folder, remove the original control folders
-            original_controls = fd.path_finding_traj(model_folder_path, include_fake_control_folders=True)
-            for i_ctrl, ctrl in enumerate(original_controls):
-                parent_folder = ctrl[:-len("traj.csv")]
-                shutil.rmtree(parent_folder)
-        # Add to the folders a .npy containing their origin
+            os.mkdir(model_folder_path)
+        # Copy pasta some metadata from the original folder
+        list_of_metadata_stuff = ["/holes.mat", "/foodpatches.mat", "/foodpatches_new.mat"]
+        for file in list_of_metadata_stuff:
+            if not os.path.isfile(model_folder_path + file):
+                shutil.copy(folder[:-len(folder.split("/")[-1])] + file, model_folder_path + file)
+        # Add to the folders a .npy containing their origin (that's just for the generate_rw_trajectory function,
+        # and XXXXX function, which will use it to build the "folder" column of the trajectories.csv dataframe,
+        # so that we don't have to copy all the heavy metadata from the original folder)
         original_folder = [folder]
         np.save(model_folder_path + "/original_folder.npy", original_folder)
         # If the trajectory was named traj_parent, rename it into
 
-    # Then look for the traj.csv paths in the modeled_data_path
-    model_folder_list = fd.path_finding_traj(model_folder_path)
+    # Then take all the empty folders that you created
+    model_folder_list = os.listdir(modeled_data_path)
+    model_folder_list = [modeled_data_path + model_folder_list[i] + "/traj.csv" for i in range(len(model_folder_list))]
     # And replace them by new, modeled traj.csv
     for i_folder, folder in enumerate(model_folder_list):
         # Find length of silhouettes to find out how many tracked time points the original video had
-        current_silhouettes, _, _ = fd.load_silhouette(model_folder_list[i_folder])
+        current_silhouettes, _, _ = fd.load_silhouette(folder)
         model_trajectory = generate_rw_trajectory(1.4, 3.5, folder, len(current_silhouettes))
         model_trajectory.to_csv(folder)
 
