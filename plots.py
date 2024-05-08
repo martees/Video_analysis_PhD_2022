@@ -133,7 +133,7 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         condition_list = np.unique(condition_list)
     # Otherwise take all the plates of the condition
     else:
-        folder_list = fd.return_folders_condition_list(np.unique(traj["folder"]), [condition_list])
+        folder_list = fd.return_folders_condition_list(np.unique(traj["folder"]), condition_list)
 
     # If save_fig is True, check that there is a trajectory_plots folder in path, otherwise create it
     path = gen.generate("")
