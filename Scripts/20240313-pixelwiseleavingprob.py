@@ -80,7 +80,8 @@ def pixel_wise_visit_durations(folder):
     return visit_times_each_pixel
 
 
-def pixel_wise_delay_analysis(condition_list, is_recompute_pixelwise_visits=False, is_recompute_full_data_table=False):
+def pixel_wise_delay_analysis(condition_list, is_recompute_pixelwise_visits=False, is_recompute_full_data_table=False,
+                              exclude_first_visits=False):
     """
     = Function that takes a list of condition numbers (as defined in ./Parameters/parameters.py), and will return a list
     of matrices, one for each condition. This matrix will contain 4001 lines and 4001 columns, corresponding to a time
@@ -152,13 +153,14 @@ def pixel_wise_delay_analysis(condition_list, is_recompute_pixelwise_visits=Fals
                 # t, d, the number of events with this time and delay. In order to do so, we go through the visits to each
                 # pixel, and add +1 to all relevant cells of the matrix.
                 # Note: all values with time or delay > 4000 are stored in the last line / column of the data matrix.
-                nb_of_pixels = len(visits_to_pixels_matrix) * len(visits_to_pixels_matrix[0])
                 for i_line in range(len(visits_to_pixels_matrix)):
                     for i_col in range(len(visits_to_pixels_matrix[0])):
+                        # Only take into account pixels that are inside food patches
                         if in_patch_matrix[str(i_col)][i_line] != -1:  # str(i_col) because the matrix is a pandas
                             current_visit_durations = visits_to_pixels_matrix[i_line][i_col]
                             time_already_spent_in_patch = 0
-                            for i_visit in range(len(current_visit_durations)):
+                            start_index = int(exclude_first_visits)  # start at 1 if exclude_1st is TRUE, 0 if FALSE
+                            for i_visit in range(start_index, len(current_visit_durations)):
                                 if i_visit > 0:
                                     time_already_spent_in_patch += current_visit_durations[i_visit - 1]
                                 current_visit_duration = current_visit_durations[i_visit]
@@ -166,11 +168,11 @@ def pixel_wise_delay_analysis(condition_list, is_recompute_pixelwise_visits=Fals
                                     data_matrix[min(time_already_spent_in_patch + i_time, 4000)][
                                         min(current_visit_duration - i_time, 4000)] += 1
             print(int(time.time() - tic), ": > Saving data matrix...")
-            np.save(path + "/pixelwise_analysis/pixelwise_delay_analysis_" + str(condition) + ".npy", data_matrix)
+            np.save(path + "/pixelwise_analysis/pixelwise_delay_analysis_" + str(condition) + exclude_first_visits * "_exclude_1st_visit" + ".npy", data_matrix)
 
         else:
             data_matrix = np.load(
-                path + "/pixelwise_analysis/pixelwise_delay_analysis_" + str(condition) + ".npy")
+                path + "/pixelwise_analysis/pixelwise_delay_analysis_" + str(condition) + exclude_first_visits * "_exclude_1st_visit" + ".npy")
         list_of_matrices.append(data_matrix)
     return list_of_matrices
 
@@ -179,41 +181,57 @@ def plot_pixel_wise_leaving_probability(condition_list):
     """
     Function that takes a list of condition numbers (as defined in ./Parameters/parameters.py), and plots a leaving
     probability as a function of time already spent in pixel, for all the conditions of condition_list mashed together.
+    If exclude_1st_visit is TRUE, then the algorithm will exclude first visits from the analysis. I am implementing this
+    because we think that first visits are more numerous and only reproduce the visit duration distribution rather than
+    the depletion signal that we are looking for.
     """
 
     global tic
     tic = time.time()
 
-    list_of_delay_matrices = pixel_wise_delay_analysis(condition_list, False, False)
-
+    # Load a list of matrices containing 4001 lines and 4001 columns, corresponding to a time already spent in the pixel
+    # and to the delay before next exit, respectively. The list has one matrix by condition.
+    list_of_delay_matrices = pixel_wise_delay_analysis(condition_list, False, False, exclude_first_visits=True)
     print(int(time.time() - tic), ": Starting to compute leaving probability...")
+    # For every condition (aka every time vs. delay matrix)
     for i_condition in range(len(list_of_delay_matrices)):
+        # Load data and exclude the rows which do not have enough data
         matrix_this_condition = list_of_delay_matrices[i_condition]
-        nb_of_points_each_time = np.sum(matrix_this_condition, axis=0)  # sum all the rows together
-        possible_times_spent_in_pixel = np.where(nb_of_points_each_time > 200)[0]
+        nb_of_points_each_time = np.sum(matrix_this_condition, axis=1)  # make the sum of each row
+        possible_times_spent_in_pixel = np.where(nb_of_points_each_time > 300)[
+            0]  # only take times with > 300 datapoints
+        # Initialize leaving probability list
         leaving_prob_each_time = [0 for _ in range(len(possible_times_spent_in_pixel))]
-
+        # For every line of the matrix
         for i_time_spent, time_spent in enumerate(possible_times_spent_in_pixel):
             if i_time_spent % 400 == 0:
                 print(int(time.time() - tic), "> Time ", i_time_spent, " / ", len(possible_times_spent_in_pixel))
             current_data = matrix_this_condition[time_spent]
             leaving_prob_each_time[i_time_spent] = current_data[1] / np.sum(current_data)
 
+        # Some code to visualize the number of data points in each bin
         # colors = plt.cm.jet(np.linspace(0, 1, len(possible_times_spent_in_pixel)))
         # plt.scatter(possible_times_spent_in_pixel, leaving_prob_each_time, alpha=0.3,
         #            label=parameters.nb_to_name[condition_list[i_condition]], c=np.array(nb_of_points_each_time)[np.where(nb_of_points_each_time > 200)[0]],
         #            cmap="hot")
         #                color=parameters.name_to_color[parameters.nb_to_name[i_condition]])
-        plt.imshow(matrix_this_condition)
+        # plt.imshow(matrix_this_condition)
 
-        # bin_list, avg_list, [errors_inf, errors_sup], _ = ana.xy_to_bins(list(possible_times_spent_in_pixel), leaving_prob_each_time, 20)
+        # Bin the values
+        bin_list, avg_list, [errors_inf, errors_sup], _ = ana.xy_to_bins(list(possible_times_spent_in_pixel),
+                                                                         leaving_prob_each_time, 50)
+        condition_name = parameters.nb_to_name[condition_list[i_condition]]
+        condition_color = parameters.name_to_color[condition_name]
+        # Plot all the values with some transparency
+        plt.scatter(possible_times_spent_in_pixel, leaving_prob_each_time, alpha=0.1, color=condition_color)
         # Plot error bars
-        # plt.plot(bin_list, avg_list, color=parameters.name_to_color[parameters.nb_to_name[i_condition]], linewidth=4, label=parameters.nb_to_name[condition_list[i_condition]])
-        # plt.errorbar(bin_list, avg_list, [errors_inf, errors_sup], fmt='.k', capsize=5)
+        plt.plot(bin_list, avg_list, color=parameters.name_to_color[parameters.nb_to_name[i_condition]], linewidth=4,
+                 label=condition_name)
+        plt.errorbar(bin_list, avg_list, [errors_inf, errors_sup], fmt='.k', capsize=5)
 
     plt.title("Leaving probability graph for conditions " + str(condition_list))
     plt.legend()
-    plt.colorbar()
+    # plt.colorbar()
     plt.xlabel("Time spent in pixel")
     plt.ylabel("Leaving probability")
     plt.yscale("log")
@@ -284,14 +302,13 @@ def visit_duration_previous_visit_pixel(condition_list):
     results = pd.read_csv(path + "clean_results.csv")
     plate_list = results["folder"]
 
-    current_visit_durations_by_condition = [[] for _ in range(len(condition_list))]
-    previous_visit_durations_by_condition = [[] for _ in range(len(condition_list))]
+    current_visit_durations_by_condition_and_plate = [[] for _ in range(len(condition_list))]
+    previous_visit_durations_by_condition_and_plate = [[] for _ in range(len(condition_list))]
     for i_plate, plate in enumerate(plate_list):
-        if i_plate % 10 == 0:
+        if i_plate % 30 == 0:
             print("Computing average visit duration in pixels for plate ", i_plate, " / ", len(plate_list))
-
         current_condition = fd.load_condition(plate)
-
+        # Only if the current plate is in the list of conditions that we need
         if current_condition in condition_list:
             # If it's not already done, compute the pixel visit durations
             pixelwise_durations_path = plate[:-len("traj.csv")] + "pixelwise_visit_durations.npy"
@@ -311,13 +328,16 @@ def visit_duration_previous_visit_pixel(condition_list):
             current_pixel_wise_visit_durations_inside = current_pixel_wise_visit_durations[in_patch_matrix != -1]
             # Add values to the relevant lists (current visit duration and corresponding "time already spent")
             curr_condition_index = np.where(condition_list == current_condition)[0][0]
+            # In the _by_condition_by_plate lists, add a new sublist for the current plate
+            current_visit_durations_by_condition_and_plate[curr_condition_index].append([])
+            previous_visit_durations_by_condition_and_plate[curr_condition_index].append([])
             for i_pixel in range(len(current_pixel_wise_visit_durations_inside)):  # for every pixel
                 current_visit_list = current_pixel_wise_visit_durations_inside[i_pixel]
                 time_already_spent = 0
                 for i_visit in range(len(current_visit_list)):  # for every visit
                     current_visit_duration = current_visit_list[i_visit]
-                    current_visit_durations_by_condition[curr_condition_index].append(current_visit_duration)
-                    previous_visit_durations_by_condition[curr_condition_index].append(time_already_spent)
+                    current_visit_durations_by_condition_and_plate[curr_condition_index][-1].append(current_visit_duration)
+                    previous_visit_durations_by_condition_and_plate[curr_condition_index][-1].append(time_already_spent)
                     time_already_spent += current_visit_duration
 
     plot_title = "Current vs previous visits in conditions: "
@@ -325,15 +345,43 @@ def visit_duration_previous_visit_pixel(condition_list):
         condition_name = parameters.nb_to_name[condition]
         condition_color = parameters.name_to_color[condition_name]
         plot_title += condition_name + " "
-        previous_visit_bins, curr_visit_values, [errors_inf, errors_sup], _ = ana.xy_to_bins(
-            previous_visit_durations_by_condition[i_condition],
-            current_visit_durations_by_condition[i_condition], 100, print_progress=False)
-        plt.plot(previous_visit_bins, curr_visit_values, label=condition_name, color=condition_color)
-        plt.errorbar(previous_visit_bins, curr_visit_values, [errors_inf, errors_sup], fmt='.k', capsize=5)
 
-        # plt.scatter(previous_visit_durations_by_condition[i_condition], current_visit_durations_by_condition[i_condition], label=condition_name, color=condition_color, alpha=0.2)
+        # Build a list with one sublist per bin of time_already_spent_in_pixel, and in each sublist, the average current
+        # visit lengths corresponding to that time for plates which have more than some critical nb of data points
+        # So we go from current_visit_durations_by_condition_and_plate[i_condition] = [ [0, 1, 1], [0, 20] ]
+        # to binned values for each plate => plate 0 : [[0, 1, 1]], plate 1 : [[0], [], [20]]
+        # to an average for each of those bins => list_of_plate_avg_each_bin = [[0.6666, 0], [1], [20]]
+        list_of_plate_avg_each_bin = []
+        # For each plate of this condition, bin the values and get an average current_visit length for every time spent
+        for i_plate in len(current_visit_durations_by_condition_and_plate[i_condition]):
+            previous_visit_bins, curr_visit_values, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
+                previous_visit_durations_by_condition_and_plate[i_condition][i_plate],
+                current_visit_durations_by_condition_and_plate[i_condition][i_plate], 10, print_progress=False)
+            for i_bin in range(len(previous_visit_bins)):
+                # If this bin has never been encountered yet, add an element to the list for it
+                # We do this even if this plate does not have enough values for this bin in order to keep the i_bin
+                # ordered and corresponding to the right time_already_spent
+                if i_bin > len(list_of_plate_avg_each_bin):
+                    list_of_plate_avg_each_bin.append([])
+                # If the bin contains enough values, put its average
+                if len(binned_current_visits[i_bin]) > 3:
+                    list_of_plate_avg_each_bin[i_bin].append(curr_visit_values[i_bin])
+
+        # Keep only bins with > 1200 visits (by looking at the length of the i-th element in binned_current_visits)
+        valid_bins = [previous_visit_bins[i] for i in range(len(previous_visit_bins)) if
+                      len(binned_current_visits[i]) > 1200]
+        valid_visits = [curr_visit_values[i] for i in range(len(curr_visit_values)) if
+                        len(binned_current_visits[i]) > 1200]
+        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 1200]
+        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 1200]
+
+        plt.plot(valid_bins, valid_visits, label=condition_name, color=condition_color, linewidth=4)
+        plt.errorbar(valid_bins, valid_visits, [errors_inf, errors_sup], fmt='.k', capsize=5)
+
+        # plt.scatter(previous_visit_durations_by_condition_and_plate[i_condition], current_visit_durations_by_condition_and_plate[i_condition], label=condition_name, color=condition_color, alpha=0.2)
 
     plt.title(plot_title)
+    plt.yscale("log")
     plt.xlabel("Time spent there before this visit (to a pixel)")
     plt.ylabel("Current visit duration (to a pixel)")
     plt.legend()
@@ -342,6 +390,8 @@ def visit_duration_previous_visit_pixel(condition_list):
     return 0
 
 
+plot_pixel_wise_leaving_probability([0, 4])
+
 # results = save_pixel_visit_duration_in_results_table()
 # path = gen.generate(test_pipeline=False)
 # results = pd.read_csv(path + "clean_results.csv")
@@ -349,6 +399,6 @@ def visit_duration_previous_visit_pixel(condition_list):
 # main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
 # main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
 
-#visit_duration_previous_visit_pixel([0, 1, 2, 3])
-#visit_duration_previous_visit_pixel([4, 5, 6, 7])
-visit_duration_previous_visit_pixel([12, 13, 14, 15])
+# visit_duration_previous_visit_pixel([0, 1, 2])
+# visit_duration_previous_visit_pixel([4, 5, 6])
+# visit_duration_previous_visit_pixel([12, 13, 14])
