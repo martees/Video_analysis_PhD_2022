@@ -293,7 +293,9 @@ def load_image_path(folder, image_name):
         if "control" not in folder:
             return load_image_path(np.load(folder + "original_folder.npy")[0], image_name)
         else:  # if it's a control subfolder from a model folder, go look for the original_folder.npy in the parent
-            return load_image_path(np.load(folder[:-len(folder.split("/")[-1])] + "original_folder.npy")[0], image_name)
+            # len(folder.split("/")[-2]) is the length of the last subfolder (because split[-1] is just '' when the
+            # path ends with a "/". And then we remove one more character than that because of the final "/"
+            return load_image_path(np.load(folder[:-len(folder.split("/")[-2])-1] + "original_folder.npy")[0], image_name)
     # For non-control experiments it's just in the same folder
     elif "control" not in folder:
         return folder + image_name

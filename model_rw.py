@@ -100,8 +100,8 @@ def generate_model_folders(data_folder_list, modeled_data_path):
         np.save(model_folder_path + "/original_folder.npy", original_folder)
         # If the trajectory was named traj_parent, rename it into
 
-    # Then take all the empty folders that you created
-    model_folder_list = os.listdir(modeled_data_path)
+    # Then take all the directories contained in the modeled data path (os.walk returns a list with dirpath, dirnames, filenames)
+    model_folder_list = next(os.walk(modeled_data_path))[1]
     model_folder_list = [modeled_data_path + model_folder_list[i] + "/traj.csv" for i in range(len(model_folder_list))]
     # And replace them by new, modeled traj.csv
     for i_folder, folder in enumerate(model_folder_list):

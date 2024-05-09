@@ -202,13 +202,10 @@ def in_patch_list(traj, using):
     is_bad["overlapping_patches"] = [False for _ in range(nb_of_plates)]
     is_bad["folder"] = list_of_plates
 
-    for i_plate in range(nb_of_plates):  # for every plate
+    for i_plate, current_plate in enumerate(list_of_plates):  # for every plate
         # Handmade progress bar
         if param.verbose and (i_plate % 20 == 0 or i_plate == nb_of_plates):
             print("Computing patch_position_" + using + " for plate ", i_plate, "/", nb_of_plates)
-        # print("plate name: "+list_of_plates[i_plate])
-        # Extract patch information
-        current_plate = list_of_plates[i_plate]
 
         # Extract worm positions
         current_data = traj[traj["folder"] == current_plate].reset_index(drop=True)
