@@ -55,10 +55,10 @@ def patches(folder_list, show_composite=True, is_plot=True):
         if is_plot:
             fig, ax = plt.subplots()
             if show_composite:
-                composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
+                composite = plt.imread(fd.load_file_path(folder, "composite_patches.tif"))
                 ax.imshow(composite)
             else:
-                background = plt.imread(fd.load_image_path(folder, "background.tif"))
+                background = plt.imread(fd.load_file_path(folder, "background.tif"))
                 ax.imshow(background, cmap='gray')
 
         # Load metadata
@@ -105,9 +105,9 @@ def patches(folder_list, show_composite=True, is_plot=True):
             return x_list, y_list
 
 
-def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
+def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=False, plot_in_patch=False,
                             plot_continuity=False, plot_speed=False, plot_time=False, plate_list=None, is_plot=True,
-                            save_fig=False):
+                            save_fig=False, plot_lines=False):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -136,7 +136,7 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         folder_list = fd.return_folders_condition_list(np.unique(traj["folder"]), condition_list)
 
     # If save_fig is True, check that there is a trajectory_plots folder in path, otherwise create it
-    path = gen.generate("")
+    path = gen.generate("", modeled_data=True)
     if save_fig:
         if not os.path.isdir(path + "trajectory_plots"):
             os.mkdir(path + "trajectory_plots")
@@ -156,10 +156,13 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         # If we just changed plate or if it's the 1st, plot the background elements
         if previous_folder != current_folder or previous_folder == 0:
             if n_plate > n_max:  # If we exceeded the max nb of plates per graphic
+                if save_fig:
+                    plt.savefig(path + "trajectory_plots/condition_" + str(condition_list) + "_" +
+                                current_folder.split("/")[-2] + ".png")
                 if is_plot:
                     plt.show()
-                if save_fig:
-                    plt.savefig(path+"trajectory_plots/condition_"+str(condition_list)+"_"+current_folder.split("/")[-2]+".png")
+                else:
+                    plt.clf()
                 n_plate = 1
             if n_plate <= n_max or len(plate_list) > 1:
                 plt.subplot(n_max // 2, n_max // 2, n_plate)
@@ -170,10 +173,10 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
             ax = fig.gca()
             fig.set_tight_layout(True)  # make the margins tighter
             if show_composite:  # show composite with real patches
-                composite = plt.imread(fd.load_image_path(current_folder, "composite_patches.tif"))
+                composite = plt.imread(fd.load_file_path(current_folder, "composite_patches.tif"))
                 ax.imshow(composite)
             else:  # show cleaner background without the patches
-                background = plt.imread(fd.load_image_path(current_folder, "background.tif"))
+                background = plt.imread(fd.load_file_path(current_folder, "background.tif"))
                 ax.imshow(background, cmap='gray')
             ax.set_title(str(current_folder[-48:-9]))
             # Plot them patches
@@ -230,13 +233,17 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         # Plot the trajectory, one color per worm
         else:
             plt.scatter(current_list_x, current_list_y, color=colors[i_folder], s=.5)
+            if plot_lines:
+                plt.plot(current_list_x, current_list_y, color=colors[i_folder], linewidth=1)
 
         previous_folder = current_folder
 
-    if is_plot:
-        plt.show()
     if save_fig:
         plt.savefig(path+"trajectory_plots/condition_"+str(condition_list)+"_"+folder_list[-1].split("/")[-2]+".png")
+    if is_plot:
+        plt.show()
+    else:
+        plt.clf()
 
 
 # Analysis functions
@@ -510,6 +517,7 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     fig = plt.gcf()
     ax = fig.gca()
     fig.set_size_inches(5, 6)
+    # plt.style.use('dark_background')
 
     # Plot condition averages as a bar plot
     ax.bar(range(len(condition_list)), average_per_condition, color=mycolor)

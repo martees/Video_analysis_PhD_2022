@@ -63,7 +63,7 @@ def show_frames(folder, trajectories, first_frame):
     centers_of_mass = trajectories[trajectories["folder"] == folder]
 
     # Plot the background
-    composite = plt.imread(folder[:-len('traj.csv')] + "composite_patches.tif")
+    composite = plt.imread(fd.load_file_path(folder, "composite.tif"))
     top_ax.imshow(composite, extent=(0, frame_size[0], frame_size[1], 0))
 
     # Plot the patches
@@ -105,7 +105,7 @@ def show_frames(folder, trajectories, first_frame):
     center_of_mass_plot = top_ax.scatter([], [], zorder=3, color="orange")
     center_to_center_line = top_ax.plot([], [], color="white")
     # Call the update frame once to initialize the plot
-    update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, speed_list)
+    update_frame(trajectories, folder, curr_index, pixels, centers_of_mass, patch_list, speed_list)
 
     # Make the plot scrollable
     def scroll_event(event):
@@ -116,7 +116,7 @@ def show_frames(folder, trajectories, first_frame):
             curr_index = max(0, curr_index - 1)
         else:
             return
-        update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, speed_list)
+        update_frame(trajectories, folder, curr_index, pixels, centers_of_mass, patch_list, speed_list)
 
     fig.canvas.mpl_connect('scroll_event', scroll_event)
 
@@ -132,7 +132,7 @@ def show_frames(folder, trajectories, first_frame):
         global curr_index
         global bottom_ax
         curr_index = int(frame_slider.val)
-        update_frame(folder, curr_index, pixels, centers_of_mass, patch_list, speed_list, zoom_out=True)
+        update_frame(trajectories, folder, curr_index, pixels, centers_of_mass, patch_list, speed_list, zoom_out=True)
 
     # Slider function update call
     frame_slider.on_changed(slider_update)
@@ -144,7 +144,7 @@ def show_frames(folder, trajectories, first_frame):
     plt.show()
 
 
-def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list, zoom_out=False):
+def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_list, speed_list, zoom_out=False):
     """
     Function that is called every time the frame number has to be updated to a new index.
     @param folder: path of the current video
@@ -188,5 +188,5 @@ def update_frame(folder, index, pixels, centers_of_mass, patch_list, speed_list,
 
 if __name__ == "__main__":
     path = gr.generate(starting_from="", test_pipeline=True)
-    trajectories = pd.read_csv(path + "clean_trajectories.csv")
-    show_frames("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/20221011T111213_SmallPatches_C1-CAM1/traj.csv", trajectories, 1467)
+    traj = pd.read_csv(path + "clean_trajectories.csv")
+    show_frames("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/20221011T111213_SmallPatches_C1-CAM1/traj.csv", traj, 1467)

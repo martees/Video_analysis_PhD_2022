@@ -216,7 +216,7 @@ def make_results_per_id_table(data):
 
         # Computing the list of visits
         patch_list = current_metadata["patch_centers"]
-        raw_visit_timestamps, order_of_visits = single_traj_analysis(current_data["patch_silhouette"],
+        raw_visit_timestamps, order_of_visits = single_traj_analysis(current_data["patch_centroid"],
                                                                      current_data["frame"],
                                                                      patch_list)
         # Adjusting it for MVT analyses
@@ -226,7 +226,7 @@ def make_results_per_id_table(data):
             raw_visit_timestamps, adjusted_raw_visits, patch_list, first_pos)
 
         # Computing average speed
-        average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch_silhouette"],
+        average_speed_in, average_speed_out = avg_speed_analysis(current_data["patch_centroid"],
                                                                  current_data["frame"],
                                                                  current_data["distances"])
 
@@ -245,12 +245,12 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "first_recorded_position"] = str(
             first_pos)  # first position for the whole plate (used to check trajectories)
         results_table.loc[i_track, "first_frame"] = current_data["frame"][0]
-        results_table.loc[i_track, "first_tracked_position_patch"] = current_data["patch_silhouette"][
+        results_table.loc[i_track, "first_tracked_position_patch"] = current_data["patch_centroid"][
             0]  # patch where the worm is when tracking starts (-1 = outside): one value per id
         results_table.loc[i_track, "last_frame"] = current_data["frame"].iloc[-1]
         results_table.loc[i_track, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[
             -1]])  # last position for the current worm (used to check tracking)
-        results_table.loc[i_track, "last_tracked_position_patch"] = current_data["patch_silhouette"].iloc[
+        results_table.loc[i_track, "last_tracked_position_patch"] = current_data["patch_centroid"].iloc[
             -1]  # patch where the worm is when tracking stops (-1 = outside)
         results_table.loc[i_track, "furthest_patch_position"] = str(furthest_patch_position)
         results_table.loc[i_track, "adjusted_raw_visits"] = str(adjusted_raw_visits)
@@ -338,7 +338,7 @@ def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
         - the average speed when outside a patch
     """
     # Concept: sum time inside and outside, distance inside and outside, and then DIVIDE (it's an ancient technique)
-    which_patch_list = which_patch_list.reset_index()["patch_silhouette"]
+    which_patch_list = which_patch_list.reset_index()["patch_centroid"]
     list_of_frames = list_of_frames.reset_index()["frame"]
     distance_list = distance_list.reset_index()["distances"]
     distance_inside_sum = 0

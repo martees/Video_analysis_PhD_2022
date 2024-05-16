@@ -62,6 +62,8 @@ for condition in nb_to_name.keys():
     # Put this after otherwise all conditions go to 0
     elif "0" in nb_to_name[condition]:
         nb_to_density[condition] = "0"
+    else:
+        nb_to_density[condition] = "all"
 
 nb_to_nb_of_patches = {}
 for condition in nb_to_name.keys():
@@ -165,6 +167,7 @@ for condition in nb_to_name.keys():
     name_to_color[nb_to_name[condition]] = lighten_color(mc.cnames[distance_color], amount=min(1, max(0.1, density)*2.5))
 name_to_color["med 1.25"] = "black"
 name_to_color["med 0.5+1.25"] = "grey"
+
 
 def test_colors():
     x = 0

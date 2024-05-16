@@ -156,7 +156,7 @@ def load_silhouette(path):
     """
     Takes a folder path, returns the content of the silhouette matrix found in this path.
     """
-    silhouette_path = load_image_path(path, "silhouettes.mat")
+    silhouette_path = load_file_path(path, "silhouettes.mat")
     matrix = loadmat(silhouette_path)
 
     # Get the different arrays from the dictionnary output of loadmat
@@ -274,7 +274,7 @@ def control_folders(path, condition_names):
     return path_list
 
 
-def load_image_path(folder, image_name):
+def load_file_path(folder, file_name):
     """
     Take a folder path ending in /traj.csv, and return the path of the corresponding composite_patches.tif / background.tif / silhouettes.mat.
     In non-control conditions they are just in the same folder so it's easy, but for control sub-folders, you have to
@@ -283,25 +283,25 @@ def load_image_path(folder, image_name):
     """
     folder = folder[:-len(folder.split("/")[-1])]  # in any case, remove traj.csv (or traj_parent.csv, only used for model_rw.py)
     # Add extension or _patches if it has been forgotten
-    if "composite" in image_name:
-        image_name = "composite_patches.tif"
-    if "background" in image_name:
-        image_name = "background.tif"
+    if "composite" in file_name:
+        file_name = "composite_patches.tif"
+    if "background" in file_name:
+        file_name = "background.tif"
 
     # For model folders, look for the "original_folder.npy" string and load the image from there
     if "model" in folder:
         if "control" not in folder:
-            return load_image_path(np.load(folder + "original_folder.npy")[0], image_name)
+            return load_file_path(np.load(folder + "original_folder.npy")[0], file_name)
         else:  # if it's a control subfolder from a model folder, go look for the original_folder.npy in the parent
             # len(folder.split("/")[-2]) is the length of the last subfolder (because split[-1] is just '' when the
             # path ends with a "/". And then we remove one more character than that because of the final "/"
-            return load_image_path(np.load(folder[:-len(folder.split("/")[-2])-1] + "original_folder.npy")[0], image_name)
+            return load_file_path(np.load(folder[:-len(folder.split("/")[-2]) - 1] + "original_folder.npy")[0], file_name)
     # For non-control experiments it's just in the same folder
     elif "control" not in folder:
-        return folder + image_name
+        return folder + file_name
     # For control experiments, it's in the parent folder
     else:
         folder = folder[:-1]  # remove end "/" (leftover after we only removed "traj.csv")
         parse_path = folder.split("/")  # get a list of the folders along the path
-        return folder[:-len(parse_path[-1])] + image_name  # remove last folder to get to parent, then add composite
+        return folder[:-len(parse_path[-1])] + file_name  # remove last folder to get to parent, then add composite
 

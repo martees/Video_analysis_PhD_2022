@@ -66,6 +66,11 @@ def generate_controls(path):
             metadata.to_csv(current_control_folder+"/metadata.csv")
 
             # Check if there is a traj.csv file in the current_control_folder, otherwise copy it from parent
+
+            # In case this is a model folder, we delete it anyway because the traj_parent.csv might have changed
+            if os.path.isfile(current_control_folder + "/traj.csv"):
+                os.remove(current_control_folder + "/traj.csv")
+
             # Do this AFTER creating metadata otherwise find_data functions can find a traj.csv file with no metadata in the folder (and gets pissed)
             if not os.path.isfile(current_control_folder + "/traj.csv"):
                 # Copy the traj.csv from folder into current_control_folder

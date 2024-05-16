@@ -5,6 +5,7 @@ from Parameters import parameters as param
 import find_data as fd
 import matplotlib.pyplot as plt
 import copy
+import ReferencePoints
 
 
 def spline_value(angular_position, spline_breaks, spline_coefs):
@@ -71,49 +72,12 @@ def in_patch_silhouette(silhouette_x, silhouette_y, patch_map):
         return int(patch_map[silhouette_y[i_point], silhouette_x[i_point]])
 
 
-def in_patch_all_pixels(folder):
-    """
-    Will return a table containing the patch in which each pixel of the video from folder is.
-    (so if line 5 column 7 there is a -1, it means the point with x=7, y=5 is outside any food patch)
-    """
-    # In order to avoid having to classify all pixels one by one, we use an algorithm that's more fun :-)
-    # # First we generate a list of patch boundary points, enough of them so that for each patch there's at least one
-    #   of those points for each pixel row (patches are around 80 px in diameter, so let's do 480 to be sure)
-    # # Then, we convert these patch boundary points to integers => any pixel crossed by the spline becomes a boundary pixel
-    # # Finally, we go through every row of boundary pixels, and we fill the map using parity rules (first boundary px
-    #   encountered converts rest of the line for its belonging patch, then second boundary px of this patch converts px
-    #   after it back to -1 (outside patches)).
-
+def map_from_boundaries(folder, boundary_position_list, patch_centers):
     # Load image size
     _, _, frame_size = fd.load_silhouette(folder)
 
     # Table that will be filled with a number indicating whether a point is outside patches (-1) or inside (patch nb)
     plate_map = -1 * np.ones((frame_size[0], frame_size[1]))  # for now only -1
-
-    # Load metadata for the plate
-    metadata = fd.folder_to_metadata(folder)
-    patch_centers = metadata["patch_centers"]
-    patch_spline_breaks = metadata["spline_breaks"]
-    patch_spline_coefs = metadata["spline_coefs"]
-
-    # List of discrete positions for the patch boundaries
-    boundary_position_list = []
-
-    # For each patch
-    for i_patch in range(len(patch_centers)):
-        # For a range of 480 angular positions
-        angular_pos = np.linspace(-np.pi, np.pi, 480)
-        radiuses = np.zeros(len(angular_pos))
-        # Compute the local spline value for each of those radiuses
-        for i_angle in range(len(angular_pos)):
-            radiuses[i_angle] = spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
-                                             patch_spline_coefs[i_patch])
-        # Add to position list discrete (int) cartesian positions
-        # (due to discretization, positions will be added multiple times, but we don't care)
-        for point in range(len(angular_pos)):
-            x = int(patch_centers[i_patch][0] + (radiuses[point] * np.cos(angular_pos[point])))
-            y = int(patch_centers[i_patch][1] + (radiuses[point] * np.sin(angular_pos[point])))
-            boundary_position_list.append((x, y, i_patch))  # 3rd tuple element is patch number
 
     # Keep only unique boundary positions, and then sort them (pixels read in occidental reading order)
     boundary_position_list = list(set(boundary_position_list))  # shady method to keep only unique tuples
@@ -159,7 +123,8 @@ def in_patch_all_pixels(folder):
     for boundary in cleaned_boundaries_list:
         current_patch = boundary[2]  # patch number of the patch we're looking at
         if open_patch == -1:  # if the current open_patch is -1, we should open the patch
-            plate_map[boundary[1]][boundary[0]:] = current_patch  # on the matrix line y, fill all points after x with patch nb
+            plate_map[boundary[1]][
+            boundary[0]:] = current_patch  # on the matrix line y, fill all points after x with patch nb
             open_patch = current_patch
         elif open_patch == current_patch:  # if the current open_patch is the current patch, we should close the patch
             plate_map[boundary[1]][boundary[0]:] = -1
@@ -171,13 +136,57 @@ def in_patch_all_pixels(folder):
             plate_map[boundary[1]][boundary[0]:] = current_patch
             open_patch = current_patch
 
-    # plt.imshow(plate_map)
-    # composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
-    # plt.imshow(composite)
-    # patches_x, patches_y = plots.patches([folder], is_plot=False)
-    # plt.scatter(patches_x, patches_y, color = "blue")
-    # plt.show()
+    # Additional loop to check if the folder has 4 reference points: if it doesn't it should be excluded
+    # In order to do that, load the position of the four reference points at each corner of the plate
+    source_folder_metadata = fd.folder_to_metadata(folder)
+    source_xy_holes = source_folder_metadata["holes"][0]
+    source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
+    if len(source_reference_points.xy_holes) < 4:
+        is_bad = True
 
+    return plate_map, is_bad
+
+
+def in_patch_all_pixels(folder):
+    """
+    Will return a table containing the patch in which each pixel of the video from folder is.
+    (so if line 5 column 7 there is a -1, it means the point with x=7, y=5 is outside any food patch)
+    """
+    # In order to avoid having to classify all pixels one by one, we use an algorithm that's more fun :-)
+    # # First we generate a list of patch boundary points, enough of them so that for each patch there's at least one
+    #   of those points for each pixel row (patches are around 80 px in diameter, so let's do 480 to be sure)
+    # # Then, we convert these patch boundary points to integers => any pixel crossed by the spline becomes a boundary pixel
+    # # Finally, we go through every row of boundary pixels, and we fill the map using parity rules (first boundary px
+    #   encountered converts rest of the line for its belonging patch, then second boundary px of this patch converts px
+    #   after it back to -1 (outside patches)).
+
+    # Load metadata for the plate
+    metadata = fd.folder_to_metadata(folder)
+    patch_centers = metadata["patch_centers"]
+    patch_spline_breaks = metadata["spline_breaks"]
+    patch_spline_coefs = metadata["spline_coefs"]
+
+    # List of discrete positions for the patch boundaries
+    boundary_position_list = []
+
+    # For each patch
+    for i_patch in range(len(patch_centers)):
+        # For a range of 480 angular positions
+        angular_pos = np.linspace(-np.pi, np.pi, 480)
+        radiuses = np.zeros(len(angular_pos))
+        # Compute the local spline value for each of those radiuses
+        for i_angle in range(len(angular_pos)):
+            radiuses[i_angle] = spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
+                                             patch_spline_coefs[i_patch])
+        # Add to position list discrete (int) cartesian positions
+        # (due to discretization, positions will be added multiple times, but we don't care)
+        for point in range(len(angular_pos)):
+            x = int(patch_centers[i_patch][0] + (radiuses[point] * np.cos(angular_pos[point])))
+            y = int(patch_centers[i_patch][1] + (radiuses[point] * np.sin(angular_pos[point])))
+            boundary_position_list.append((x, y, i_patch))  # 3rd tuple element is patch number
+
+    # Compute the plate map, which also returns the plates with bad patches (overlapping patches or missing ref points)
+    plate_map, is_bad = map_from_boundaries(folder, boundary_position_list, patch_centers)
     pd.DataFrame(plate_map).to_csv(folder[:-len(folder.split("/")[-1])] + "in_patch_matrix.csv", index=False)
 
     return plate_map, is_bad
@@ -227,11 +236,13 @@ def in_patch_list(traj, using):
         # We go through the whole trajectory
         # and register for each time step the patch that contains centroid / intersects with silhouette
         for time in range(len(list_x_centroid)):
-            if using == "centroid":  # This probably does not work!!! because centroids are not int
-                list_of_patches[i] = in_patch_map[list_y_centroid[time], list_x_centroid[time]]
+            if using == "centroid":
+                list_of_patches[i] = int(in_patch_map[int(np.clip(list_x_centroid[time], 0, len(in_patch_map[0]) - 1))][
+                                             int(np.clip(list_y_centroid[time], 0, len(in_patch_map) - 1))])
             if using == "silhouette":
                 if list_x_silhouette[time]:
-                    list_of_patches[i] = in_patch_silhouette(list_x_silhouette[time], list_y_silhouette[time], in_patch_map)
+                    list_of_patches[i] = in_patch_silhouette(list_x_silhouette[time], list_y_silhouette[time],
+                                                             in_patch_map)
             i = i + 1
 
     return list_of_patches, is_bad

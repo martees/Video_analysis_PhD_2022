@@ -149,7 +149,7 @@ def plot_in_patch_silhouette(folder):
     # Show background and patches
     # patches_x, patches_y = plots.patches(folder, is_plot=False)
     # plt.scatter(patches_x, patches_y, color="blue", s=2)
-    composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
+    composite = plt.imread(fd.load_file_path(folder, "composite_patches.tif"))
     plt.imshow(composite)
 
     pixels_in_patch = pixels[pixels["patch_silhouette"] != -1]
@@ -204,7 +204,7 @@ def plot_depletion(folder, frame, depletion_rate):
     # Show background and patches
     # patches_x, patches_y = plots.patches(folder, is_plot=False)
     # plt.scatter(patches_x, patches_y, color="blue", s=2)
-    composite = plt.imread(fd.load_image_path(folder, "composite_patches.tif"))
+    composite = plt.imread(fd.load_file_path(folder, "composite_patches.tif"))
     plt.imshow(composite)
 
     # Show depletion

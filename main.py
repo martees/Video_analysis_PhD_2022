@@ -55,8 +55,11 @@ def plot_graphs(results, what_to_plot, curve_list=None):
         conditions_each_curve[i_curve] = list_of_conditions  # add to first curve all the condition numbers
         condition_names[i_curve] = [param.nb_to_name[i] for i in
                                     list_of_conditions]  # add to first curve all the different
-        condition_colors[i_curve] = param.name_to_color[param.nb_to_density[
-            param.name_to_nb[curve[0]]]]  # color of first curve element density prevails, im tired xD
+        if curve[0] != "all":
+            condition_colors[i_curve] = param.name_to_color[param.nb_to_density[
+                param.name_to_nb[curve[0]]]]  # color of first curve element density prevails, im tired xD
+        else:
+            condition_colors[i_curve] = param.name_to_color["all"]
 
     # TODO remove this loop, since the fork happens with if statements no need to run it once per element in what_to_plot
     for _ in range(len(what_to_plot)):
@@ -320,6 +323,12 @@ if __name__ == "__main__":
     # plot_graphs(results, "visit_duration_vs_entry_speed",
     #             [["far 0.5"]])
 
+    # plots.trajectories_1condition(trajectories, 12)
+
+    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0"]])
+    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
+    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
+
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
     #                                              ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
     # plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
@@ -327,9 +336,9 @@ if __name__ == "__main__":
     # plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
     # plot_graphs(results, "leaving_probability", [["cluster 0"], ["cluster 0.2"], ["cluster 0.5"]])
 
-    plot_graphs(results, "", [["close 0", "med 0", "far 0", "cluster 0"]])
-    plot_graphs(results, "proportion_of_visited_patches", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
-    plot_graphs(results, "proportion_of_visited_patches", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
+    # plot_graphs(results, "", [["close 0", "med 0", "far 0", "cluster 0"]])
+    # plot_graphs(results, "proportion_of_visited_patches", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
+    # plot_graphs(results, "proportion_of_visited_patches", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
 
     # Possible arguments for plot_graphs:
     #               - "aggregated_visit_duration"
