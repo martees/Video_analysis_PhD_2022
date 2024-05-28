@@ -105,7 +105,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
             return x_list, y_list
 
 
-def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=False, plot_in_patch=False,
+def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
                             plot_continuity=False, plot_speed=False, plot_time=False, plate_list=None, is_plot=True,
                             save_fig=False, plot_lines=False):
     """
