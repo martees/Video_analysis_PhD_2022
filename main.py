@@ -166,12 +166,21 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                                          "Average number of visits in " + plot_name + "conditions",
                                          current_conditions, current_condition_names, "nb_of_visits",
                                          divided_by="", mycolor=current_color, is_plot=is_plot)
+
             # Number of visits per patch
             if "number_of_visits_per_patch" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average number of visits per patch in " + plot_name + "conditions",
                                          current_conditions, current_condition_names, "nb_of_visits",
                                          divided_by="nb_of_patches", mycolor=current_color, is_plot=is_plot)
+
+            # Average total time spent in each patch
+            if "total_visit_time" in what_to_plot:
+                plots.plot_selected_data(results, "Average total time in patch for " + plot_name + " conditions",
+                                         current_conditions, current_condition_names, "total_visit_time",
+                                         divided_by="nb_of_visited_patches", mycolor=current_color, plot_model=False,
+                                         is_plot=is_plot)
+
             # Visits plots
             if "visit_duration" in what_to_plot:
                 plots.plot_selected_data(results, "Average duration of visits in " + plot_name + " conditions",
