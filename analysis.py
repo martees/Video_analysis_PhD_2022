@@ -78,6 +78,10 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 if divided_by == "nb_of_patches":
                     list_total_patch = list(param.nb_to_nb_of_patches.values())  # total nb of patches for each cond
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / list_total_patch[i_condition]
+                elif divided_by == "nb_of_visited_patches":
+                    current_plate = current_plate.reset_index()
+                    visited_patches_list = list_of_visited_patches(fd.load_list(current_plate, "no_hole_visits"))
+                    list_of_values[i_plate] = np.sum(current_plate[column_name]) / len(visited_patches_list)
                 elif np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
                 else:
