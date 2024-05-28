@@ -110,41 +110,46 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, silhouettes):
         current_y = int(initial_position[1])
         x_list[0] = current_x
         y_list[0] = current_y
+        current_heading_angle = np.random.rand() * 2 * np.pi  # choose a random starting angle
         for time in range(1, duration):
             current_patch = patch_map[str(int(np.clip(current_x, 0, len(patch_map["0"]) - 1)))][
                 int(np.clip(current_y, 0, len(patch_map) - 1))]
 
-            heading_angle = np.random.rand() * 2 * np.pi
+            # Persistent turning walker
+            # previous_heading_angle = current_heading_angle
+            # current_heading_angle = previous_heading_angle + np.random.rand() * 0.2 * np.pi * random.choice((-1, 1))
+            # Random walk
+            current_heading_angle = np.random.rand() * 2 * np.pi  # choose a random starting angle
             # If worm is inside
             if current_patch >= 0:
-                current_x += speed_in * np.cos(heading_angle)
-                current_y += speed_in * np.sin(heading_angle)
+                current_x += speed_in * np.cos(current_heading_angle)
+                current_y += speed_in * np.sin(current_heading_angle)
             # If worm is outside
             elif current_patch == -1:
-                current_x += speed_out * np.cos(heading_angle)
-                current_y += speed_out * np.sin(heading_angle)
+                current_x += speed_out * np.cos(current_heading_angle)
+                current_y += speed_out * np.sin(current_heading_angle)
             # If worm is escaping the plate (current_patch == -2)
             else:
-                # While it's escaped, draw a new direction by progressively rotating the heading_angle
+                # While it's escaped, draw a new direction by progressively rotating the current_heading_angle
                 i_while = 0
                 while current_patch == -2 and i_while < 70:
-                    heading_angle += 0.1
-                    x = current_x + speed_out * np.cos(heading_angle)
-                    y = current_y + speed_out * np.sin(heading_angle)
+                    current_heading_angle += 0.1
+                    x = current_x + speed_out * np.cos(current_heading_angle)
+                    y = current_y + speed_out * np.sin(current_heading_angle)
                     current_patch = patch_map[str(int(np.clip(x, 0, len(patch_map["0"]) - 1)))][
                         int(np.clip(y, 0, len(patch_map) - 1))]
                     i_while += 1
                 # In case the previous, coarse-grained loop didn't work
                 i_while = 0
                 while current_patch == -2 and i_while < 700:
-                    heading_angle += 0.01
-                    x = current_x + speed_out * np.cos(heading_angle)
-                    y = current_y + speed_out * np.sin(heading_angle)
+                    current_heading_angle += 0.01
+                    x = current_x + speed_out * np.cos(current_heading_angle)
+                    y = current_y + speed_out * np.sin(current_heading_angle)
                     current_patch = patch_map[str(int(np.clip(x, 0, len(patch_map["0"]) - 1)))][
                         int(np.clip(y, 0, len(patch_map) - 1))]
                     i_while += 1
-                current_x += speed_out * np.cos(heading_angle)
-                current_y += speed_out * np.sin(heading_angle)
+                current_x += speed_out * np.cos(current_heading_angle)
+                current_y += speed_out * np.sin(current_heading_angle)
             x_list[time] = current_x
             y_list[time] = current_y
 
@@ -182,6 +187,10 @@ def generate_model_folders(data_folder_list, modeled_data_path, speed_inside, sp
     @param speed_outside:
     @return: None.
     """
+    # If the path for modeled data does not exist yet, create folder
+    if not os.path.isdir(modeled_data_path):
+        os.mkdir(modeled_data_path)
+
     for i_folder, folder in enumerate(data_folder_list):
         # First, copy the folders from the experimental part of the world
         source_folder_name = folder.split("/")[-2]  # take the last subfolder (split[-1] is "traj.csv")
@@ -222,11 +231,12 @@ def generate_model_folders(data_folder_list, modeled_data_path, speed_inside, sp
     return 0
 
 
-regenerate_model = False
-regenerate_results = False
+regenerate_model = True
+regenerate_results = True
+is_test = True
 
-data_path = gen.generate("", test_pipeline=False)
-model_path = gen.generate("", modeled_data=True)
+data_path = gen.generate("", test_pipeline=is_test)
+model_path = gen.generate("", test_pipeline=is_test, modeled_data=True)
 
 if regenerate_model:
     # Find the path of non-control folders, and then add the control folders by looking for "traj_parent.csv" folders
@@ -234,25 +244,29 @@ if regenerate_model:
     list_of_experimental_folders += fd.path_finding_traj(data_path, target_name="traj_parent.csv")
     # Create modelled data
     # Average speed inside and outside in our experimental plates: 1.4 and 3.5
-    generate_model_folders(list_of_experimental_folders, model_path, 1, 40)
+    generate_model_folders(list_of_experimental_folders, model_path, 1, 60)
 
     # Regenerate smoothed trajectories.csv table
-    gen.generate("beginning", modeled_data=True)
+    gen.generate("beginning", test_pipeline=is_test, modeled_data=True)
+
+# Look at the trajectoriessss
+trajectories = pd.read_csv(model_path + "trajectories.csv")
+
+plots.trajectories_1condition(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], plot_lines=True)
+# plots.trajectories_1condition(trajectories, [1], plot_lines=True)
+# plots.trajectories_1condition(trajectories, [2], plot_lines=True)
+# plots.trajectories_1condition(trajectories, [0], plot_lines=True, save_fig=True, is_plot=False)
+# plots.trajectories_1condition(trajectories, [1], plot_lines=True, save_fig=True, is_plot=False)
+# plots.trajectories_1condition(trajectories, [2], plot_lines=True, save_fig=True, is_plot=False)
 
 if regenerate_results:
     # Generate same datasets as for experimental data
-    gen.generate("results_per_id", modeled_data=True)
-
-# Look at the trajectoriessss
+    gen.generate("results_per_id", test_pipeline=is_test, modeled_data=True)
 results = pd.read_csv(model_path + "clean_results.csv")
-trajectories = pd.read_csv(model_path + "trajectories.csv")
 
-# plots.trajectories_1condition(trajectories, [9], plot_lines=True, save_fig=True, is_plot=False)
-# plots.trajectories_1condition(trajectories, [10], plot_lines=True, save_fig=True, is_plot=False)
-
-main.plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0"]])
-main.plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
-main.plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
+main.plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0"]])
+main.plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2"]])
+main.plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5"]])
 
 
 #TODO handle when the model folder does not exist yet
