@@ -117,7 +117,9 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False):
         path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/"
         if test_pipeline:
             path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/"
-        if modeled_data:
+            if modeled_data:
+                path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less_model_rw/"
+        elif modeled_data:
             path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
     else:  # Windows path
         path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
