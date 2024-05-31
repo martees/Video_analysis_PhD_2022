@@ -41,7 +41,8 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
     return [np.percentile(bootstrapped_stat, 5), np.percentile(bootstrapped_stat, 95)]
 
 
-def results_per_condition(result_table, list_of_conditions, column_name, divided_by=""):
+def results_per_condition(result_table, list_of_conditions, column_name, divided_by="",
+                          normalize_by_video_length=False):
     """
     Function that takes our result table, a list of conditions, and a column name (as a string)
     Returns the list of values of that column pooled by condition, a list of the average value for each condition, and a
@@ -81,11 +82,12 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 elif divided_by == "nb_of_visited_patches":
                     current_plate = current_plate.reset_index()
                     visited_patches_list = list_of_visited_patches(fd.load_list(current_plate, "no_hole_visits"))
-                    list_of_values[i_plate] = np.sum(current_plate[column_name]) / len(visited_patches_list)
+                    list_of_values[i_plate] = np.sum(current_plate[column_name]) / max(1, len(visited_patches_list))
                 elif np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
                 else:
-                    print("Trying to divide by 0 in plot_selected_data for plate" + str(list_of_plates[i_plate]) + "... what a shame")
+                    print("Trying to divide by 0 in plot_selected_data for plate" + str(
+                        list_of_plates[i_plate]) + "... what a shame")
 
             # When no division has to be made
             else:
@@ -107,6 +109,9 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     list_of_values[i_plate] = np.max(current_plate[column_name])
                 else:  # in any other case
                     list_of_values[i_plate] = np.sum(current_plate[column_name])
+
+            if normalize_by_video_length:
+                list_of_values[i_plate] /= current_plate["total_tracked_time"]
 
         # In the case of speed, 0 values are for plates where there was no speed inside/outside recorded so we remove their values
         # (idk if this case happens but at least it's taken care of)
@@ -559,7 +564,8 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, return_du
             current_visit_duration = current_visit_end - current_visit_start + 1
 
         # Loopy loop
-        for i_visit in range(len(this_patch_visits) - 1):  # -1 because we look at i_visit and the next, last visit has no next
+        for i_visit in range(
+                len(this_patch_visits) - 1):  # -1 because we look at i_visit and the next, last visit has no next
             next_visit_start = this_patch_visits[i_visit + 1][0]
             next_visit_end = this_patch_visits[i_visit + 1][1]
             next_visit_duration = next_visit_end - next_visit_start + 1
@@ -683,12 +689,14 @@ def delays_before_leaving(result_table, condition_list):
             for i_transit in range(len(current_patch_transits) - 1):
                 this_transit_start = current_patch_transits[i_transit][0]
                 this_transit_end = current_patch_transits[i_transit][1]
-                next_transit_start = current_patch_transits[i_transit+1][0]
+                next_transit_start = current_patch_transits[i_transit + 1][0]
                 time_before_next_transit = next_transit_start - this_transit_end
                 time_out_of_patch_counter += this_transit_end - this_transit_start  # update in-patch time counter
                 current_delays = list(range(time_before_next_transit, 0, -1))
                 delay_before_leaving_list += current_delays
-                corresponding_time_in_patch_list += list(range(this_transit_end - visit_start - time_out_of_patch_counter, next_transit_start - visit_start - time_out_of_patch_counter))
+                corresponding_time_in_patch_list += list(
+                    range(this_transit_end - visit_start - time_out_of_patch_counter,
+                          next_transit_start - visit_start - time_out_of_patch_counter))
 
             # Add delays that run from end of last transit to end of visit, BUT ONLY if it's not the end of the video!
             # To do so, check if there is a transit that start after this visit end
@@ -697,8 +705,11 @@ def delays_before_leaving(result_table, condition_list):
             if visit_end <= last_transit_start:
                 current_delays = list(range(visit_end - current_patch_transits[-1][1], 0, -1))
                 delay_before_leaving_list += current_delays
-                time_out_of_patch_counter += current_patch_transits[-1][1] - current_patch_transits[-1][0]  # update in-patch time counter
-                corresponding_time_in_patch_list += list(range(current_patch_transits[-1][1] - visit_start - time_out_of_patch_counter, visit_end - visit_start - time_out_of_patch_counter))
+                time_out_of_patch_counter += current_patch_transits[-1][1] - current_patch_transits[-1][
+                    0]  # update in-patch time counter
+                corresponding_time_in_patch_list += list(
+                    range(current_patch_transits[-1][1] - visit_start - time_out_of_patch_counter,
+                          visit_end - visit_start - time_out_of_patch_counter))
 
     return delay_before_leaving_list, corresponding_time_in_patch_list
 
@@ -709,7 +720,8 @@ def compute_leaving_probability(delay_list):
                 number of delays equal to time_threshold or less (see param for setting time threshold)
     divided by: total number of delays
     """
-    return len([delay_list[i] for i in range(len(delay_list)) if delay_list[i] <= param.time_threshold]) / len(delay_list)
+    return len([delay_list[i] for i in range(len(delay_list)) if delay_list[i] <= param.time_threshold]) / len(
+        delay_list)
 
 
 def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars=True):
@@ -745,7 +757,10 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars
 
     # Compute the global stats for all the worms pooled together
     global_leaving_delays, global_times_in_patch = delays_before_leaving(results, condition_list)
-    global_time_in_patch_bins, global_avg_leaving_delays, _, full_list_of_delays = xy_to_bins(global_times_in_patch, global_leaving_delays, bin_size, bootstrap=False, print_progress=True)
+    global_time_in_patch_bins, global_avg_leaving_delays, _, full_list_of_delays = xy_to_bins(global_times_in_patch,
+                                                                                              global_leaving_delays,
+                                                                                              bin_size, bootstrap=False,
+                                                                                              print_progress=True)
 
     # Reformat binned_delays_each_worm to have one sublist per bin, and in each bin sublist one sublist per worm
     wormed_delays_each_bin = [[[] for _ in range(len(folder_list))] for _ in range(len(global_time_in_patch_bins))]
@@ -755,13 +770,15 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars
         for i_bin in range(len(current_times_in_patch)):
             # Current worm may have fewer bins than global pool, but if it's missing some it's the last ones
             # So we can just run through the beginning of the global bins and it should always coincide
-            if global_time_in_patch_bins[i_bin] in current_times_in_patch:  # still, double check that this worm has this bin
+            if global_time_in_patch_bins[
+                i_bin] in current_times_in_patch:  # still, double check that this worm has this bin
                 wormed_delays_each_bin[i_bin][i_folder] = current_delays[i_bin]
     # Compute the list of each worm's average leaving probabilities, in each bin
     wormed_avg_leaving_prob_each_bin = [[] for _ in range(len(global_time_in_patch_bins))]
     for i_bin in range(len(global_time_in_patch_bins)):
         current_delays = wormed_delays_each_bin[i_bin]
-        wormed_avg_leaving_prob_each_bin[i_bin] = [compute_leaving_probability(current_delays[i_worm]) for i_worm in range(len(current_delays)) if len(current_delays[i_worm]) != 0]
+        wormed_avg_leaving_prob_each_bin[i_bin] = [compute_leaving_probability(current_delays[i_worm]) for i_worm in
+                                                   range(len(current_delays)) if len(current_delays[i_worm]) != 0]
 
     # If list of delays has no bins
     if full_list_of_delays[0] is int:
@@ -775,7 +792,9 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars
 
     # Fill those lists
     for i_bin in range(len(global_time_in_patch_bins)):
-        nb_of_worms = len([wormed_delays_each_bin[i_bin][i_worm] for i_worm in range(len(wormed_delays_each_bin[i_bin])) if wormed_delays_each_bin[i_bin][i_worm] != []])
+        nb_of_worms = len(
+            [wormed_delays_each_bin[i_bin][i_worm] for i_worm in range(len(wormed_delays_each_bin[i_bin])) if
+             wormed_delays_each_bin[i_bin][i_worm] != []])
         if i_bin % 2 == 0:
             print("Computing stats on leaving probabilities... ", int(100 * i_bin / len(full_list_of_delays)), "% done")
         if nb_of_worms > worm_limit:
@@ -842,7 +861,7 @@ def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
     if bootstrap:
         for i_bin in range(nb_of_bins):
             if i_bin % 10 == 0 and print_progress:
-                print("Averaging xy_to_bins... ", int(100*i_bin/nb_of_bins), "% done")
+                print("Averaging xy_to_bins... ", int(100 * i_bin / nb_of_bins), "% done")
             current_values = binned_y_values[i_bin]
             if current_values:  # if there are values there
                 avg_list[i_bin] = np.mean(current_values)
@@ -852,5 +871,3 @@ def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
                 errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
 
     return bin_list, avg_list, [list(errors_inf), list(errors_sup)], binned_y_values
-
-
