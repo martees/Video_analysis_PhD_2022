@@ -98,6 +98,14 @@ for condition in nb_to_name.keys():
             else:
                 break  # order in name_to_nb list matters
 
+# Takes "[12, 13, 14, 15]" and returns "0"
+# Only works for lists that include all of the conditions
+nb_list_to_name = {str(v): k for k, v in name_to_nb_list.items()}
+nb_list_to_name["[0, 4]"] = "close"
+nb_list_to_name["[1, 5]"] = "med"
+nb_list_to_name["[2, 6]"] = "far"
+nb_list_to_name["[3, 7]"] = "cluster"
+
 # Same but to list of names (eg "close" => ["close 0", "close 0.2", "close 0.5"]
 name_to_name_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [], "0.5+1.25": [],
                      "0.2+0.5": [], "0.5": [], "1.25": [], "0.2": [], "0": []}
