@@ -221,22 +221,23 @@ def plot_graphs(results, what_to_plot, curve_list=None):
             if "visit_duration_vs_previous_transit" in what_to_plot:
                 plots.plot_visit_time(results, trajectories,
                                       "Visit duration vs. previous transit in " + plot_name + " conditions",
-                                      current_conditions, "Last travel time", current_condition_names,
-                                      split_conditions=True, is_plot=is_plot)
+                                      current_conditions, "last_travel_time", current_condition_names,
+                                      split_conditions=False, is_plot=is_plot, pixelwise="patch", only_first=False)
 
             if "visit_duration_vs_visit_start" in what_to_plot:
                 plots.plot_visit_time(results, trajectories,
                                       "Visit duration vs. visit start in " + plot_name + " conditions",
-                                      current_conditions, "Visit start", current_condition_names, is_plot=is_plot)
+                                      current_conditions, "visit_start", current_condition_names,
+                                      split_conditions=False, is_plot=is_plot, pixelwise="patch", only_first=False)
 
             if "visit_duration_vs_entry_speed" in what_to_plot:
                 plots.plot_visit_time(results, trajectories,
                                       "Visit duration vs. speed when entering the patch in " + plot_name + " conditions",
-                                      current_conditions, "Speed when entering", current_condition_names,
-                                      is_plot=is_plot)
+                                      current_conditions, "speed_when_entering", current_condition_names,
+                                      split_conditions=False, is_plot=is_plot, pixelwise="patch", only_first=False)
 
             if "pixels_avg_visit_duration" in what_to_plot:
-                # This should be called from the 20240313-pixelwiseleavingprob.py script
+                # This should be called from the s20240313_pixelwiseleavingprob.py script
                 plots.plot_selected_data(results,
                                          "Average duration of visits to pixels inside food patches in " + plot_name + " conditions",
                                          current_conditions, current_condition_names,
@@ -347,9 +348,21 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(trajectories, 12)
 
-    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0"]])
-    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
-    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
+    #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0", "med 0", "far 0"]])
+    #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
+    #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
+
+    #plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0", "med 0", "far 0"]])
+    #plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.2", "med 0.2", "far 0.2"]])
+    #plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.5", "med 0.5", "far 0.5"]])
+
+    plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0", "close 0.2", "close 0.5"]])
+    plot_graphs(results, "visit_duration_vs_entry_speed", [["med 0", "med 0.2", "med 0.5"]])
+    plot_graphs(results, "visit_duration_vs_entry_speed", [["far 0", "far 0.2", "far 0.5"]])
+
+    plot_graphs(results, "visit_duration_vs_visit_start", [["close 0", "close 0.2", "close 0.5"]])
+    plot_graphs(results, "visit_duration_vs_visit_start", [["med 0", "med 0.2", "med 0.5"]])
+    plot_graphs(results, "visit_duration_vs_visit_start", [["far 0", "far 0.2", "far 0.5"]])
 
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
     #                                              ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
