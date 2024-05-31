@@ -65,6 +65,8 @@ def plot_graphs(results, what_to_plot, curve_list=None):
     for _ in range(len(what_to_plot)):
         # Transform "[["0.2"], ["med 0"]]" into '0.2 & med 0'
         plot_name = str(curve_list).replace("], [", " & ").replace("[[", "").replace("]]", "").replace("''", "")
+        if "model" in results["folder"][0]:
+            plot_name = "modelled " + plot_name
         # And then DRAAAAWWWW
         for i_curve in range(len(conditions_each_curve)):
             curve_name = str(curve_list[i_curve]).replace("[", "").replace("]", "")
@@ -179,7 +181,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 plots.plot_selected_data(results, "Average total time in patch for " + plot_name + " conditions",
                                          current_conditions, current_condition_names, "total_visit_time",
                                          divided_by="nb_of_visited_patches", mycolor=current_color, plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot, normalize_by_video_length=True)
 
             # Visits plots
             if "visit_duration" in what_to_plot:
@@ -235,12 +237,16 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
             if "pixels_avg_visit_duration" in what_to_plot:
                 # This should be called from the 20240313-pixelwiseleavingprob.py script
-                plots.plot_selected_data(results, "Average duration of visits to pixels inside food patches in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names, "avg_visit_duration_to_pixels_inside_patches",
+                plots.plot_selected_data(results,
+                                         "Average duration of visits to pixels inside food patches in " + plot_name + " conditions",
+                                         current_conditions, current_condition_names,
+                                         "avg_visit_duration_to_pixels_inside_patches",
                                          divided_by="", mycolor=current_color, plot_model=False,
                                          is_plot=is_plot)
-                plots.plot_selected_data(results, "Average duration of visits to pixels outside food patches in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names, "avg_visit_duration_to_pixels_outside_patches",
+                plots.plot_selected_data(results,
+                                         "Average duration of visits to pixels outside food patches in " + plot_name + " conditions",
+                                         current_conditions, current_condition_names,
+                                         "avg_visit_duration_to_pixels_outside_patches",
                                          divided_by="", mycolor=current_color, plot_model=False,
                                          is_plot=is_plot)
 
@@ -280,6 +286,13 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 print("Average duration of same patch transits: ", average_same_patch)
                 print("Average duration of cross patch transits: ", average_cross_patch)
                 print("-----")
+
+            # Proportion of time spent in patches
+            if "total_video_time" in what_to_plot:
+                plots.plot_selected_data(results,
+                                         "Total video time in " + plot_name + "conditions",
+                                         current_conditions, current_condition_names, "total_video_time",
+                                         divided_by="", mycolor=current_color, is_plot=is_plot)
 
             # Transits plot
             if "transit_duration" in what_to_plot:

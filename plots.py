@@ -214,9 +214,13 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         # Plot black dots when the worm is inside
         if plot_in_patch:
             plt.scatter(current_list_x, current_list_y, color=colors[i_folder], s=.5)
-            indexes_in_patch = np.where(current_traj["patch_silhouette"] != -1)
+            if "patch_silhouette" in current_traj.columns:
+                indexes_in_patch = np.where(current_traj["patch_silhouette"] != -1)
+            else:
+                indexes_in_patch = np.where(current_traj["patch_centroid"] != -1)
             plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black',
-                        s=.5, zorder=1.5)
+                        s=.5, zorder=10)
+            plt.text(100, 100, "total_visit_time="+str(len(indexes_in_patch[0])), color='white')
 
         # Plot markers where the tracks start, interrupt and restart
         # THIS IS BROKEN: to fix it, look for tracking holes by looking for frames where worm id switches
@@ -494,7 +498,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 
 
 def plot_selected_data(results, plot_title, condition_list, condition_names, column_name, divided_by="",
-                       mycolor="blue", plot_model=False, is_plot=True):
+                       mycolor="blue", plot_model=False, is_plot=True, normalize_by_video_length=False):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -504,7 +508,7 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     """
     # Getting results
     list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
-                                                                                         column_name, divided_by)
+                                                                                         column_name, divided_by, normalize_by_video_length)
 
     # if not split_conditions:
     #     condition_list = condition_list[0]  # reduce it to one element for all further loops to run only once

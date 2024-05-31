@@ -221,6 +221,7 @@ def load_list(results, column_name):
     else:
         print("Column ", column_name, " does not exist in results.")
 
+
 def load_condition(folder):
     return folder_to_metadata(folder)["condition"][0]
 

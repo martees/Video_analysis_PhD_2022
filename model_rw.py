@@ -18,6 +18,7 @@ import plots
 import video
 import ReferencePoints
 import main
+from Parameters import parameters
 
 
 def add_mask_to_patch_map(folder, patch_map):
@@ -37,6 +38,7 @@ def add_mask_to_patch_map(folder, patch_map):
     source_xy_holes = source_folder_metadata["holes"][0]
     source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
 
+    # Only make a trajectory when there are indeed 4 reference points
     if len(source_reference_points.xy_holes) == 4:
         [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = source_reference_points.xy_holes
 
@@ -86,7 +88,15 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, silhouettes):
     @param silhouettes: gives the length of the simulated trajectory, and worm silhouettes from the experiments
     @return: returns a traj.csv table with x-y-time info
     """
+    # Duration in the model is the same as number of tracked points in the original folder
+    # (this has some disadvantages, because it does not take into account the duration of the holes, and
+    # will have a doubled duration for videos with two worms, but that will do for now)
     duration = len(silhouettes)
+
+    # If it is a control condition, the worm should not slow down inside food patches
+    condition = fd.load_condition(model_folder)
+    if condition == 11:
+        speed_in = speed_out
 
     # Load initial position of the worm
     original_folder_path = np.load(model_folder[:-len(model_folder.split("/")[-1])] + "original_folder.npy")[0]
@@ -217,57 +227,89 @@ def generate_model_folders(data_folder_list, modeled_data_path, speed_inside, sp
     for i_folder, folder in enumerate(model_folder_list):
         if i_folder % 10 == 0:
             print("Modeling trajectory + silhouettes for folder ", i_folder, " / ", len(data_folder_list))
-
-        if folder == "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/20221011T111318_SmallPatches_C2-CAM2_model/traj.csv":
-            print("hey")
-
-        # Find length of silhouettes to find out how many tracked time points the original video had
-        current_silhouettes, _, _ = fd.load_silhouette(folder)
-        #model_trajectory, shifted_silhouettes = generate_rw_trajectory(speed_inside, speed_outside, folder, current_silhouettes)
-        model_trajectory = generate_rw_trajectory(speed_inside, speed_outside, folder, current_silhouettes)
-        model_trajectory.to_csv(folder)
-        # shifted_silhouettes.to_csv(folder)
+        if "trajectory_plots" not in folder:  # don't take the folder which just contains trajectory exports
+            # Find length of silhouettes to find out how many tracked time points the original video had
+            current_silhouettes, _, _ = fd.load_silhouette(folder)
+            #model_trajectory, shifted_silhouettes = generate_rw_trajectory(speed_inside, speed_outside, folder, current_silhouettes)
+            model_trajectory = generate_rw_trajectory(speed_inside, speed_outside, folder, current_silhouettes)
+            model_trajectory.to_csv(folder)
+            # shifted_silhouettes.to_csv(folder)
 
     return 0
 
 
-regenerate_model = True
-regenerate_results = True
-is_test = True
+# Booleans to control which part of the code reruns
+regenerate_model = False
+regenerate_results = False
+is_test = False
+visualize_trajectories = False
 
+# Load data and model path
 data_path = gen.generate("", test_pipeline=is_test)
 model_path = gen.generate("", test_pipeline=is_test, modeled_data=True)
 
+# Generate model trajectories
 if regenerate_model:
     # Find the path of non-control folders, and then add the control folders by looking for "traj_parent.csv" folders
     list_of_experimental_folders = fd.path_finding_traj(data_path, include_fake_control_folders=False)
     list_of_experimental_folders += fd.path_finding_traj(data_path, target_name="traj_parent.csv")
     # Create modelled data
     # Average speed inside and outside in our experimental plates: 1.4 and 3.5
-    generate_model_folders(list_of_experimental_folders, model_path, 1, 60)
-
+    generate_model_folders(list_of_experimental_folders, model_path, 2, 26)
     # Regenerate smoothed trajectories.csv table
-    gen.generate("beginning", test_pipeline=is_test, modeled_data=True)
+    gen.generate("only_beginning", test_pipeline=is_test, modeled_data=True)
 
-# Look at the trajectoriessss
-trajectories = pd.read_csv(model_path + "trajectories.csv")
+# gen.generate("controls", test_pipeline=is_test, modeled_data=False)
 
-plots.trajectories_1condition(trajectories, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], plot_lines=True)
-# plots.trajectories_1condition(trajectories, [1], plot_lines=True)
-# plots.trajectories_1condition(trajectories, [2], plot_lines=True)
-# plots.trajectories_1condition(trajectories, [0], plot_lines=True, save_fig=True, is_plot=False)
-# plots.trajectories_1condition(trajectories, [1], plot_lines=True, save_fig=True, is_plot=False)
-# plots.trajectories_1condition(trajectories, [2], plot_lines=True, save_fig=True, is_plot=False)
+if visualize_trajectories:
+    # Load trajectories in order to visualize trajectories
+    #trajectories_data = pd.read_csv(data_path + "trajectories.csv")
+    trajectories_model = pd.read_csv(model_path + "trajectories.csv")
+    # Look at the data ones
+    #plots.trajectories_1condition(trajectories_data, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], plot_lines=True, plot_in_patch=True)
+    # Look at the model ones
+    plots.trajectories_1condition(trajectories_model, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], plot_lines=True, plot_in_patch=True)
 
+# Then, generate result tables through experimental data analysis pipeline
 if regenerate_results:
     # Generate same datasets as for experimental data
     gen.generate("results_per_id", test_pipeline=is_test, modeled_data=True)
-results = pd.read_csv(model_path + "clean_results.csv")
 
-main.plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0"]])
-main.plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2"]])
-main.plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5"]])
 
+# Load clean results and trajectories
+trajectories_data = pd.read_csv(data_path + "clean_trajectories.csv")
+trajectories_model = pd.read_csv(model_path + "clean_trajectories.csv")
+results_data = pd.read_csv(data_path + "clean_results.csv")
+results_model = pd.read_csv(model_path + "clean_results.csv")
+
+# Plot results for the model
+main.plot_graphs(results_model, "visit_duration", [["close 0", "med 0", "far 0"]])
+main.plot_graphs(results_model, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
+main.plot_graphs(results_model, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
+
+# Plot results for the model
+main.plot_graphs(results_model, "total_visit_time", [["close 0", "med 0", "far 0"]])
+main.plot_graphs(results_model, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2"]])
+main.plot_graphs(results_model, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5"]])
+
+# Plot results for the model
+main.plot_graphs(results_model, "proportion_of_visited_patches", [["close 0", "med 0", "far 0"]])
+main.plot_graphs(results_model, "proportion_of_visited_patches", [["close 0.2", "med 0.2", "far 0.2"]])
+main.plot_graphs(results_model, "proportion_of_visited_patches", [["close 0.5", "med 0.5", "far 0.5"]])
+
+# Plot results for the corresponding experimental data
+#main.plot_graphs(results_data, "proportion_of_visited_patches", [["close 0", "med 0", "far 0"]])
+#main.plot_graphs(results_data, "proportion_of_visited_patches", [["close 0.2", "med 0.2", "far 0.2"]])
+#main.plot_graphs(results_data, "proportion_of_visited_patches", [["close 0.5", "med 0.5", "far 0.5"]])
+
+# plots.trajectories_1condition(trajectories_model, [12], plot_lines=True,
+#                               plot_in_patch=True, is_plot=False, save_fig=True, is_plot_patches=True)
+# plots.trajectories_1condition(trajectories_model, [13], plot_lines=True,
+#                               plot_in_patch=True, is_plot=False, save_fig=True, is_plot_patches=True)
+# plots.trajectories_1condition(trajectories_model, [14], plot_lines=True,
+#                               plot_in_patch=True, is_plot=False, save_fig=True, is_plot_patches=True)
+# plots.trajectories_1condition(trajectories_model, [15], plot_lines=True,
+#                               plot_in_patch=True, is_plot=False, save_fig=True, is_plot_patches=True)
 
 #TODO handle when the model folder does not exist yet
 

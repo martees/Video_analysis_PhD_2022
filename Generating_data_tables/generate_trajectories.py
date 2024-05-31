@@ -237,8 +237,8 @@ def in_patch_list(traj, using):
         # and register for each time step the patch that contains centroid / intersects with silhouette
         for time in range(len(list_x_centroid)):
             if using == "centroid":
-                list_of_patches[i] = int(in_patch_map[int(np.clip(list_x_centroid[time], 0, len(in_patch_map[0]) - 1))][
-                                             int(np.clip(list_y_centroid[time], 0, len(in_patch_map) - 1))])
+                list_of_patches[i] = int(in_patch_map[int(np.clip(list_y_centroid[time], 0, len(in_patch_map[0]) - 1))][
+                                             int(np.clip(list_x_centroid[time], 0, len(in_patch_map) - 1))])
             if using == "silhouette":
                 if list_x_silhouette[time]:
                     list_of_patches[i] = in_patch_silhouette(list_x_silhouette[time], list_y_silhouette[time],

@@ -20,7 +20,7 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders)
     cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
 
     # Once the bad folders have been excluded from clean_results, remove them from the trajectory file
-    valid_folders = np.unique(cleaned_results["folder"])
+    valid_folders = pd.unique(cleaned_results["folder"])  # pd.unique to keep order
     cleaned_traj = pd.DataFrame(columns=trajectories.columns)
     cleaned_traj["is_smoothed"] = cleaned_traj["is_smoothed"].astype(bool)
     for plate in valid_folders:
@@ -42,7 +42,7 @@ def generate_trajectories(path):
     # Add a column with the patch where the worm is (-1 is outside)
     print("Computing where the worm is...")
     trajectories["patch_centroid"], overlapping_patches = gt.in_patch_list(trajectories, using="centroid")
-    #trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouettes")
+    # trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouettes")
     overlapping_patches.to_csv(path + "overlapping_patches.csv")
     print("Finished computing in which patch the worm is at each time step")
     print("Computing distances...")
@@ -87,7 +87,7 @@ def generate_clean_tables_and_speed(path):
     clean_trajectories, clean_results = exclude_invalid_videos(trajectories, results_per_plate, overlapping_patches)
     clean_results.to_csv(path + "clean_results.csv")
     print("Computing speeds...")
-    # For faster execution, we only compute speeds here (and not at the same time as distances), when invalid
+    # For faster execution, we compute speeds here (and not at the same time as distances), when invalid
     # trajectories have been excluded
     clean_trajectories["speeds"] = gt.trajectory_speeds(clean_trajectories)
     clean_trajectories.to_csv(path + "clean_trajectories.csv")
@@ -163,7 +163,7 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False):
         generate_clean_tables_and_speed(path)
         generate_aggregated_visits(path, param.threshold_list)
 
-    elif starting_from == "beginning":
+    elif starting_from == "only_beginning":
         gc.generate_controls(path)
         generate_smooth_trajectories(path)
         generate_trajectories(path)
