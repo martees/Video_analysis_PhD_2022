@@ -3,12 +3,15 @@ import random
 from scipy import stats
 import time
 import copy
+import os
+import pandas as pd
 
 # My code
 from Parameters import parameters as param
 import find_data as fd
-import model_mvt as model
+from Models import model_mvt as model
 from Generating_data_tables import generate_results as gr
+from Generating_data_tables import generate_trajectories as gt
 
 
 def r2(x, y):
@@ -164,9 +167,22 @@ def model_per_condition(result_table, list_of_conditions, column_name, divided_b
         return np.zeros(len(list_of_conditions))
 
 
-def visit_time_as_a_function_of(results, traj, condition_list, variable):
+def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_or_pixel="patch", only_first_visit=True):
     """
-    Takes a condition list and a variable and will plot visit time against this variable for the selected conditions
+    Takes a results and trajectories table, a condition list, and a variable. Returns a list of visit durations and the
+    corresponding values of variable.
+    NOTE: for variable="last_travel_time", the only parameter values supported for now are patch_or_pixel="patch" and
+          only_first_visit = True!!!
+    @param results: loaded from clean_results.csv (see readme)
+    @param traj: loaded from clean_trajectories.csv (see readme)
+    @param condition_list: a list of numbers corresponding to condition in the results.csv (see /Parameters/parameters.py)
+    @param variable: the variable that you want to compare visit durations with.
+           "last_travel_time" = duration of the closest previous transit between patches
+           "visit_start" = point in the video where the visit happens (to see if later visits are shorter for example)
+           "speed_when_entering" = worm speed when the visit starts
+    @param patch_or_pixel: if set to "patch", the function will return a list of patch-level visit durations
+                           if set to "pixel", the function will return a list of pixel-level visit durations
+    @param only_first_visit: if set to True, only look at first visit to a patch / to a pixel
     """
 
     # Fill the folder list up (list of folders corresponding to the conditions in condition_list)
@@ -177,13 +193,13 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
     full_variable_list = [[] for _ in range(len(condition_list))]
 
     # Fill up the lists depending on the variable specified as an argument
-    if variable == "Last travel time":
+    if variable == "last_travel_time":
         # TODO if we ever use this again, switch it to a much simpler version where we fuse visit and transit lists, sort by time, and then look at each element
         starts_with_visit = False
-        for i_plate in range(len(folder_list)):
+        for i_folder in range(len(folder_list)):
             # Initialization
             # Slice to one plate
-            current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
+            current_plate = results[results["folder"] == folder_list[i_folder]].reset_index()
             # Visit and transit lists
             list_of_visits = fd.load_list(current_plate, "no_hole_visits")
             list_of_transits = fd.load_list(current_plate, "aggregated_raw_transits")
@@ -263,7 +279,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
                     # Go to next visit!
                     i_visit += 1
 
-            condition = fd.load_condition(folder_list[i_plate])
+            condition = fd.load_condition(folder_list[i_folder])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
             # plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths, color=colors[i_condition], label=str(condition_names[i_condition]), zorder=i_condition)
 
@@ -272,27 +288,68 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable):
             full_variable_list[i_condition] += list_of_previous_transit_lengths
 
     else:
-        for i_plate in range(len(folder_list)):
+        for i_folder, folder in enumerate(folder_list):
             time_start = time.time()
             # Initialization
-            # Slice to one plate
-            current_plate = results[results["folder"] == folder_list[i_plate]].reset_index()
-            # Visit and transit lists
-            list_of_visits = fd.load_list(current_plate, "no_hole_visits")
             # Information about condition
-            condition = fd.load_condition(folder_list[i_plate])
+            condition = fd.load_condition(folder_list[i_folder])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
+
+            if patch_or_pixel == "patch":
+                # Slice to one plate
+                current_plate = results[results["folder"] == folder].reset_index()
+                # Visit list
+                list_of_visits = fd.load_list(current_plate, "no_hole_visits")
+                # If only first visits, keep track of already visited patches (simpler than triaging the visit list)
+                if only_first_visit:
+                    already_visited = []
+
+            if patch_or_pixel == "pixel":
+                # If it's not already done, compute the pixel visit durations
+                pixelwise_durations_path = folder[:-len("traj.csv")] + "pixelwise_visits.npy"
+                if not os.path.isfile(pixelwise_durations_path):
+                    gr.generate_pixelwise_visits(folder)
+                # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
+                matrix_of_visits = np.load(pixelwise_durations_path, allow_pickle=True)
+                # Load patch info for this folder
+                in_patch_matrix_path = folder[:-len("traj.csv")] + "in_patch_matrix.csv"
+                if not os.path.isfile(in_patch_matrix_path):
+                    gt.in_patch_all_pixels(folder)
+                in_patch_matrix = pd.read_csv(in_patch_matrix_path)
+                # Separate inside / outside food patch visit durations
+                matrix_of_visits = matrix_of_visits[in_patch_matrix != -1]
+                # Remove the matrix structure, and add a unique identifier to every pixel
+                # So we go from a matrix containing [[t0, tf], ...] for every pixel (t0 = visit start, tf = visit end)
+                # to a plain list with [[t0, tf, idx], [t0, tf, idx], ...] where idx is an index corresponding to the pixel
+                # NOTE: THIS ONLY WORKS IF IMAGE SIZE IS < 2000 PIXELS!
+                if only_first_visit:
+                    list_of_visits = [in_patch_matrix[l][c][0] + [2000 * l + c]
+                                      for l in range(len(in_patch_matrix))
+                                      for c in range(len(in_patch_matrix[l]))]
+                else:
+                    list_of_visits = [in_patch_matrix[l][c][v] + [2000 * l + c]
+                                      for l in range(len(in_patch_matrix))
+                                      for c in range(len(in_patch_matrix[l]))
+                                      for v in range(len(in_patch_matrix[l][c]))]
+
+            # Same code for both pixel and patch level visits
             for i_visit in range(len(list_of_visits)):
                 current_visit = list_of_visits[i_visit]
-                full_visit_list[i_condition].append(current_visit[1] - current_visit[0] + 1)
-                if variable == "Visit start":
-                    full_variable_list[i_condition].append(current_visit[0])
-                if variable == "Speed when entering":
-                    current_traj = traj[traj["folder"] == folder_list[i_plate]]
-                    visit_start = current_traj[current_traj["frame"] == current_visit[0]].reset_index()
-                    speed_when_entering = visit_start["speeds"][0]
-                    full_variable_list[i_condition].append(speed_when_entering)
-            print("It took ", time.time() - time_start, " sec to analyse plate ", i_plate, " / ", len(folder_list))
+                # Only do the following if we're not in the case where we should take only 1st visit to patches,
+                # and the current patch has already been visited
+                if not (patch_or_pixel == "patch" and only_first_visit and current_visit[2] in already_visited):
+                    full_visit_list[i_condition].append(current_visit[1] - current_visit[0] + 1)
+                    if patch_or_pixel == "patch" and only_first_visit:
+                        already_visited.append(current_visit[2])
+                    if variable == "visit_start":
+                        full_variable_list[i_condition].append(current_visit[0])
+                    if variable == "speed_when_entering":
+                        current_traj = traj[traj["folder"] == folder]
+                        visit_start = current_traj[current_traj["frame"] == current_visit[0]].reset_index()
+                        speed_when_entering = visit_start["speeds"][0]
+                        full_variable_list[i_condition].append(speed_when_entering)
+
+            print("It took ", time.time() - time_start, " sec to analyse plate ", i_folder, " / ", len(folder_list))
 
     return full_visit_list, full_variable_list
 
