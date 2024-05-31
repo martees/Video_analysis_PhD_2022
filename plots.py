@@ -546,53 +546,57 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
         plt.show()
 
 
-def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True, is_plot=True):
+def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True, is_plot=True, pixelwise="patch", only_first=False):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
-    full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable)
+    full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable, pixelwise, only_first)
 
     # Plot the thing
     nb_cond = len(condition_list)
     data = pd.DataFrame()
-    data["Visit duration"] = []
+    data["visit_duration"] = []
     data[variable] = []
 
     if split_conditions:
         for i_cond in range(nb_cond):
             # Plotting a linear regression on the thing
             data = pd.DataFrame()
-            data["Visit duration"] = full_visit_list[i_cond]
+            data["visit_duration"] = full_visit_list[i_cond]
             data[variable] = full_variable_list[i_cond]
 
-            sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100),
+            sns.jointplot(data=data, x=variable, y="visit_duration", kind="reg", marginal_kws=dict(bins=100),
                           marginal_ticks=True)
             fig = plt.gcf()
             ax = fig.gca()
             max_y = ax.get_ylim()[1]
             max_x = ax.get_xlim()[1]
 
-            fig.suptitle(plot_title + ": " + condition_names[i_cond])
-            ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)),
+            fig.suptitle(condition_names[i_cond])
+            ax.x_label = only_first * "first " + "visit duration to " + pixelwise
+            ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["visit_duration"]), 5)),
                         [max_x // 2, max_y * 3 / 4])
+            if is_plot:
+                plt.show()
 
     if not split_conditions:
-        data["Visit duration"] = pd.DataFrame(
+        data["visit_duration"] = pd.DataFrame(
             [full_visit_list[i_cond][i] for i_cond in range(len(full_visit_list)) for i in
              range(len(full_visit_list[i_cond]))])
         data[variable] = pd.DataFrame(
             [full_variable_list[i_cond][i] for i_cond in range(len(full_variable_list)) for i in
              range(len(full_variable_list[i_cond]))])
-        sns.jointplot(data=data, x=variable, y="Visit duration", kind="reg", marginal_kws=dict(bins=100),
+        sns.jointplot(data=data, x=variable, y="visit_duration", kind="reg", marginal_kws=dict(bins=100),
                       marginal_ticks=True)
         fig = plt.gcf()
         ax = fig.gca()
         max_y = ax.get_ylim()[1]
         max_x = ax.get_xlim()[1]
-        fig.suptitle(plot_title + ": " + str(condition_list))
-        ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["Visit duration"]), 5)),
+        fig.suptitle(plot_title)
+        ax.x_label = only_first * "first " + "visit duration to " + pixelwise
+        ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["visit_duration"]), 5)),
                     [max_x // 2, max_y * 3 / 4])
 
-    if is_plot:
-        plt.show()
+        if is_plot:
+            plt.show()
 
 
 def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None,
