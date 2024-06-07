@@ -294,6 +294,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
             # Information about condition
             condition = fd.load_condition(folder_list[i_folder])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
+            current_traj = traj[traj["folder"] == folder].reset_index()
 
             if patch_or_pixel == "patch":
                 # Slice to one plate
@@ -308,7 +309,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                 # If it's not already done, compute the pixel visit durations
                 pixelwise_durations_path = folder[:-len("traj.csv")] + "pixelwise_visits.npy"
                 if not os.path.isfile(pixelwise_durations_path):
-                    gr.generate_pixelwise_visits(folder)
+                    gr.generate_pixelwise_visits(traj, folder)
                 # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
                 matrix_of_visits = np.load(pixelwise_durations_path, allow_pickle=True)
                 # Load patch info for this folder
@@ -316,25 +317,25 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                 if not os.path.isfile(in_patch_matrix_path):
                     gt.in_patch_all_pixels(folder)
                 in_patch_matrix = pd.read_csv(in_patch_matrix_path)
-                # Separate inside / outside food patch visit durations
+                # Separate inside / outside food patch visit durations (this transforms the matrix into a 1 line array)
                 matrix_of_visits = matrix_of_visits[in_patch_matrix != -1]
                 # Remove the matrix structure, and add a unique identifier to every pixel
                 # So we go from a matrix containing [[t0, tf], ...] for every pixel (t0 = visit start, tf = visit end)
                 # to a plain list with [[t0, tf, idx], [t0, tf, idx], ...] where idx is an index corresponding to the pixel
-                # NOTE: THIS ONLY WORKS IF IMAGE SIZE IS < 2000 PIXELS!
                 if only_first_visit:
-                    list_of_visits = [in_patch_matrix[l][c][0] + [2000 * l + c]
-                                      for l in range(len(in_patch_matrix))
-                                      for c in range(len(in_patch_matrix[l]))]
+                    list_of_visits = [matrix_of_visits[i][v] + [i]
+                                      for i in range(len(matrix_of_visits))
+                                      for v in range(min(1, len(matrix_of_visits[i])))]
                 else:
-                    list_of_visits = [in_patch_matrix[l][c][v] + [2000 * l + c]
-                                      for l in range(len(in_patch_matrix))
-                                      for c in range(len(in_patch_matrix[l]))
-                                      for v in range(len(in_patch_matrix[l][c]))]
+                    list_of_visits = [matrix_of_visits[i][v] + [i]
+                                      for i in range(len(matrix_of_visits))
+                                      for v in range(len(matrix_of_visits[i]))]
 
             # Same code for both pixel and patch level visits
             for i_visit in range(len(list_of_visits)):
                 current_visit = list_of_visits[i_visit]
+                if current_visit[1] < current_visit[0]:
+                    print("oulah")
                 # Only do the following if we're not in the case where we should take only 1st visit to patches,
                 # and the current patch has already been visited
                 if not (patch_or_pixel == "patch" and only_first_visit and current_visit[2] in already_visited):
@@ -344,20 +345,22 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                     if variable == "visit_start":
                         full_variable_list[i_condition].append(current_visit[0])
                     if variable == "speed_when_entering":
-                        current_traj = traj[traj["folder"] == folder]
                         visit_start = current_traj[current_traj["frame"] == current_visit[0]].reset_index()
+                        if len(visit_start) == 0:
+                            print("gey")
                         speed_when_entering = visit_start["speeds"][0]
                         full_variable_list[i_condition].append(speed_when_entering)
 
-            print("It took ", time.time() - time_start, " sec to analyse plate ", i_folder, " / ", len(folder_list))
+            print("It took ", int(time.time() - time_start), " sec to analyse plate ", i_folder, " / ",
+                  len(folder_list))
 
     return full_visit_list, full_variable_list
 
 
 def convert_to_durations(list_of_time_stamps):
     """
-    Function that takes a list of timestamps in the format [[t0,t1,...],[t0,t1,...],...] (uses t0 and t1 only)
-    And will return the corresponding list of durations [d0,d1,...]
+    Function that takes a list of timestamps in the format [[t0,t1,...],[t2,t3,...],...] (uses t0 and t1 only)
+    And will return the corresponding list of durations [d0,d1,...] (where d0 = t1 - t0 + 1)
     """
     nb_of_events = len(list_of_time_stamps)
     list_of_durations = np.zeros(nb_of_events)
@@ -892,9 +895,8 @@ def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
 
     # Create bin list, with left limit of each bin
     bin_list = []
-    x_values = np.unique(x_copy)
-    current_bin = np.min(x_values)
-    while current_bin < np.max(x_values):
+    current_bin = np.min(x_copy)
+    while current_bin < np.max(x_copy):
         bin_list.append(current_bin)
         current_bin += bin_size
     bin_list.append(current_bin)  # add the last value

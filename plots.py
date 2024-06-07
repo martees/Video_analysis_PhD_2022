@@ -92,7 +92,9 @@ def patches(folder_list, show_composite=True, is_plot=True):
             # Either plot them
             if is_plot:
                 plt.plot(x_pos, y_pos, color=colors[i_patch])
-                plt.scatter([patch_guides[i_patch][i][0] for i in range(len(patch_guides[i_patch]))], [patch_guides[i_patch][i][1] for i in range(len(patch_guides[i_patch]))], color="white", s=15)
+                plt.scatter([patch_guides[i_patch][i][0] for i in range(len(patch_guides[i_patch]))],
+                            [patch_guides[i_patch][i][1] for i in range(len(patch_guides[i_patch]))], color="white",
+                            s=15)
             # Or add them to a list for later
             else:
                 x_list.append(x_pos)
@@ -105,7 +107,8 @@ def patches(folder_list, show_composite=True, is_plot=True):
             return x_list, y_list
 
 
-def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True, plot_in_patch=False,
+def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True,
+                            plot_in_patch=False,
                             plot_continuity=False, plot_speed=False, plot_time=False, plate_list=None, is_plot=True,
                             save_fig=False, plot_lines=False):
     """
@@ -185,16 +188,16 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
                 patch_centers = metadata["patch_centers"]
                 x_list, y_list = patches([current_folder], is_plot=False)
                 for i_patch in range(len(patch_centers)):
-                    ax.plot(x_list[i_patch], y_list[i_patch], color="yellow")
+                    ax.plot(x_list[i_patch], y_list[i_patch], color="yellow", zorder=0)
                     # to show density, add this to previous call: , alpha=patch_densities[i_patch][0]
                     # ax.annotate(str(i_patch), xy=(patch_centers[i_patch][0] + 80, patch_centers[i_patch][1] + 80), color='white')
 
         # In any case, plot worm trajectory
         # Plot the trajectory with a colormap based on the speed of the worm
         if plot_speed:
-            distance_list = current_traj.reset_index()["distances"]
+            speed_list = current_traj.reset_index()["speeds"]
             normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
-            plt.scatter(current_list_x, current_list_y, c=distance_list, cmap="hot", norm=normalize, s=1, zorder=1.3)
+            plt.scatter(current_list_x, current_list_y, c=speed_list, cmap="hot", norm=normalize, s=1, zorder=1.3)
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                 plt.colorbar()
 
@@ -220,7 +223,7 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
                 indexes_in_patch = np.where(current_traj["patch_centroid"] != -1)
             plt.scatter(current_list_x.iloc[indexes_in_patch], current_list_y.iloc[indexes_in_patch], color='black',
                         s=.5, zorder=10)
-            plt.text(100, 100, "total_visit_time="+str(len(indexes_in_patch[0])), color='white')
+            plt.text(100, 100, "total_visit_time=" + str(len(indexes_in_patch[0])), color='white')
 
         # Plot markers where the tracks start, interrupt and restart
         # THIS IS BROKEN: to fix it, look for tracking holes by looking for frames where worm id switches
@@ -243,7 +246,8 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         previous_folder = current_folder
 
     if save_fig:
-        plt.savefig(path+"trajectory_plots/condition_"+str(condition_list)+"_"+folder_list[-1].split("/")[-2]+".png")
+        plt.savefig(
+            path + "trajectory_plots/condition_" + str(condition_list) + "_" + folder_list[-1].split("/")[-2] + ".png")
     if is_plot:
         plt.show()
     else:
@@ -251,7 +255,8 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
 
 
 # Analysis functions
-def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_patch=False, out_patch=False, is_plot=True):
+def plot_speed_time_window_list(traj, list_of_time_windows, nb_resamples, in_patch=False, out_patch=False,
+                                is_plot=True):
     # TODO take care of holes in traj.csv
     """
     Will take the trajectory dataframe and exit the following plot:
@@ -508,7 +513,8 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     """
     # Getting results
     list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
-                                                                                         column_name, divided_by, normalize_by_video_length)
+                                                                                         column_name, divided_by,
+                                                                                         normalize_by_video_length)
 
     # if not split_conditions:
     #     condition_list = condition_list[0]  # reduce it to one element for all further loops to run only once
@@ -546,9 +552,11 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
         plt.show()
 
 
-def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True, is_plot=True, pixelwise="patch", only_first=False):
+def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True,
+                    is_plot=True, patch_or_pixel="patch", only_first=False):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
-    full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable, pixelwise, only_first)
+    full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable,
+                                                                          patch_or_pixel, only_first)
 
     # Plot the thing
     nb_cond = len(condition_list)
@@ -556,46 +564,63 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     data["visit_duration"] = []
     data[variable] = []
 
+    # Set bin size for the plots
+    if variable == "speed_when_entering":
+        bin_size = 0.2
+    if variable == "visit_start":
+        bin_size = 2000
+
     if split_conditions:
         for i_cond in range(nb_cond):
-            # Plotting a linear regression on the thing
-            data = pd.DataFrame()
-            data["visit_duration"] = full_visit_list[i_cond]
-            data[variable] = full_variable_list[i_cond]
+            variable_values_bins, average_visit_duration, [errors_inf,
+                                                           errors_sup], binned_current_visits = ana.xy_to_bins(
+                full_variable_list[i_cond], full_visit_list[i_cond], bin_size=bin_size, print_progress=False)
 
-            sns.jointplot(data=data, x=variable, y="visit_duration", kind="reg", marginal_kws=dict(bins=100),
-                          marginal_ticks=True)
-            fig = plt.gcf()
-            ax = fig.gca()
-            max_y = ax.get_ylim()[1]
-            max_x = ax.get_xlim()[1]
+            condition_name = condition_names[i_cond]
+            condition_color = param.name_to_color[condition_name]
 
-            fig.suptitle(condition_names[i_cond])
-            ax.x_label = only_first * "first " + "visit duration to " + pixelwise
-            ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["visit_duration"]), 5)),
-                        [max_x // 2, max_y * 3 / 4])
-            if is_plot:
-                plt.show()
+            # Plot error bars
+            plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
+                     label=condition_name)
+            plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
+            plt.title(plot_title)
+            label_y = "visit duration to " + patch_or_pixel
+            if only_first:
+                label_y = "first " + label_y
+            plt.ylabel(label_y)
+            plt.xlabel(variable)
+
+    if is_plot:
+        plt.legend()
+        plt.show()
 
     if not split_conditions:
-        data["visit_duration"] = pd.DataFrame(
-            [full_visit_list[i_cond][i] for i_cond in range(len(full_visit_list)) for i in
-             range(len(full_visit_list[i_cond]))])
-        data[variable] = pd.DataFrame(
-            [full_variable_list[i_cond][i] for i_cond in range(len(full_variable_list)) for i in
-             range(len(full_variable_list[i_cond]))])
-        sns.jointplot(data=data, x=variable, y="visit_duration", kind="reg", marginal_kws=dict(bins=100),
-                      marginal_ticks=True)
-        fig = plt.gcf()
-        ax = fig.gca()
-        max_y = ax.get_ylim()[1]
-        max_x = ax.get_xlim()[1]
-        fig.suptitle(plot_title)
-        ax.x_label = only_first * "first " + "visit duration to " + pixelwise
-        ax.annotate("R2 = " + str(np.round(ana.r2(data[variable], data["visit_duration"]), 5)),
-                    [max_x // 2, max_y * 3 / 4])
+        # Merge the conditions sublists (go from [[values for condition x], [values for condition y]] to [all values])
+        full_visit_list = [full_visit_list[i_cond][i_visit] for i_cond in range(len(full_visit_list)) for i_visit in
+                           range(len(full_visit_list[i_cond]))]
+        full_variable_list = [full_variable_list[i_cond][i_visit] for i_cond in range(len(full_variable_list)) for
+                              i_visit in range(len(full_variable_list[i_cond]))]
+
+        variable_values_bins, average_visit_duration, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
+            full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False)
+
+        condition_name = param.nb_list_to_name[str(sorted(condition_list))]
+        condition_color = param.name_to_color[condition_name]
+
+        # Plot error bars
+        plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
+                 label=condition_name)
+        plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
+        plt.title(plot_title)
+        label_x = "visit duration to " + patch_or_pixel
+        if only_first:
+            label_x = "first " + label_x
+
+        plt.xlabel(label_x)
+        plt.ylabel(variable)
 
         if is_plot:
+            plt.legend()
             plt.show()
 
 
@@ -689,7 +714,8 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color, is
     leaving_delays, corresponding_time_in_patch = ana.delays_before_leaving(results, condition_list)
     leaving_delays_in_one_list = [leaving_delays[i] for i in range(len(leaving_delays))]
     binned_times_in_patch, avg_leaving_delays, y_err_list, full_value_list = ana.xy_to_bins(corresponding_time_in_patch,
-                                                                                            leaving_delays_in_one_list, bin_size, bootstrap=False)
+                                                                                            leaving_delays_in_one_list,
+                                                                                            bin_size, bootstrap=False)
     plt.title(plot_title)
     plt.ylabel("Average delay before next exit")
     plt.xlabel("Time already spent in patch")
@@ -711,22 +737,29 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color, is
 
     # Plot number of values in each bin
     for i_bin in range(len(binned_times_in_patch)):
-        plt.annotate(str(len(full_value_list[i_bin])), [binned_times_in_patch[i_bin] + 100, np.max(full_value_list[i_bin]) + 100])
+        plt.annotate(str(len(full_value_list[i_bin])),
+                     [binned_times_in_patch[i_bin] + 100, np.max(full_value_list[i_bin]) + 100])
 
     if is_plot:
         plt.show()
 
 
-def plot_leaving_probability(results, plot_title, condition_list, bin_size, worm_limit, color, label, split_conditions=False, is_plot=True, is_nb_of_worms=False):
+def plot_leaving_probability(results, plot_title, condition_list, bin_size, worm_limit, color, label,
+                             split_conditions=False, is_plot=True, is_nb_of_worms=False):
     plt.title(plot_title)
     plt.ylabel("Probability of exiting in the next " + str(param.time_threshold) + " time steps")
     plt.xlabel("Time already spent in patch")
     plt.yscale("log")
 
     if not split_conditions:
-        binned_times_in_patch, binned_leaving_probability, errorbars, nb_of_worms = ana.leaving_probability(results, condition_list, bin_size, worm_limit, errorbars=True)
+        binned_times_in_patch, binned_leaving_probability, errorbars, nb_of_worms = ana.leaving_probability(results,
+                                                                                                            condition_list,
+                                                                                                            bin_size,
+                                                                                                            worm_limit,
+                                                                                                            errorbars=True)
         # Shift them a bit to not overlap
-        binned_times_in_patch = np.array(binned_times_in_patch) + max(9, condition_list[0])*bin_size/20  # weird equation is to spread points a bit
+        binned_times_in_patch = np.array(binned_times_in_patch) + max(9, condition_list[
+            0]) * bin_size / 20  # weird equation is to spread points a bit
         plt.plot(binned_times_in_patch, binned_leaving_probability, color=color, label=label, linewidth=2)
         if errorbars:
             plt.errorbar(binned_times_in_patch, binned_leaving_probability, errorbars, fmt='.k', capsize=5)
@@ -734,13 +767,19 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, worm
         # Plot number of worms that are in each bin
         if is_nb_of_worms:
             for i_bin in range(len(binned_times_in_patch)):
-                plt.annotate(str(int(nb_of_worms[i_bin])), [binned_times_in_patch[i_bin], binned_leaving_probability[i_bin]*2+0.02])
+                plt.annotate(str(int(nb_of_worms[i_bin])),
+                             [binned_times_in_patch[i_bin], binned_leaving_probability[i_bin] * 2 + 0.02])
 
     if split_conditions:
         for i_condition in range(len(condition_list)):
             current_condition = condition_list[i_condition]
-            binned_times_in_patch, binned_leaving_probability, errorbars = ana.leaving_probability(results, [current_condition], bin_size, errorbars=False)
-            plt.plot(binned_times_in_patch, binned_leaving_probability, errorbars, color=param.name_to_color[param.nb_to_name[i_condition]], label=param.nb_to_name[current_condition])
+            binned_times_in_patch, binned_leaving_probability, errorbars = ana.leaving_probability(results,
+                                                                                                   [current_condition],
+                                                                                                   bin_size,
+                                                                                                   errorbars=False)
+            plt.plot(binned_times_in_patch, binned_leaving_probability, errorbars,
+                     color=param.name_to_color[param.nb_to_name[i_condition]],
+                     label=param.nb_to_name[current_condition])
 
         plt.legend()
 
