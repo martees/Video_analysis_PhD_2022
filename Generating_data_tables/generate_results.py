@@ -645,16 +645,20 @@ def add_aggregate_visit_info_to_results(results, threshold_list):
     return results
 
 
-def generate_pixelwise_visits(folder):
+def generate_pixelwise_visits(trajectories, folder):
     """
     Function that takes a folder containing a time series of silhouettes, and returns a list of lists with the dimension
     of the plate in :folder:, and in each cell, a list with [start time, end time] of the successive visits to this pixel.
     (a visit starts when a pixel of the worm overlaps with the pixel, and ends when this overlap stops)
     When this function is called, it also saves this output under the name "pixelwise_visits.npy" in folder.
+    Takes trajectory in argument only to access correspondance between index in video and frame number.
     """
     # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
     pixels, intensities, frame_size = fd.load_silhouette(folder)
     pixels = fd.reindex_silhouette(pixels, frame_size)
+
+    # Get list of frame numbers
+    frame_list = trajectories[trajectories["folder"] == folder]["frame"].reset_index(drop=True)
 
     # Create a table with a list containing, for each pixel in the image, a sublist with the [start, end] of the visits
     # to this pixel. In the following algorithm, when the last element of a sublist is -1, it means that the pixel
@@ -669,16 +673,16 @@ def generate_pixelwise_visits(folder):
             current_pixel = [current_visited_pixels[0][i_pixel], current_visited_pixels[1][i_pixel]]
             # If visit just started, start it
             if visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] == [-1]:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [j_time, j_time]
-            # If visit is continuing, increment time spent
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [frame_list[j_time], frame_list[j_time]]
+            # If visit is continuing, update end time
             else:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] += 1
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = frame_list[j_time]
         # Then, close the visits of the previous time step that are not being continued
         if j_time > 0:
             previous_visited_pixels = pixels[j_time - 1]
             for i_pixel in range(len(previous_visited_pixels[0])):
                 current_pixel = [previous_visited_pixels[0][i_pixel], previous_visited_pixels[1][i_pixel]]
-                # If one of this current pixel's coordinates is not in the current visited pixels, then close the visit
+                # If this pixel is not in the current visited pixels, then close the visit
                 if True not in np.logical_and(np.array(current_visited_pixels[0]) == current_pixel[0],
                                               np.array(current_visited_pixels[1]) == current_pixel[1]):
                     visit_times_each_pixel[current_pixel[1]][current_pixel[0]].append([-1])

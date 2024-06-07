@@ -105,6 +105,12 @@ nb_list_to_name["[0, 4]"] = "close"
 nb_list_to_name["[1, 5]"] = "med"
 nb_list_to_name["[2, 6]"] = "far"
 nb_list_to_name["[3, 7]"] = "cluster"
+nb_list_to_name["[3, 7]"] = "cluster"
+nb_list_to_name["[0, 4, 12]"] = "close"
+nb_list_to_name["[1, 5, 13]"] = "med"
+nb_list_to_name["[2, 6, 14]"] = "far"
+nb_list_to_name["[3, 7, 15]"] = "cluster"
+nb_list_to_name["[9, 10]"] = "mixed"
 
 # Same but to list of names (eg "close" => ["close 0", "close 0.2", "close 0.5"]
 name_to_name_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [], "0.5+1.25": [],
@@ -166,7 +172,8 @@ name_to_color = {"close": "slateblue", "med": "midnightblue", "far": "deepskyblu
                  "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate",
                  "0.5+1.25": "orange",
                  "control": "gray", "all": "teal",
-                 "food": "brown"}
+                 "food": "brown",
+                 "mixed": "goldenrod"}
 
 # Add colors for single conditions, distance override but color is lighter when density is lower
 for condition in nb_to_name.keys():

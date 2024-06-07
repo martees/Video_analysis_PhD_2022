@@ -282,6 +282,10 @@ trajectories_model = pd.read_csv(model_path + "clean_trajectories.csv")
 results_data = pd.read_csv(data_path + "clean_results.csv")
 results_model = pd.read_csv(model_path + "clean_results.csv")
 
+plots.trajectories_1condition(trajectories_data, [0], is_plot_patches=True, is_plot=True, show_composite=False)
+plots.trajectories_1condition(trajectories_data, [1], plot_lines=False, is_plot_patches=True, is_plot=True, show_composite=False)
+plots.trajectories_1condition(trajectories_data, [2], plot_lines=False, is_plot_patches=True, is_plot=True, show_composite=False)
+
 # Plot results for the model
 main.plot_graphs(results_model, "visit_duration", [["close 0", "med 0", "far 0"]])
 main.plot_graphs(results_model, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])

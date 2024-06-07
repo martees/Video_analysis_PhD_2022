@@ -244,7 +244,7 @@ def save_pixel_visit_duration_in_results_table():
     return results
 
 
-def visit_duration_previous_visit_pixel(curve_list):
+def visit_duration_previous_visit_pixel(curve_list, regenerate_pixel_visits=False):
     """
         Function that plots the visit duration to a pixel as a function of the sum of the previous visits made to that
         same pixel.
@@ -255,6 +255,7 @@ def visit_duration_previous_visit_pixel(curve_list):
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     path = gen.generate(test_pipeline=False)
     results = pd.read_csv(path + "clean_results.csv")
+    traj = pd.read_csv(path + "clean_trajectories.csv")
     plate_list = results["folder"]
 
     current_visit_durations_by_curve_and_plate = [[] for _ in range(len(curve_list))]
@@ -267,8 +268,8 @@ def visit_duration_previous_visit_pixel(curve_list):
         if any(current_condition in curve for curve in curve_list):
             # If it's not already done, compute the pixel visit durations
             pixelwise_visits_path = plate[:-len("traj.csv")] + "pixelwise_visits.npy"
-            if not os.path.isfile(pixelwise_visits_path):
-                gr.generate_pixelwise_visits(plate)
+            if not os.path.isfile(pixelwise_visits_path) or regenerate_pixel_visits:
+                gr.generate_pixelwise_visits(traj, plate)
             # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
             current_pixel_wise_visits = np.load(pixelwise_visits_path, allow_pickle=True)
 
@@ -289,7 +290,7 @@ def visit_duration_previous_visit_pixel(curve_list):
             for i_pixel in range(len(current_pixel_wise_visits_inside)):  # for every pixel
                 current_visit_list = current_pixel_wise_visits_inside[i_pixel]
                 time_already_spent = 0
-                for i_visit in range(len(current_visit_list)):  # for every visit
+                for i_visit in range(len(current_visit_list)):  # for every visit, or just the 1st
                     current_visit = current_visit_list[i_visit]
                     current_duration = current_visit[1] - current_visit[0] + 1
                     current_visit_durations_by_curve_and_plate[curr_curve_index][-1].append(current_duration)
@@ -302,7 +303,7 @@ def visit_duration_previous_visit_pixel(curve_list):
         curve_color = parameters.name_to_color[curve_name]
         plot_title += curve_name + " "
 
-        bin_size = 20
+        bin_size = 60
 
         # Build a list with one sublist per bin of time_already_spent_in_pixel, and in each sublist, the average current
         # visit lengths corresponding to that time for plates which have more than some critical nb of data points
@@ -372,7 +373,9 @@ def visit_duration_previous_visit_pixel(curve_list):
 # main.plot_graphs(results, "pixels_avg_visit_duration", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
 
 
+visit_duration_previous_visit_pixel([[0, 1, 2, 3], [4, 5, 6, 7], [8], [9, 10], [12, 13, 14, 15]], regenerate_pixel_visits=False)
 visit_duration_previous_visit_pixel([[0], [1], [2]])
-visit_duration_previous_visit_pixel([[0, 1, 2, 3], [4, 5, 6, 7], [8], [12, 13, 14, 15]])
-visit_duration_previous_visit_pixel([[0, 4], [1, 5], [2, 6], [3, 7]])
+visit_duration_previous_visit_pixel([[4], [5], [6]])
+#visit_duration_previous_visit_pixel([[0, 4, 12], [1, 5, 13], [2, 6, 14], [3, 7, 15]], regenerate_pixel_visits=True)
+#visit_duration_previous_visit_pixel([[0, 4], [1, 5], [2, 6], [3, 7]])
 #visit_duration_previous_visit_pixel([[12, 13, 14, 15]])
