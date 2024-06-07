@@ -197,15 +197,30 @@ def reindex_silhouette(pixels, frame_size):
     return reformatted_pixels
 
 
-def return_folders_condition_list(full_folder_list, condition_list):
+def return_folders_condition_list(full_folder_list, condition_list, return_conditions=False):
+    """
+    Takes a list of folders, and a list of conditions, and returns the list of folders that correspond to the
+    conditions in the list of conditions.
+    @param full_folder_list: a list of strings leading to "./traj.csv" files
+    @param condition_list: a list of numbers (see ./Parameters/parameters.py for corresponding names)
+    @param return_conditions: if TRUE, will also return a list of the conditions of the folders.
+    @return: a list of folder names.
+    """
     if type(condition_list) is int:
         condition_list = [condition_list]
     condition_folders = []
+    if return_conditions:
+        folder_conditions = []
     for folder in full_folder_list:
         current_condition = folder_to_metadata(folder).reset_index()["condition"][0]
         if current_condition in condition_list:
             condition_folders.append(folder)
-    return condition_folders
+            if return_conditions:
+                folder_conditions.append(current_condition)
+    if return_conditions:
+        return condition_folders, folder_conditions
+    else:
+        return condition_folders
 
 
 def load_list(results, column_name):
