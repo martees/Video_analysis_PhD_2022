@@ -21,25 +21,23 @@ def r2(x, y):
     return stats.pearsonr(x, y)[0] ** 2
 
 
+def random_sample(array_1D):
+    # This returns a list of random samples from array_1D (same size as the original array)
+    # It does so by applying random_choice to a table with the values in array_1D repeated to make a square array
+    return np.apply_along_axis(random.choices, 0, array_1D, k=len(array_1D))
+
+
 def bottestrop_ci(data, nb_resample, operation="mean"):
     """
     Function that takes a dataset and returns a confidence interval using nb_resample samples for bootstrapping
     """
-    bootstrapped_stat = []
-    # data = [x for x in data if str(x) != 'nan']
-    for i in range(nb_resample):
-        y = []
-        for k in range(len(data)):
-            y.append(random.choice(data))
-
-        if operation == "mean":
-            stat = np.nanmean(y)
-
-        if operation == "leaving_probability":
-            stat = compute_leaving_probability(y)
-
-        bootstrapped_stat.append(stat)
-
+    # This returns a list of random samples from data (nb_resample lines, with each as many elements as data)
+    random_samples = np.apply_along_axis(random_sample, 1, np.array([data] * nb_resample))
+    # Depending on the statistic wanted, do a different operation
+    if operation == "mean":
+        bootstrapped_stat = np.apply_along_axis(np.nanmean, 0, random_samples)
+    if operation == "leaving_probability":
+        bootstrapped_stat = np.apply_along_axis(compute_leaving_probability, 0, random_samples)
     bootstrapped_stat.sort()
     return [np.percentile(bootstrapped_stat, 5), np.percentile(bootstrapped_stat, 95)]
 
@@ -362,11 +360,16 @@ def convert_to_durations(list_of_time_stamps):
     Function that takes a list of timestamps in the format [[t0,t1,...],[t2,t3,...],...] (uses t0 and t1 only)
     And will return the corresponding list of durations [d0,d1,...] (where d0 = t1 - t0 + 1)
     """
-    nb_of_events = len(list_of_time_stamps)
-    list_of_durations = np.zeros(nb_of_events)
-    for i_event in range(nb_of_events):
-        list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
-    return list(list_of_durations)
+    # Equivalent imperative code:
+    #nb_of_events = len(list_of_time_stamps)
+    #list_of_durations = np.zeros(nb_of_events)
+    #for i_event in range(nb_of_events):
+    #    list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
+    # Code using lambda function instead:
+    if list_of_time_stamps:
+        return list(np.apply_along_axis(lambda x: x[1]-x[0], 1, list_of_time_stamps))
+    else:  # If there are no time stamps
+        return []
 
 
 def select_transits(list_of_transits, list_of_visits, to_same_patch=False, to_different_patch=False):
@@ -884,34 +887,55 @@ def list_of_visited_patches(list_of_visits):
     return np.unique(list_of_patches)
 
 
-def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
+def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True):
     """
     Will take an x and a y iterable.
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
     With errorbars if bootstrap is set to True.
     """
-    x_copy = copy.deepcopy(x)
-    y_copy = copy.deepcopy(y)
+    if do_not_edit_xy:
+        x_copy = copy.deepcopy(x)
+        y_copy = copy.deepcopy(y)
+    else:
+        x_copy = x
+        y_copy = y
 
-    # Create bin list, with left limit of each bin
-    bin_list = []
-    current_bin = np.min(x_copy)
-    while current_bin < np.max(x_copy):
-        bin_list.append(current_bin)
-        current_bin += bin_size
-    bin_list.append(current_bin)  # add the last value
-    bin_list.sort()
-    nb_of_bins = len(bin_list)
+    # Create or load bin list, with left limit of each bin
+    if custom_bins is None:
+        bin_list = []
+        current_bin = np.min(x_copy)
+        while current_bin < np.max(x_copy):
+            bin_list.append(current_bin)
+            current_bin += bin_size
+        bin_list.append(current_bin)  # add the last value
+        bin_list.sort()
+        nb_of_bins = len(bin_list)
+    else:
+        bin_list = sorted(custom_bins)
+        nb_of_bins = len(bin_list)
 
     # Create a list with one sublist of y values for each bin
     binned_y_values = [[] for _ in range(nb_of_bins)]
+    original_y_len = len(y_copy)
     for i in range(len(y_copy)):
-        if print_progress and i % 200000 == 0:
+        if print_progress and i % (original_y_len//10) == 0:
             print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
         current_y = y_copy.pop()
         current_x = x_copy.pop()
         i_bin = np.searchsorted(bin_list, current_x)  # looks for first index at which x can be inserted in the bin list
-        binned_y_values[i_bin].append(current_y)
+        binned_y_values[i_bin - 1].append(current_y)
+
+    # If the bins are custom and some lowest / highest bins are empty, remove them:
+    if custom_bins is not None:
+        i_low = 0
+        while binned_y_values[i_low] == []:
+            i_low += 1
+        i_high = nb_of_bins - 1
+        while binned_y_values[i_high] == []:
+            i_high -= 1
+        binned_y_values = binned_y_values[i_low:i_high + 1]
+        bin_list = bin_list[i_low:i_high + 1]
+        nb_of_bins = len(bin_list)
 
     # Compute averages and bootstrap errorbars
     avg_list = np.zeros(nb_of_bins)
@@ -924,9 +948,12 @@ def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True):
             current_values = binned_y_values[i_bin]
             if current_values:  # if there are values there
                 avg_list[i_bin] = np.mean(current_values)
-                # Bootstrapping on the plate avg duration
-                bootstrap_ci = bottestrop_ci(current_values, 100)
-                errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
-                errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
+                if compute_bootstrap:
+                    # Bootstrapping on the plate avg duration
+                    bootstrap_ci = bottestrop_ci(current_values, 100)
+                    errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
+                    errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
+
+    print("Finished xy_to_bins()")
 
     return bin_list, avg_list, [list(errors_inf), list(errors_sup)], binned_y_values
