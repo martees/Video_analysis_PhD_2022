@@ -362,7 +362,7 @@ if __name__ == "__main__":
 
     #plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0", "med 0", "far 0"]])
     #plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.2", "med 0.2", "far 0.2"]])
-    plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.5", "med 0.5", "far 0.5"]])
+    #plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.5", "med 0.5", "far 0.5"]])
 
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
     #                                              ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
