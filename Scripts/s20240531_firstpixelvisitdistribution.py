@@ -14,7 +14,7 @@ import find_data as fd
 import analysis as ana
 
 
-def histogram_visit_distribution(results, traj, curve_list, curve_names, regenerate_pixel_visits, only_first_visits):
+def histogram_visit_distribution(results, traj, curve_list, curve_names, regenerate_pixel_visits, only_first_visits, y_scale="linear", all_pixels=False):
     full_plate_list = results["folder"]
     px_visit_durations_each_curve = [[] for _ in range(len(curve_list))]
 
@@ -39,7 +39,11 @@ def histogram_visit_distribution(results, traj, curve_list, curve_names, regener
             in_patch_matrix = pd.read_csv(in_patch_matrix_path)
 
             # Separate inside / outside food patch visit durations
-            current_pixel_wise_visits_inside = current_pixel_wise_visits[in_patch_matrix != -1]
+            if not all_pixels:
+                current_pixel_wise_visits_inside = current_pixel_wise_visits[in_patch_matrix != -1]
+            else:
+                current_pixel_wise_visits_inside = current_pixel_wise_visits[in_patch_matrix > -1000]
+
             if only_first_visits:
                 # Remove empty lists, and make it a list of visits (instead of a list of lists)
                 current_pixel_wise_visits_inside = [current_pixel_wise_visits_inside[i][j]
@@ -62,8 +66,14 @@ def histogram_visit_distribution(results, traj, curve_list, curve_names, regener
         plt.hist(px_visit_durations_each_curve[i_curve], histtype="step", density=True, label=curve_name, color=curve_color,
                  bins=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30], linewidth=2)
 
+    fig = plt.gcf()
+    ax = fig.gca()
+    ymin, ymax = ax.get_ylim()
+    plt.vlines([np.mean(px_visit_durations_each_curve[i_curve]) for i_curve in range(len(curve_list))], ymin=ymin, ymax=ymax, colors=[param.name_to_color[c] for c in curve_names])
+
     plt.legend()
-    plt.title("Distribution of " + only_first_visits * "first " + "pixel visit durations in the different conditions")
+    plt.title("Distribution of " + only_first_visits * "first " + "pixel visit durations in the different conditions " + (1 - all_pixels) * "(inside patch)" + all_pixels * "(all pixels)")
+    plt.yscale(y_scale)
     plt.show()
 
 
@@ -72,10 +82,10 @@ path = gen.generate(test_pipeline=False)
 resultos = pd.read_csv(path + "clean_results.csv")
 traj = pd.read_csv(path + "clean_trajectories.csv")
 
-#histogram_visit_distribution(resultos, traj, [[12], [13], [14]], ["close 0", "med 0", "far 0"], False, True)
-#histogram_visit_distribution(resultos, traj, [[0], [1], [2]], ["close 0.2", "med 0.2", "far 0.2"], False, False)
-#histogram_visit_distribution(resultos, traj, [[4], [5], [6]], ["close 0.5", "med 0.5", "far 0.5"], False, False)
+#histogram_visit_distribution(resultos, traj, [[0], [1], [2]], ["close 0.2", "med 0.2", "far 0.2"], False, True, y_scale="log")
+#histogram_visit_distribution(resultos, traj, [[4], [5], [6]], ["close 0.5", "med 0.5", "far 0.5"], False, True, y_scale="log")
+histogram_visit_distribution(resultos, traj, [[12], [13], [14]], ["close 0", "med 0", "far 0"], False, True, y_scale="log")
 #histogram_visit_distribution(resultos, traj, [[0, 4], [1, 5], [2, 6]], ["close", "med", "far"], False, False)
-#histogram_visit_distribution(resultos, traj, [[0, 1, 2, 3], [4, 5, 6, 7], [8], [9, 10], [12, 13, 14, 15]], ["0.2", "0.5", "1.25", "mixed", "control"], False, False)
-histogram_visit_distribution(resultos, traj, [[0, 4], [1, 5], [2, 6], [3, 7]], ["close", "med", "far", "cluster"], False, False)
+#histogram_visit_distribution(resultos, traj, [[0, 1, 2, 3], [4, 5, 6, 7], [8], [12, 13, 14, 15]], ["0.2", "0.5", "1.25", "control"], False, True, y_scale="log")
+#histogram_visit_distribution(resultos, traj, [[0, 4], [1, 5], [2, 6]], ["close", "med", "far"], False, False, "linear", True)
 
