@@ -12,8 +12,8 @@ def spline_value(angular_position, spline_breaks, spline_coefs):
     """
     Matlab splines are curves divided in subsections, each subsection defined by a polynomial.
 
-    ::spline_breaks: the limits between the different polynomials
-    :spline_coefs: the coefficients for each subsection
+    @param spline_breaks: the limits between the different polynomials
+    @param spline_coefs: the coefficients for each subsection
     """
     i = 0
     while i < len(spline_breaks) - 1 and angular_position >= spline_breaks[i]:
@@ -174,7 +174,7 @@ def in_patch_all_pixels(folder):
         # For a range of 480 angular positions
         angular_pos = np.linspace(-np.pi, np.pi, 480)
         radiuses = np.zeros(len(angular_pos))
-        # Compute the local spline value for each of those radiuses
+        # Compute the local spline value for each of those angles
         for i_angle in range(len(angular_pos)):
             radiuses[i_angle] = spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
                                              patch_spline_coefs[i_patch])

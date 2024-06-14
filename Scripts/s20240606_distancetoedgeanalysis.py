@@ -41,7 +41,8 @@ def generate_patch_distance_map(folder):
     np.save(folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.npy", distance_transform)
 
 
-def pixel_visits_vs_distance_to_boundary(folder_list, traj, total_or_average_or_number="Total", return_nb_of_visited_pixels=False):
+def pixel_visits_vs_distance_to_boundary(folder_list, traj, total_or_average_or_number="Total",
+                                         return_nb_of_visited_pixels=False):
     visit_values = []
     distance_values = []
     for i_folder, folder in enumerate(folder_list):
@@ -82,7 +83,8 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, total_or_average_or_
     return visit_values, distance_values
 
 
-def plot_visit_duration_vs_distance(full_folder_list, trajectories, curve_list, curve_names, average_or_total_or_number="Total"):
+def plot_visit_duration_vs_distance(full_folder_list, trajectories, curve_list, curve_names,
+                                    average_or_total_or_number="Total"):
     """
     Function that will make a plot with the duration of visits as a function of distance to the closest patch boundary
     (negative distance => worm is inside the patch). Average is made over all pixels pooled together for each curve.
@@ -97,9 +99,15 @@ def plot_visit_duration_vs_distance(full_folder_list, trajectories, curve_list, 
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        visit_values, distance_values = pixel_visits_vs_distance_to_boundary(folder_list, trajectories, total_or_average_or_number=average_or_total_or_number)
+        visit_values, distance_values = pixel_visits_vs_distance_to_boundary(folder_list, trajectories,
+                                                                             total_or_average_or_number=average_or_total_or_number)
 
-        distance_bins, avg_visit_values, [_, _], binned_visits = ana.xy_to_bins(distance_values, visit_values, do_not_edit_xy=False, bin_size=10, custom_bins=[-50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 80, 120], compute_bootstrap=False)
+        distance_bins, avg_visit_values, [_, _], binned_visits = ana.xy_to_bins(distance_values, visit_values,
+                                                                                do_not_edit_xy=False, bin_size=10,
+                                                                                custom_bins=[-50, -40, -30, -20, -10, 0,
+                                                                                             10, 20, 30, 40, 50, 60, 80,
+                                                                                             120],
+                                                                                compute_bootstrap=False)
 
         condition_name = curve_names[i_curve]
         condition_color = param.name_to_color[condition_name]
@@ -111,40 +119,40 @@ def plot_visit_duration_vs_distance(full_folder_list, trajectories, curve_list, 
 
     print("Total time: ", int((time.time() - tic) // 60), "min")
 
-    plt.title(average_or_total_or_number + " pixel visit duration as a function of distance to the edge of the patch in " + condition_name)
+    plt.title(
+        average_or_total_or_number + " pixel visit duration as a function of distance to the edge of the patch in " + condition_name)
     plt.ylabel("Average visit to pixel")
     plt.xlabel("Distance to closest patch boundary ( <0 = inside)")
     plt.legend()
     plt.show()
 
 
-# Load path and clean_results.csv, because that's where the list of folders we work on is stored
-path = gen.generate(test_pipeline=True)
-results = pd.read_csv(path + "clean_results.csv")
-trajectories = pd.read_csv(path + "clean_trajectories.csv")
-full_list_of_folders = results["folder"]
+if __name__ == "__main__":
+    # Load path and clean_results.csv, because that's where the list of folders we work on is stored
+    path = gen.generate(test_pipeline=True)
+    results = pd.read_csv(path + "clean_results.csv")
+    trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    full_list_of_folders = results["folder"]
 
-import cProfile
-import pstats
+    import cProfile
+    import pstats
 
-#profiler = cProfile.Profile()
-#profiler.enable()
-#plot_visit_duration_vs_distance(full_list_of_folders, [[0], [1], [2]], ['close 0.2', 'med 0.2', 'far 0.2'], average_or_total="Average")
-#plot_visit_duration_vs_distance(full_list_of_folders, [[4], [5], [6]], ['close 0.5', 'med 0.5', 'far 0.5'], average_or_total="Average")
-#plot_nb_of_visits_vs_distance(full_list_of_folders, [[0], [1], [2]], ['close 0.2', 'med 0.2', 'far 0.2'])
-#plot_nb_of_visits_vs_distance(full_list_of_folders, [[4], [5], [6]], ['close 0.5', 'med 0.5', 'far 0.5'])
-#profiler.disable()
-#stats = pstats.Stats(profiler).sort_stats('cumtime')
-#stats.print_stats()
+    #profiler = cProfile.Profile()
+    #profiler.enable()
+    #plot_visit_duration_vs_distance(full_list_of_folders, [[0], [1], [2]], ['close 0.2', 'med 0.2', 'far 0.2'], average_or_total="Average")
+    #plot_visit_duration_vs_distance(full_list_of_folders, [[4], [5], [6]], ['close 0.5', 'med 0.5', 'far 0.5'], average_or_total="Average")
+    #plot_nb_of_visits_vs_distance(full_list_of_folders, [[0], [1], [2]], ['close 0.2', 'med 0.2', 'far 0.2'])
+    #plot_nb_of_visits_vs_distance(full_list_of_folders, [[4], [5], [6]], ['close 0.5', 'med 0.5', 'far 0.5'])
+    #profiler.disable()
+    #stats = pstats.Stats(profiler).sort_stats('cumtime')
+    #stats.print_stats()
 
-plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[0], [1], [2]], ['close 0.2', 'med 0.2', 'far 0.2'], average_or_total_or_number="Number")
-plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[4], [5], [6]], ['close 0.5', 'med 0.5', 'far 0.5'], average_or_total_or_number="Number")
-plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[12], [13], [14]], ['close 0', 'med 0', 'far 0'], average_or_total_or_number="Number")
-plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[0, 1, 2, 3], [4, 5, 6, 7], [8], [12, 13, 14, 15]], ["0.2", "0.5", "1.25", "control"], average_or_total_or_number="Number")
-
-
-
-
-
-
-
+    plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[0], [1], [2]],
+                                    ['close 0.2', 'med 0.2', 'far 0.2'], average_or_total_or_number="Number")
+    plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[4], [5], [6]],
+                                    ['close 0.5', 'med 0.5', 'far 0.5'], average_or_total_or_number="Number")
+    plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[12], [13], [14]],
+                                    ['close 0', 'med 0', 'far 0'], average_or_total_or_number="Number")
+    plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
+                                    [[0, 1, 2, 3], [4, 5, 6, 7], [8], [12, 13, 14, 15]],
+                                    ["0.2", "0.5", "1.25", "control"], average_or_total_or_number="Number")
