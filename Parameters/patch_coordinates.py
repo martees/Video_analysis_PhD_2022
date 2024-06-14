@@ -138,3 +138,5 @@ xy_patches_cluster = [
 xy_patches_far = [[xy_patches_cluster[i][0], -xy_patches_cluster[i][1]] for i in range(len(xy_patches_cluster))]
 
 mediumSpaceHighDensityMask = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1]
+
+distance_to_patches = {"close": xy_patches_close, "med": xy_patches_med, "far": xy_patches_far, "cluster": xy_patches_cluster}
