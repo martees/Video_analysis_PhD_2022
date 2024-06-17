@@ -15,11 +15,14 @@ import find_data as fd
 import analysis as ana
 
 
-def generate_patch_distance_map(folder):
-    in_patch_matrix_path = folder[:-len("traj.csv")] + "in_patch_matrix.csv"
-    in_patch_matrix = pd.read_csv(in_patch_matrix_path)
-    in_patch_matrix = in_patch_matrix.to_numpy()
-
+def generate_patch_distance_map(in_patch_matrix, folder_to_save):
+    """
+    Function that saves a map with for each pixel the distance to the closest food patch boundary, with positive values
+    outside food patches, and negative values inside (and boundary = 0).
+    @param in_patch_matrix: a numpy array containing for each pixel the patch to which it belongs (-1 for outside)
+    @param folder_to_save: the folder where the output map should be saved
+    @return: None
+    """
     zeros_inside = np.zeros(in_patch_matrix.shape)
     zeros_outside = np.zeros(in_patch_matrix.shape)
     for i in range(len(in_patch_matrix)):
@@ -38,7 +41,7 @@ def generate_patch_distance_map(folder):
     # Subtract them from one another so that distance to patch boundary is positive outside, negative inside
     distance_transform = distance_transform_outside - distance_transform_inside
 
-    np.save(folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.npy", distance_transform)
+    np.save(folder_to_save[:-len(folder_to_save.split("/")[-1])] + "distance_to_patch_map.npy", distance_transform)
 
 
 def pixel_visits_vs_distance_to_boundary(folder_list, traj, total_or_average_or_number="Total",
@@ -50,7 +53,9 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, total_or_average_or_
         # Load the distance map
         distance_map_path = folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.csv"
         if not os.path.isdir(distance_map_path):
-            generate_patch_distance_map(folder)
+            in_patch_matrix_path = folder[:-len("traj.csv")] + "in_patch_matrix.csv"
+            in_patch_matrix = pd.read_csv(in_patch_matrix_path).to_numpy()
+            generate_patch_distance_map(in_patch_matrix, folder)
         distance_map = np.load(folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.npy")
 
         print(">>>>>> Loaded distance map")
