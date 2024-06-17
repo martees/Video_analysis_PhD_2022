@@ -1,5 +1,6 @@
 # A script to plot a heatmap of the duration of visit to each pixel
 # But munching all the conditions together mouahahahaha
+import copy
 
 from scipy import ndimage
 import pandas as pd
@@ -19,9 +20,9 @@ import find_data as fd
 import analysis as ana
 
 
-def generate_polar_map(folder):
+def generate_polar_map(plate, dont_save_and_return=False):
     """
-    Function that will take the in_patch_matrix of a folder (indicating which patch each pixel belongs to, -1 = outside)
+    Function that takes the in_patch_matrix of a folder (indicating which patch each pixel belongs to, -1 = outside)
     and the distance_to_patch_map.npy (indicating distance to the closest patch boundary)
     and, from it, generate the polar coordinates of each pixel with respect to its closest patch BOUNDARY.
     So in the end, it will save a matrix with, for each pixel of the image, [i, r_b, theta], where:
@@ -30,17 +31,17 @@ def generate_polar_map(folder):
         theta = angular position with respect to the closest food patch
     """
     # Load the matrix with patch to which each pixel belongs
-    in_patch_matrix_path = folder[:-len("traj.csv")] + "in_patch_matrix.csv"
+    in_patch_matrix_path = plate[:-len("traj.csv")] + "in_patch_matrix.csv"
     in_patch_matrix = pd.read_csv(in_patch_matrix_path).to_numpy()
 
     # Load the matrix with distance to the closest food patch boundary for each pixel
-    distance_map_path = folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.csv"
+    distance_map_path = plate[:-len(plate.split("/")[-1])] + "distance_to_patch_map.csv"
     if not os.path.isdir(distance_map_path):
-        script_distance.generate_patch_distance_map(folder)
-    distance_map = np.load(folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.npy")
+        script_distance.generate_patch_distance_map(in_patch_matrix, plate)
+    distance_map = np.load(plate[:-len(plate.split("/")[-1])] + "distance_to_patch_map.npy")
 
     # Load patch centers
-    patch_centers = fd.folder_to_metadata(folder)["patch_centers"]
+    patch_centers = fd.folder_to_metadata(plate)["patch_centers"]
 
     # For every patch, generate a distance transform from the center
     distance_transform_patch_centers = [[] for _ in range(len(patch_centers))]
@@ -72,7 +73,10 @@ def generate_polar_map(folder):
     # relative to the closest food patch
     polar_coordinate_map = np.stack((closest_patch_map, distance_map, radial_coordinates), axis=2)
 
-    np.save(folder[:-len(folder.split("/")[-1])] + "polar_map.npy", polar_coordinate_map)
+    if dont_save_and_return:
+        return polar_coordinate_map
+    else:
+        np.save(plate + "polar_map.npy", polar_coordinate_map)
 
 
 def average_patch_radius_all_conditions(results_path, full_plate_list):
@@ -125,17 +129,19 @@ def generate_perfect_plates_polar_map(results_path, full_plate_list):
     @param full_plate_list: list of data path ("./*traj.csv" format)
     @return: None, saves a matrix.
     """
+    print("Generating perfect plates...")
     all_conditions_list = param.nb_to_name.keys()
 
-    if not os.path.isdir(path + "perfect_plates"):
-        os.mkdir(path + "perfect_plates")
+    if not os.path.isdir(results_path + "perfect_plates"):
+        os.mkdir(results_path + "perfect_plates")
 
     # Load the average patch radius for all conditions
-    if not os.path.isdir(path + "average_patch_radius_each_condition.csv"):
+    if not os.path.isdir(results_path + "average_patch_radius_each_condition.csv"):
         average_patch_radius_all_conditions(results_path, full_plate_list)
     average_patch_radiuses = pd.read_csv(results_path + "perfect_plates/average_patch_radius_each_condition.csv")
 
     for i_condition in range(len(all_conditions_list)):
+        print(">>> Condition ", i_condition, " / ", len(all_conditions_list))
         # First, generate the perfect plate map, with the patch to which each pixel belongs
         # Load patch information
         distance_this_condition = param.nb_to_distance[i_condition]
@@ -145,7 +151,7 @@ def generate_perfect_plates_polar_map(results_path, full_plate_list):
         # List of discrete positions for the patch boundaries
         boundary_position_list = []
 
-        # For each patch
+        # For each patch, generate boundary points (using average radius computed previously)
         for i_patch in range(len(patch_centers)):
             # For a range of 480 angular positions
             angular_pos = np.linspace(-np.pi, np.pi, 480)
@@ -156,24 +162,50 @@ def generate_perfect_plates_polar_map(results_path, full_plate_list):
                 y = int(patch_centers[i_patch][1] + (avg_patch_radius * np.sin(angular_pos[point])))
                 boundary_position_list.append((x, y, i_patch))  # 3rd tuple element is patch number
 
-        # Not all images are the same size, so let's handle that
+        # Not all images are the same size, but we take the majority size
         # Load the frame size for all the plates of this condition
         plates_this_condition = fd.return_folders_condition_list(full_plate_list, i_condition)
         image_sizes = np.zeros(len(plates_this_condition))
         for i_plate, plate in enumerate(plates_this_condition):
             image_sizes[i_plate] = fd.load_silhouette(plate)[2]
-        nb_of_possible_sizes = np.unique(image_sizes)
-        plate_maps_each_size = [[] for _ in range(nb_of_possible_sizes)]
-        # For each unique size, compute plate map, using just one plate because "map_from_boundaries" only asks for
-        # a plate to load a frame size
-        for i_size, size in enumerate(nb_of_possible_sizes):
-            one_plate_this_size = np.where(image_sizes == size)[0]
-            plate_maps_each_size[i_size], _ = gt.map_from_boundaries(plate, boundary_position_list, patch_centers)
+        plate_size = np.argmax(np.bincount(image_sizes))
 
-#TODO: make "generate_polar_map" take matrices + folder to save as input, and input the perfect map there,
+        # Compute the mapssss teehee
+        # Compute plate map, using just one plate because "map_from_boundaries" only asks for
+        # a plate path to load a frame size
+        one_plate_this_size = np.where(image_sizes == plate_size)[0]
+        in_patch_map, _ = gt.map_from_boundaries(one_plate_this_size, boundary_position_list, patch_centers)
+        # I add bbb in the end because the function removes the last subfolder (to take paths ending in ./traj.csv)
+        distance_map = script_distance.generate_patch_distance_map(in_patch_map, results_path + "perfect_plates/bbb")
+        # Generate and save a polar map from these perfect plates!
+        perfect_polar_map = generate_polar_map(in_patch_map, distance_map, patch_centers, "", dont_save_and_return=True)
+        np.save(results_path + "perfect_plates/polar_map_"+param.nb_to_name[i_condition]+".npy", perfect_polar_map)
 
 
-def plot_heatmap_of_all_silhouettes(traj, full_plate_list, curve_list, curve_names, regenerate_pixel_visits):
+def experimental_to_perfect_pixel_visits(pixelwise_visits, polar_map, ideal_patch_centers, ideal_patch_radius):
+    """
+    Function that converts pixel-level visits in the experimental plates to the equivalent ones in a "perfect"
+    environment (where patches are perfectly round), conserving the closest patch, the distance to the patch boundary,
+    and the angular coordinate with respect to the patch center.
+    @param pixelwise_visits: a numpy array (dtype = object), containing one list per pixel in the image, and in each
+                             list, one sublist per visit to the pixel, containing [visit start, visit end].
+    @param polar_map: a map containing, for each pixel of the image, a list containing [index of the closest patch,
+                      distance to the patch boundary, angular coordinate with respect to the closest patch center].
+    @param ideal_patch_centers: coordinates of the ideal patch centers [[x0, y0], [x1, y1], ...].
+    @param ideal_patch_radius: average radius of patches for this condition.
+    @return: same format as pixelwise_visits, but transformed spatially to match the perfect landscape.
+    """
+    perfect_pixel_wise_visits = [[[[]] for _ in range(len(pixelwise_visits[0]))] for _ in range(len(pixelwise_visits))]
+    for i_line in range(len(pixelwise_visits)):
+        for i_col in range(len(pixelwise_visits[i_line])):
+            i_patch, distance_boundary, angular_coord = polar_map[i_line, i_col]
+            new_x = ideal_patch_radius * np.cos(angular_coord) + ideal_patch_centers[i_patch][0]
+            new_y = ideal_patch_radius * np.sin(angular_coord) + ideal_patch_centers[i_patch][1]
+            perfect_pixel_wise_visits[int(new_y), int(new_x)] = pixelwise_visits[i_line, i_col]
+    return perfect_pixel_wise_visits
+
+
+def plot_heatmap_of_all_silhouettes(traj, full_plate_list, curve_list, curve_names, regenerate_pixel_visits=False, regenerate_polar_map=False, regenerate_perfect_maps=False):
     # Plot initialization
     fig, axes = plt.subplots(1, len(curve_list))
     fig.suptitle("Heatmap of worm presence")
@@ -187,14 +219,30 @@ def plot_heatmap_of_all_silhouettes(traj, full_plate_list, curve_list, curve_nam
             if i_plate % 10 == 0:
                 print(">>> ", int(time.time() - tic), "s: plate ", i_plate, " / ", len(plate_list))
 
-            # If it's not already done, compute the pixel visit durations
+            # If it's not already done, or has to be redone, compute the pixel visit durations
             pixelwise_visits_path = plate[:-len("traj.csv")] + "pixelwise_visits.npy"
             if not os.path.isfile(pixelwise_visits_path) or regenerate_pixel_visits:
                 gr.generate_pixelwise_visits(traj, plate)
             # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
             current_pixel_wise_visits = np.load(pixelwise_visits_path, allow_pickle=True)
 
-            # If it's not already done, compute the "perfect patch" matrix
+            # Then, if it's not already done, or has to be redone, compute the polar coordinates for the plate
+            polar_map_path = plate[:-len("traj.csv")] + "polar_map.npy"
+            if not os.path.isfile(pixelwise_visits_path) or regenerate_polar_map:
+
+                # If it's not already done, compute the "perfect patch" matrix
+                if not os.path.isdir(plate[:-len(plate.split("/")[-1])] + "perfect_map.npy"):
+                generate_polar_map()
+            # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
+            current_pixel_wise_visits = np.load(pixelwise_visits_path, allow_pickle=True)
+
+
+
+            # Load path and clean_results.csv, because that's where the list of folders we work on is stored
+            path = gen.generate(test_pipeline=False)
+            results = pd.read_csv(path + "clean_results.csv")
+            trajectories = pd.read_csv(path + "clean_trajectories.csv")
+            full_folder_list = results["folder"]
 
             if len(current_pixel_wise_visits) == 1847:
                 # Load patch info for this folder
@@ -223,11 +271,6 @@ def plot_heatmap_of_all_silhouettes(traj, full_plate_list, curve_list, curve_nam
     plt.show()
 
 
-# Load path and clean_results.csv, because that's where the list of folders we work on is stored
-path = gen.generate(test_pipeline=False)
-results = pd.read_csv(path + "clean_results.csv")
-trajectories = pd.read_csv(path + "clean_trajectories.csv")
-full_folder_list = results["folder"]
 
 #plot_heatmap_of_all_silhouettes(trajectories, full_plate_list, [[0], [1], [2]], ["close 0.2", "med 0.2", "far 0.2"], False)
 generate_polar_map(full_folder_list[0])
