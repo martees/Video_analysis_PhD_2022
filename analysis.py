@@ -367,7 +367,7 @@ def convert_to_durations(list_of_time_stamps):
     #    list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
     # Code using lambda function instead:
     if list_of_time_stamps:
-        return list(np.apply_along_axis(lambda x: x[1]-x[0], 1, list_of_time_stamps))
+        return list(np.apply_along_axis(lambda x: x[1]-x[0] + 1, 1, list_of_time_stamps))
     else:  # If there are no time stamps
         return []
 
