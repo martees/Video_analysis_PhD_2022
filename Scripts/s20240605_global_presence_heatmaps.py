@@ -49,11 +49,11 @@ def generate_polar_map(plate):
     distance_transform_patch_centers = [[] for _ in range(len(patch_centers))]
     for i_patch, patch_center in enumerate(patch_centers):
         zero_in_center = np.ones(in_patch_matrix.shape)
-        zero_in_center[int(patch_center[0]), int(patch_center[1])] = 0
+        zero_in_center[int(patch_center[1]), int(patch_center[0])] = 0
         distance_transform_patch_centers[i_patch] = ndimage.distance_transform_edt(zero_in_center)
 
     # Then, for each pixel, take the index of the patch for which the distance is the smallest
-    closest_patch_map = np.argmin(distance_transform_patch_centers, axis=0).transpose()
+    closest_patch_map = np.argmin(distance_transform_patch_centers, axis=0)
 
     # In order to compute the angular coordinate with respect to the closest food patch for each pixel, we need to
     # compute theta = arctan2( y_pixel - y_patch, x_pixel - x_patch )
@@ -91,18 +91,15 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
     if not os.path.isdir(results_path + "perfect_heatmaps"):
         os.mkdir(results_path + "perfect_heatmaps")
 
-    average_radius = pd.DataFrame(
-        {"condition": all_conditions_list, "avg_patch_radius": np.zeros(len(all_conditions_list))})
-    for i_condition in range(len(all_conditions_list)):
+    average_radius = {"condition": [], "avg_patch_radius": []}
+    for i_condition, condition in enumerate(all_conditions_list):
         if i_condition % 3 == 0:
             print(">>>>>> Condition ", i_condition, " / ", len(all_conditions_list))
         # Compute average radius from a few plates of this condition
-        plates_this_condition = fd.return_folders_condition_list(full_plate_list, i_condition)
+        plates_this_condition = fd.return_folders_condition_list(full_plate_list, condition)
         a_few_random_plates = random.sample(plates_this_condition, k=min(len(plates_this_condition), 6))
         radiuses = []
         for i_plate, plate in enumerate(a_few_random_plates):
-            in_patch_matrix_path = plate[:-len("traj.csv")] + "in_patch_matrix.csv"
-            in_patch_matrix = pd.read_csv(in_patch_matrix_path).to_numpy()
             # Take a few random patches in each
             plate_metadata = fd.folder_to_metadata(plate)
             patch_centers = plate_metadata["patch_centers"]
@@ -116,23 +113,24 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
                 for i_angle in range(len(angular_pos)):
                     radiuses.append(gt.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
                                                     patch_spline_coefs[i_patch]))
-        average_radius.loc[i_condition, "avg_patch_radius"] = np.mean(radiuses)
+        average_radius["condition"].append(condition)
+        average_radius["avg_patch_radius"].append(np.mean(radiuses))
 
-    average_radius.to_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
+    pd.DataFrame(average_radius).to_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
 
 
 def idealized_patch_centers_mm(frame_size):
     print(">>> Computing average radius for all conditions...")
     all_conditions_list = param.nb_to_name.keys()
 
-    patch_centers_each_cond = [[[]] for _ in range(len(all_conditions_list))]
+    patch_centers_each_cond = {}
     robot_xy_each_cond = param.distance_to_xy
     for i_condition, condition in enumerate(all_conditions_list):
         small_ref_points = ReferencePoints.ReferencePoints([[-20, 20], [20, 20], [20, -20], [-20, -20]])
         big_ref_points = ReferencePoints.ReferencePoints([[frame_size/4, frame_size/4], [3*frame_size/4, frame_size/4], [frame_size/4, 3*frame_size/4], [3*frame_size/4, 3*frame_size/4]])
         robot_xy = np.array(robot_xy_each_cond[param.nb_to_distance[condition]])
         robot_xy[:, 0] = - robot_xy[:, 0]
-        patch_centers_each_cond[i_condition] = big_ref_points.mm_to_pixel(small_ref_points.pixel_to_mm(robot_xy))
+        patch_centers_each_cond[condition] = big_ref_points.mm_to_pixel(small_ref_points.pixel_to_mm(robot_xy))
 
     #for i_cond in range(len(all_conditions_list)):
     #    for i_patch in range(len(patch_centers_each_cond[i_cond])):
@@ -185,41 +183,6 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
     np.save(folder_to_save + "xp_to_perfect.npy", experimental_to_perfect.astype(int))
 
 
-def invert_indices_and_values(xy_matrix):
-    """
-    Will take a matrix A, and output a matrix B, such that if A[i, j] = [x, y], then B[x, y] = [[i, j]].
-    It also supports cases where multiple A cells are equal to [x, y]: in that case, B[x, y] = [[i0, j0], [i1, j1]].
-    It does not support having multiple indices in a cell of A.
-    @param xy_matrix: a numpy array with in each cell a tuple.
-    @return: a numpy array with in each cell a list of tuples.
-    """
-    matrix_xy = [[[] for _ in range(xy_matrix.shape[1])] for _ in range(xy_matrix.shape[0])]
-    for i in range(len(matrix_xy)):
-        for j in range(len(matrix_xy[0])):
-            indices = np.where(np.logical_and(xy_matrix[:, :, 0] == i, xy_matrix[:, :, 1] == j))
-            matrix_xy[i, j] = [[indices[0][x], indices[1][x]] for x in range(len(indices[0]))]
-    return matrix_xy
-
-
-def apply_function_to_indices(indices, matrix, function):
-    return [function(matrix[ij[0]][ij[1]]) for ij in indices]
-
-
-def permute_values(values_matrix, permutation_matrix, collision_function):
-    """
-    Function that takes a matrix of values A, a permutation matrix P and a function f(), and output a new matrix B,
-    such that, if P[i, j] = [k, l], then, in output matrix B[k, l] = A[i, j].
-    Moreover, if P[i0, j0], P[i1, j1], ... all = [k, l], then, in output matrix, B[k, l] = f(A[i0, j0], A[i1, j1], ...).
-    @param values_matrix: 2D numpy array.
-    @param permutation_matrix: a 2D numpy array, same shape as values_matrix but with a tuple in each cell,
-           such that for any tuple [x, y], 0 <= x < A.shape[0] and 0 <= y < A.shape[1].
-    @param collision_function: a function to apply when multiple values go to the same cell
-    @return: a matrix with the same size as values,
-    """
-    inverted_permutation_matrix = invert_indices_and_values(permutation_matrix)
-    return [list(map(apply_function_to_indices, values, repeat(values_matrix), repeat(collision_function))) for values in inverted_permutation_matrix]
-
-
 def plot_heatmap_of_all_silhouettes(results_path, traj, full_plate_list, curve_list, curve_names,
                                     regenerate_pixel_visits=False,
                                     regenerate_polar_maps=False, regenerate_perfect_map=False,
@@ -230,15 +193,13 @@ def plot_heatmap_of_all_silhouettes(results_path, traj, full_plate_list, curve_l
     heatmap_each_curve = [np.zeros((frame_size, frame_size)) for _ in range(len(curve_list))]
 
     # If it's not already done, compute the average patch radiuses for each condition
-    if not os.path.isfile(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv"):
-        generate_average_patch_radius_each_condition(results_path, full_plate_list)
+    #if not os.path.isfile(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv"):
+    #
+    generate_average_patch_radius_each_condition(results_path, full_plate_list)
     average_patch_radius_each_cond = pd.read_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
 
     # Compute the idealized patch positions by converting the robot xy data to mm in a "perfect" reference frame
     ideal_patch_centers_each_cond = idealized_patch_centers_mm(frame_size)
-
-    # Vectorize some functions to make them more handy
-    convert_to_durations = np.vectorize(ana.convert_to_durations, otypes=[np.ndarray])
 
     tic = time.time()
     for i_curve in range(len(curve_list)):
@@ -311,12 +272,12 @@ def plot_heatmap_of_all_silhouettes(results_path, traj, full_plate_list, curve_l
         np.save(heatmap_path, heatmap_each_curve[i_curve])
 
         if len(curve_list) == 1:
-            plt.imshow(heatmap_each_curve[i_curve].astype(float), vmax=0.01)
+            plt.imshow(heatmap_each_curve[i_curve].astype(float), vmax=0.3)
             for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
                 plt.scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1], ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0], color="white")
             plt.title(curve_names[i_curve])
         else:
-            axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), vmax=0.01)
+            axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), vmin=0.3)
             axes[i_curve].set_title(curve_names[i_curve])
 
     plt.show()
@@ -328,14 +289,15 @@ if __name__ == "__main__":
     results = pd.read_csv(path + "clean_results.csv")
     trajectories = pd.read_csv(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
-    full_list_of_folders.remove("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
+    if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv" in full_list_of_folders:
+        full_list_of_folders.remove("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
     # import cProfile
     # import pstats
     #
     # profiler = cProfile.Profile()
     # profiler.enable()
-    plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[2]], [["far 0.2"]], False, False, True)
+    # plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[12]], [["close 0"]], False, True, True)
     # profiler.disable()
     # stats = pstats.Stats(profiler).sort_stats('cumtime')
     # stats.print_stats()
@@ -346,9 +308,9 @@ if __name__ == "__main__":
     #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[4], [5], [6]],
     #                                ["close 0.5", "med 0.5", "far 0.5"], False,
     #                                regenerate_polar_maps=False, regenerate_perfect_map=False)
-    #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[0, 4], [1, 5, 8, 9, 10], [2, 6]],
-    #                                ["close", "med", "far"], False,
-    #                                regenerate_polar_maps=False, regenerate_perfect_map=False)
+    #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[0, 4], [1, 5, 8, 9, 10], [2, 6], [3, 7]],
+    #                                ["close", "med", "far", "cluster"], False,
+    #                                regenerate_polar_maps=True, regenerate_perfect_map=True)
     #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[13]],
     #                                ["control"], False,
     #                                regenerate_polar_maps=False, regenerate_perfect_map=False)
