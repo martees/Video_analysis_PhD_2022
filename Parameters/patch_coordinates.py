@@ -40,12 +40,12 @@ xy_patches_med = [
     [13.5, 15.59]
 ]
 
-alpha = -15 / 180 * np.pi
-mediumSpaceListOrig = xy_patches_med.copy()
-for iPatch in range(len(xy_patches_med)):
-    xy = xy_patches_med[iPatch]
-    xy_patches_med[iPatch] = [xy[0] * np.cos(alpha) - xy[1] * np.sin(alpha),
-                              xy[0] * np.sin(alpha) + xy[1] * np.cos(alpha)]
+#alpha = -15 / 180 * np.pi
+#mediumSpaceListOrig = xy_patches_med.copy()
+#for iPatch in range(len(xy_patches_med)):
+#    xy = xy_patches_med[iPatch]
+#    xy_patches_med[iPatch] = [xy[0] * np.cos(alpha) - xy[1] * np.sin(alpha),
+#                              xy[0] * np.sin(alpha) + xy[1] * np.cos(alpha)]
 
 #Invert the y coordinate because images have y axis reversed in matlab. Invert x coordinate because were looking from below.
 xy_patches_med = [[xy_patches_med[i][0], -xy_patches_med[i][1]] for i in range(len(xy_patches_med))]
@@ -135,6 +135,6 @@ xy_patches_cluster = [
     [-18.35, 5.02]
 ]
 #Invert the y coordinate because images have y axis reversed in matlab. Invert x coordinate because were looking from below.
-xy_patches_far = [[xy_patches_cluster[i][0], -xy_patches_cluster[i][1]] for i in range(len(xy_patches_cluster))]
+xy_patches_cluster = [[xy_patches_cluster[i][0], -xy_patches_cluster[i][1]] for i in range(len(xy_patches_cluster))]
 
 mediumSpaceHighDensityMask = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1]
