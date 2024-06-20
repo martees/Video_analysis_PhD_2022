@@ -163,9 +163,9 @@ if __name__ == "__main__":
     #plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[2]],
     #                                ['far 0.2'], average_or_total_or_number="Total")
     plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[0], [1], [2]],
-                                    ['close 0.2', 'med 0.2', 'far 0.2'], average_or_total_or_number="Average")
-    plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[4], [5], [6]],
-                                    ['close 0.5', 'med 0.5', 'far 0.5'], average_or_total_or_number="Average")
+                                    ['close 0.2', 'med 0.2', 'far 0.2'], average_or_total_or_number="Total")
+    #plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[4], [5], [6]],
+    #                                ['close 0.5', 'med 0.5', 'far 0.5'], average_or_total_or_number="Average")
     #plot_visit_duration_vs_distance(full_list_of_folders, trajectories, [[12], [13], [14]],
     #                                ['close 0', 'med 0', 'far 0'], average_or_total_or_number="Number")
     #plot_visit_duration_vs_distance(full_list_of_folders, trajectories,

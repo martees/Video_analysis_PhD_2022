@@ -568,7 +568,7 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     if variable == "speed_when_entering":
         bin_size = 0.2
     if variable == "visit_start":
-        bin_size = 2000
+        bin_size = 10000
 
     if split_conditions:
         for i_cond in range(nb_cond):
@@ -579,7 +579,7 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
             condition_name = condition_names[i_cond]
             condition_color = param.name_to_color[condition_name]
 
-            # Plot error bars
+            plt.scatter(full_variable_list[i_cond], full_visit_list[i_cond], color=condition_color, alpha=0.2)
             plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
                      label=condition_name)
             plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
@@ -625,7 +625,7 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
 
 
 def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None,
-                               plot_cumulative=True, threshold_list=None, is_plot=True):
+                               plot_cumulative=False, threshold_list=None, is_plot=True):
     """
     Will plot a distribution of each variable from variable_list in results, for conditions in condition_list.
         effect_of: if set to "nothing", will plot one curve for each condition in condition_list.
@@ -674,10 +674,12 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
 
     for i_variable in range(len(variable_list)):
         variable = variable_list[i_variable]
+        avg_values = []
+        color_list = []
         if variable == "cross transits":
             bins = np.linspace(0, 25000, 60)
         else:
-            bins = np.linspace(0, 8500, 60)
+            bins = np.linspace(0, 8500, 30)
         for i_scale in range(len(scale_list)):
             if len(scale_list) > 1 and len(variable_list) > 1:
                 ax = axs[i_scale, i_variable]
@@ -702,9 +704,13 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
                     values = [sublist[i] for sublist in values for i in range(len(sublist))]
                 else:
                     values = ana.return_value_list(results, variable, cond, convert_to_duration=True)
+                avg_values.append(np.mean(values))
+                color_list.append(param.name_to_color[name])
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step",
                         color=param.name_to_color[name], linewidth=3)
 
+    ymin, ymax = ax.get_ylim()
+    ax.vlines(avg_values, color=color_list, ymin=ymin, ymax=ymax)
     if is_plot:
         plt.legend()
         plt.show()

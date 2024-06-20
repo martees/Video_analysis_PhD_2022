@@ -103,9 +103,9 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                                          mycolor=current_color, is_plot=is_plot)
 
             if "distribution" in what_to_plot:
-                plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="nothing")
-                plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="food")
-                plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="density")
+                #plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="nothing")
+                #plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="food")
+                #plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="density")
                 plots.plot_variable_distribution(results, condition_list=current_conditions, effect_of="distance")
 
             if "distribution_aggregated" in what_to_plot:
@@ -228,7 +228,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 plots.plot_visit_time(results, trajectories,
                                       "Visit duration vs. visit start in " + plot_name + " conditions",
                                       current_conditions, "visit_start", current_condition_names,
-                                      split_conditions=True, is_plot=is_plot, patch_or_pixel="pixel", only_first=False)
+                                      split_conditions=True, is_plot=is_plot, patch_or_pixel="patch", only_first=False)
 
             if "visit_duration_vs_entry_speed" in what_to_plot:
                 plots.plot_visit_time(results, trajectories,
@@ -347,6 +347,10 @@ if __name__ == "__main__":
     #             [["far 0.5"]])
 
     # plots.trajectories_1condition(trajectories, 12)
+
+    #plot_graphs(results, "distribution", [["close 0", "med 0", "far 0"]])
+    plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
+    plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
 
     #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0", "med 0", "far 0"]])
     #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
