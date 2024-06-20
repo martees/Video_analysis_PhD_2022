@@ -22,6 +22,40 @@ import analysis as ana
 import ReferencePoints
 
 
+def array_division_ignoring_zeros(a, b):
+    return np.divide(a, b, out=np.zeros(a.shape, dtype=float), where=b != 0)
+
+
+def generate_pixelwise_speeds(traj, folder):
+    """
+    Function that takes a folder containing a time series of silhouettes, and returns a list of lists with the dimension
+    of the plate in :folder:, and in each cell, a list with the speed of the centroid for every time step where this
+    pixel is visited.
+    When this function is called, it also saves this output under the name "pixelwise_speeds.npy" in folder.
+    Takes trajectory in argument to access speeds.
+    """
+    # Get the pixelwise_visits
+    pixelwise_visit_timestamps = load_pixel_visits(traj, folder, regenerate=False, return_durations=False)
+    # Get the frame size
+    _, _, frame_size = fd.load_silhouette(folder)
+    # Initialize the table: one list per pixel
+    speeds_each_pixel = [[[[]] for _ in range(frame_size[0])] for _ in range(frame_size[1])]
+    for i_line in range(len(speeds_each_pixel)):
+        for i_col in range(len(speeds_each_pixel[i_line])):
+            current_pixel_visits = pixelwise_visit_timestamps[i_line][i_col]
+            # Go from [[0, 6, x], [12, 13, x]] to [[0, 1, 2, 3, 4, 5], [12]]
+            list_of_frames = [list(range(visit[0], visit[1] + 1)) for visit in current_pixel_visits]
+            # Go from [[0, 1, 2, 3, 4, 5], [12]] to [0, 1, 2, 3, 4, 5, 12]
+            list_of_frames = [list_of_frames[i][j] for i in range(len(list_of_frames)) for j in
+                              range(len(list_of_frames[i]))]
+            # Put the speeds in the tableee
+            speeds_each_pixel[i_line][i_col] = traj["speeds"][list_of_frames].to_list()
+
+    np.save(folder[:-len("traj.csv")] + "pixelwise_speeds.npy", np.array(speeds_each_pixel, dtype=object))
+
+    return speeds_each_pixel
+
+
 def generate_polar_map(plate):
     """
     Function that takes the in_patch_matrix of a folder (indicating which patch each pixel belongs to, -1 = outside)
@@ -92,30 +126,37 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
         os.mkdir(results_path + "perfect_heatmaps")
 
     average_radius = {"condition": [], "avg_patch_radius": []}
+    radiuses_each_condition = [[] for _ in range(len(all_conditions_list))]
+    condition_names = []
+    condition_colors = []
     for i_condition, condition in enumerate(all_conditions_list):
         if i_condition % 3 == 0:
             print(">>>>>> Condition ", i_condition, " / ", len(all_conditions_list))
         # Compute average radius from a few plates of this condition
         plates_this_condition = fd.return_folders_condition_list(full_plate_list, condition)
-        a_few_random_plates = random.sample(plates_this_condition, k=min(len(plates_this_condition), 6))
-        radiuses = []
-        for i_plate, plate in enumerate(a_few_random_plates):
+        for i_plate, plate in enumerate(plates_this_condition):
             # Take a few random patches in each
             plate_metadata = fd.folder_to_metadata(plate)
             patch_centers = plate_metadata["patch_centers"]
             patch_spline_breaks = plate_metadata["spline_breaks"]
             patch_spline_coefs = plate_metadata["spline_coefs"]
-            some_patches = random.sample(range(len(patch_centers)), k=min(len(patch_centers), 3))
-            for i_patch in some_patches:
+            for i_patch in range(len(patch_centers)):
                 # For a range of 20 angular positions
-                angular_pos = np.linspace(-np.pi, np.pi, 20)
+                angular_pos = np.linspace(-np.pi, np.pi, 100)
                 # Compute the local spline value for each of those angles
                 for i_angle in range(len(angular_pos)):
-                    radiuses.append(gt.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
-                                                    patch_spline_coefs[i_patch]))
+                    radiuses_each_condition[i_condition].append(
+                        gt.spline_value(angular_pos[i_angle], patch_spline_breaks[i_patch],
+                                        patch_spline_coefs[i_patch]))
         average_radius["condition"].append(condition)
-        average_radius["avg_patch_radius"].append(np.mean(radiuses))
+        average_radius["avg_patch_radius"].append(np.mean(radiuses_each_condition[i_condition]))
+        condition_names.append(param.nb_to_name[condition])
+        condition_colors.append(param.name_to_color[param.nb_to_name[condition]])
 
+    plt.boxplot(radiuses_each_condition)
+    plt.xticks(range(len(all_conditions_list)), condition_names)
+    plt.title("Radius distribution for each condition, computed over 100 radiuses for each patch")
+    plt.show()
     pd.DataFrame(average_radius).to_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
 
 
@@ -127,22 +168,18 @@ def idealized_patch_centers_mm(frame_size):
     robot_xy_each_cond = param.distance_to_xy
     for i_condition, condition in enumerate(all_conditions_list):
         small_ref_points = ReferencePoints.ReferencePoints([[-20, 20], [20, 20], [20, -20], [-20, -20]])
-        big_ref_points = ReferencePoints.ReferencePoints([[frame_size/4, frame_size/4], [3*frame_size/4, frame_size/4], [frame_size/4, 3*frame_size/4], [3*frame_size/4, 3*frame_size/4]])
+        big_ref_points = ReferencePoints.ReferencePoints(
+            [[frame_size / 4, frame_size / 4], [3 * frame_size / 4, frame_size / 4],
+             [frame_size / 4, 3 * frame_size / 4], [3 * frame_size / 4, 3 * frame_size / 4]])
         robot_xy = np.array(robot_xy_each_cond[param.nb_to_distance[condition]])
         robot_xy[:, 0] = - robot_xy[:, 0]
         patch_centers_each_cond[condition] = big_ref_points.mm_to_pixel(small_ref_points.pixel_to_mm(robot_xy))
-
-    #for i_cond in range(len(all_conditions_list)):
-    #    for i_patch in range(len(patch_centers_each_cond[i_cond])):
-    #        plt.scatter(patch_centers_each_cond[i_cond][i_patch][0], patch_centers_each_cond[i_cond][i_patch][1])
-    #    plt.title(i_cond)
-    #    plt.show()
 
     return patch_centers_each_cond
 
 
 def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch_centers,
-                                          ideal_patch_radius):
+                                          ideal_patch_radius, frame_size, collapse_all_patches=False):
     """
     Function that converts pixel coordinates in the experimental plates to the equivalent ones in a "perfect"
     environment (where patches are perfectly round), conserving the closest patch, the distance to the patch boundary,
@@ -152,6 +189,7 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
                       distance to the patch boundary, angular coordinate with respect to the closest patch center].
     @param ideal_patch_centers: coordinates of the ideal patch centers [[x0, y0], [x1, y1], ...].
     @param ideal_patch_radius: average radius of patches for this condition.
+    @param collapse_all_patches: if set to TRUE, will give indices to collapse everything on a single patch, in the center of the plate!!!
     @return: saves a matrix with the same size as polar_map, in folder_to_save, named "xp_to_perfect.npy"
              with, for each cell, the corresponding [x,y] in the "perfect" landscape.
     """
@@ -169,34 +207,75 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
     closest_patch_index = polar_map[:, :, 0]
     distance_to_boundary_matrix = polar_map[:, :, 1]
     angular_coordinates_matrix = polar_map[:, :, 2]
-    # (I intentionally invert x and y because when I plot them with imshow they appear inverted)
-    closest_patch_x_matrix = [list(map(lambda x: ideal_patch_centers[int(x)][0], y)) for y in closest_patch_index]
-    closest_patch_y_matrix = [list(map(lambda x: ideal_patch_centers[int(x)][1], y)) for y in closest_patch_index]
+    if collapse_all_patches:
+        x_shift_matrix = frame_size // 2
+        y_shift_matrix = frame_size // 2
+    else:
+        x_shift_matrix = [list(map(lambda x: ideal_patch_centers[int(x)][0], y)) for y in closest_patch_index]
+        y_shift_matrix = [list(map(lambda x: ideal_patch_centers[int(x)][1], y)) for y in closest_patch_index]
+
     # Then, array operations
-    perfect_x = (ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix) + closest_patch_x_matrix
-    perfect_y = (ideal_patch_radius + distance_to_boundary_matrix) * np.sin(angular_coordinates_matrix) + closest_patch_y_matrix
+    perfect_x = (ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix) + x_shift_matrix
+    perfect_y = (ideal_patch_radius + distance_to_boundary_matrix) * np.sin(angular_coordinates_matrix) + y_shift_matrix
     # Stack all of those so that you get the array with for each pixel [x, y]
     experimental_to_perfect = np.stack((perfect_x, perfect_y), axis=2)
     # Clip them so that their values are not too high
-    experimental_to_perfect = np.clip(experimental_to_perfect, 0, min(nb_of_lines - 1, nb_of_col - 1))
+    experimental_to_perfect = np.clip(experimental_to_perfect, 0, frame_size - 1)
 
-    np.save(folder_to_save + "xp_to_perfect.npy", experimental_to_perfect.astype(int))
+    if not collapse_all_patches:
+        np.save(folder_to_save + "xp_to_perfect.npy", experimental_to_perfect.astype(int))
+    else:
+        np.save(folder_to_save + "xp_to_perfect_collapsed.npy", experimental_to_perfect.astype(int))
 
 
-def plot_heatmap_of_all_silhouettes(results_path, traj, full_plate_list, curve_list, curve_names,
-                                    regenerate_pixel_visits=False,
-                                    regenerate_polar_maps=False, regenerate_perfect_map=False,
-                                    frame_size=1847):
+def load_pixel_visits(traj, plate, regenerate=False, return_durations=True):
+    # If it's not already done, or has to be redone, compute the pixel visit durations
+    pixelwise_visits_path = plate[:-len("traj.csv")] + "pixelwise_visits.npy"
+    if not os.path.isfile(pixelwise_visits_path) or regenerate:
+        gr.generate_pixelwise_visits(traj, plate)
+    # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
+    pixel_wise_visits = np.load(pixelwise_visits_path, allow_pickle=True)
+    if return_durations:
+        # Convert all pixel visits to durations
+        visit_durations = [list(map(ana.convert_to_durations, y)) for y in pixel_wise_visits]
+        visit_durations = [list(map(np.sum, y)) for y in visit_durations]
+        return visit_durations
+    else:
+        return pixel_wise_visits
+
+
+def load_avg_pixel_speed(traj, plate, regenerate):
+    # If it's not already done, or has to be redone, compute the pixel visit durations
+    pixelwise_speed_path = plate[:-len("traj.csv")] + "pixelwise_speeds.npy"
+    if not os.path.isfile(pixelwise_speed_path) or regenerate:
+        generate_pixelwise_speeds(traj, plate)
+    # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
+    pixelwise_speeds = np.load(pixelwise_speed_path, allow_pickle=True)
+    pixelwise_speeds = [list(map(np.nanmean, y)) for y in pixelwise_speeds]
+
+    return pixelwise_speeds
+
+
+def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, variable="pixel_visits",
+                 regenerate_pixel_values=False,
+                 regenerate_polar_maps=False, regenerate_perfect_map=False,
+                 frame_size=1847, collapse_patches=False):
     # Plot initialization
     fig, axes = plt.subplots(1, len(curve_list))
-    fig.suptitle("Heatmap of worm presence")
+    if variable == "pixel_visits":
+        color_map = "viridis"
+        fig.suptitle("Heatmap of worm presence")
+    if variable == "speed":
+        color_map = "plasma"
+        fig.suptitle("Heatmap of worm speed")
     heatmap_each_curve = [np.zeros((frame_size, frame_size)) for _ in range(len(curve_list))]
+    counts_each_curve = [np.zeros((frame_size, frame_size)) for _ in range(len(curve_list))]
 
     # If it's not already done, compute the average patch radiuses for each condition
-    #if not os.path.isfile(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv"):
-    #
-    generate_average_patch_radius_each_condition(results_path, full_plate_list)
-    average_patch_radius_each_cond = pd.read_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
+    if not os.path.isfile(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv"):
+        generate_average_patch_radius_each_condition(results_path, full_plate_list)
+    average_patch_radius_each_cond = pd.read_csv(
+        results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
 
     # Compute the idealized patch positions by converting the robot xy data to mm in a "perfect" reference frame
     ideal_patch_centers_each_cond = idealized_patch_centers_mm(frame_size)
@@ -208,12 +287,16 @@ def plot_heatmap_of_all_silhouettes(results_path, traj, full_plate_list, curve_l
                                                                             return_conditions=True)
         heatmap_path = path + "perfect_heatmaps/heatmap_conditions_" + str(curve_list[i_curve]) + ".npy"
         for i_plate, plate in enumerate(plate_list):
-            if i_plate % 1 == 0:
-                print(">>> ", int(time.time() - tic), "s: plate ", i_plate, " / ", len(plate_list))
+            print(">>> ", int(time.time() - tic), "s: plate ", i_plate, " / ", len(plate_list))
+
+            # Perfect index matrix path
+            if not collapse_patches:
+                xp_to_perfect_path = plate[:-len("traj.csv")] + "xp_to_perfect.npy"
+            else:
+                xp_to_perfect_path = plate[:-len("traj.csv")] + "xp_to_perfect_collapsed.npy"
 
             # If it's not already done, or has to be redone, compute the experimental to perfect mapping
-            if not os.path.isfile(
-                    plate[:-len("traj.csv")] + "xp_to_perfect.npy") or regenerate_perfect_map:
+            if not os.path.isfile(xp_to_perfect_path) or regenerate_perfect_map:
                 print(">>>>>> Converting to perfect coordinates...")
                 # Then, if it's not already done, or has to be redone, compute the polar coordinates for the plate
                 polar_map_path = plate[:-len("traj.csv")] + "polar_map.npy"
@@ -224,90 +307,92 @@ def plot_heatmap_of_all_silhouettes(results_path, traj, full_plate_list, curve_l
                 # Load patch centers and radiuses
                 current_condition = condition_each_plate[i_plate]
                 current_patch_centers = ideal_patch_centers_each_cond[current_condition]
-                current_average_radius = average_patch_radius_each_cond[average_patch_radius_each_cond["condition"] == current_condition][
-                        "avg_patch_radius"].iloc[-1]
+                current_average_radius = \
+                average_patch_radius_each_cond[average_patch_radius_each_cond["condition"] == current_condition][
+                    "avg_patch_radius"].iloc[-1]
 
                 # Then FINALLY convert the current pixel wise visits to their "perfect" equivalent (in an environment with
                 # perfectly round patches, while conserving distance to border and angular coordinate w/ respect to center)
-                experimental_to_perfect_pixel_indices(plate[:-len("traj.csv")], current_polar_map, current_patch_centers,
-                                                      current_average_radius)
+                experimental_to_perfect_pixel_indices(plate[:-len("traj.csv")], current_polar_map,
+                                                      current_patch_centers,
+                                                      current_average_radius, frame_size=frame_size,
+                                                      collapse_all_patches=collapse_patches)
             # Matrix with, in each cell, the corresponding "perfect" coordinates
-            xp_to_perfect_indices = np.load(plate[:-len("traj.csv")] + "xp_to_perfect.npy")
+            xp_to_perfect_indices = np.load(xp_to_perfect_path)
 
             # Go on if the plate is the standard size
-            if len(xp_to_perfect_indices) == frame_size:
-                # If it's not already done, or has to be redone, compute the pixel visit durations
-                pixelwise_visits_path = plate[:-len("traj.csv")] + "pixelwise_visits.npy"
-                if not os.path.isfile(pixelwise_visits_path) or regenerate_pixel_visits:
-                    gr.generate_pixelwise_visits(traj, plate)
-                # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
-                current_pixel_wise_visits = np.load(pixelwise_visits_path, allow_pickle=True)
+            # if len(xp_to_perfect_indices) == frame_size:
 
-                # Convert all pixel visits to durations
-                current_visit_durations = [list(map(ana.convert_to_durations, y)) for y in current_pixel_wise_visits]
-                current_visit_durations = [list(map(np.sum, y)) for y in current_visit_durations]
-                # For each pixel of the perfect plate, load the visits that correspond to them in the experimental
-                # plates, and sum
-                for i in range(len(current_pixel_wise_visits)):
-                    for j in range(len(current_pixel_wise_visits[i])):
-                        perfect_i, perfect_j = xp_to_perfect_indices[i][j]
-                        #perfect_j, perfect_i = [i, j]
-                        heatmap_each_curve[i_curve][perfect_i][perfect_j] += current_visit_durations[i][j]
-                        #heatmap_each_curve[i_curve][perfect_i][perfect_j] += int(
-                        #    np.sum(ana.convert_to_durations(current_pixel_wise_visits[i][j])))
+            if variable == "pixel_visits":
+                values_each_pixel = load_pixel_visits(traj, plate, regenerate=regenerate_pixel_values)
+            if variable == "speed":
+                values_each_pixel = load_avg_pixel_speed(traj, plate, regenerate_pixel_values)
 
-                # # Convert all pixel visits to durations
-                # current_visit_durations = [list(map(ana.convert_to_durations, y)) for y in current_pixel_wise_visits]
-                # current_visit_durations = [list(map(np.sum, y)) for y in current_visit_durations]
-                # current_visit_durations = np.array(current_visit_durations, dtype=object)
-                # # Make sure that "perfect" pixels don't exceed frame size
-                # xp_to_perfect_indices = [list(map(np.clip, y, repeat(0), repeat(frame_size - 1))) for y in
-                #                          xp_to_perfect_indices]
-                # xp_to_perfect_indices = np.array(xp_to_perfect_indices)
-                # heatmap_each_curve[i_curve] = permute_values(current_visit_durations, xp_to_perfect_indices, np.sum)
+            # For each pixel of the perfect plate, load the visits that correspond to them in the experimental plates
+            for i in range(len(values_each_pixel)):
+                for j in range(len(values_each_pixel[i])):
+                    perfect_i, perfect_j = xp_to_perfect_indices[i][j]
+                    heatmap_each_curve[i_curve][perfect_i][perfect_j] += values_each_pixel[i][j]
+                    counts_each_curve[i_curve][perfect_i][perfect_j] += 1
+
+            if variable == "speed":
+                heatmap_each_curve[i_curve] = array_division_ignoring_zeros(heatmap_each_curve[i_curve], counts_each_curve[i_curve])
+
+            first_traj_point = traj[traj["folder"] == plate].reset_index().iloc[0]
+            if len(curve_list) > 1:
+                axes[i_curve].scatter(first_traj_point["x"], first_traj_point["y"], color="white")
             else:
-                print("Not the standard size snif snif")
+                plt.scatter(first_traj_point["x"], first_traj_point["y"], color="white")
 
-        heatmap_each_curve[i_curve] /= np.max(heatmap_each_curve[i_curve])
+        heatmap_each_curve[i_curve] /= np.sum(heatmap_each_curve[i_curve])
         np.save(heatmap_path, heatmap_each_curve[i_curve])
 
         if len(curve_list) == 1:
-            plt.imshow(heatmap_each_curve[i_curve].astype(float), vmax=0.3)
-            for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
-                plt.scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1], ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0], color="white")
+            plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map)
+            #for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
+            #    plt.scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1], ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0], color="white")
             plt.title(curve_names[i_curve])
         else:
-            axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), vmin=0.3)
+            axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map)
             axes[i_curve].set_title(curve_names[i_curve])
 
     plt.show()
+    print("hey")
 
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(test_pipeline=False)
+    path = gen.generate(test_pipeline=True)
     results = pd.read_csv(path + "clean_results.csv")
     trajectories = pd.read_csv(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
     if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv" in full_list_of_folders:
-        full_list_of_folders.remove("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
+        full_list_of_folders.remove(
+            "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
     # import cProfile
     # import pstats
     #
     # profiler = cProfile.Profile()
     # profiler.enable()
-    # plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[12]], [["close 0"]], False, True, True)
+    #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[0]], [["close 0.2"]],
+    #                                False, False, False, collapse_patches=True, frame_size=1944)
     # profiler.disable()
     # stats = pstats.Stats(profiler).sort_stats('cumtime')
     # stats.print_stats()
 
-    #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[0], [1], [2]],
-    #                                ["close 0.2", "med 0.2", "far 0.2"], False,
-    #                                regenerate_polar_maps=False, regenerate_perfect_map=False)
-    #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[4], [5], [6]],
-    #                                ["close 0.5", "med 0.5", "far 0.5"], False,
-    #                                regenerate_polar_maps=False, regenerate_perfect_map=False)
+    #generate_average_patch_radius_each_condition(path, full_list_of_folders)
+
+    plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
+                 ["close 0.2"], variable="speed", regenerate_pixel_values=False,
+                 regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2]],
+    #             ["close 0.2", "med 0.2", "far 0.2"], variable="pixel_visits", regenerate_pixel_values=False,
+    #             regenerate_polar_maps=False, regenerate_perfect_map=True, collapse_patches=False)
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6]],
+    #             ["close 0.5", "med 0.5", "far 0.5"], variable="pixel_visits",
+    #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=True,
+    #             collapse_patches=False)
     #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[0, 4], [1, 5, 8, 9, 10], [2, 6], [3, 7]],
     #                                ["close", "med", "far", "cluster"], False,
     #                                regenerate_polar_maps=True, regenerate_perfect_map=True)
