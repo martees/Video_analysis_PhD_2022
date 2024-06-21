@@ -251,9 +251,17 @@ def load_avg_pixel_speed(traj, plate, regenerate):
         generate_pixelwise_speeds(traj, plate)
     # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
     pixelwise_speeds = np.load(pixelwise_speed_path, allow_pickle=True)
-    pixelwise_speeds = [list(map(np.nanmean, y)) for y in pixelwise_speeds]
+    cells_with_values = np.where(pixelwise_speeds)
+    pixelwise_avg_speeds = np.empty((len(pixelwise_speeds), len(pixelwise_speeds[0])))
+    pixelwise_avg_speeds.fill(np.nan)
+    for i_cell in range(len(cells_with_values[0])):
+        line, column = cells_with_values[0][i_cell], cells_with_values[1][i_cell]
+        pixelwise_avg_speeds[line][column] = np.nanmean(pixelwise_speeds[line][column])
+    return pixelwise_avg_speeds
 
-    return pixelwise_speeds
+
+def load_short_pixel_visits(traj, plate, regenerate=False):
+    return 0
 
 
 def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, variable="pixel_visits",
@@ -323,32 +331,38 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
             # Go on if the plate is the standard size
             # if len(xp_to_perfect_indices) == frame_size:
 
+            print(">>>>>> Loading pixelwise values...")
             if variable == "pixel_visits":
                 values_each_pixel = load_pixel_visits(traj, plate, regenerate=regenerate_pixel_values)
+            if variable == "short_pixel_visits":
+                values_each_pixel = load_short_pixel_visits(traj, plate, regenerate=regenerate_pixel_values)
             if variable == "speed":
                 values_each_pixel = load_avg_pixel_speed(traj, plate, regenerate_pixel_values)
 
+            print(">>>>>> Putting the values in the perfect plate...")
             # For each pixel of the perfect plate, load the visits that correspond to them in the experimental plates
             for i in range(len(values_each_pixel)):
                 for j in range(len(values_each_pixel[i])):
-                    perfect_i, perfect_j = xp_to_perfect_indices[i][j]
-                    heatmap_each_curve[i_curve][perfect_i][perfect_j] += values_each_pixel[i][j]
-                    counts_each_curve[i_curve][perfect_i][perfect_j] += 1
+                    current_values = values_each_pixel[i][j]
+                    if not np.isnan(current_values):
+                        perfect_i, perfect_j = xp_to_perfect_indices[i][j]
+                        heatmap_each_curve[i_curve][perfect_i][perfect_j] += values_each_pixel[i][j]
+                        counts_each_curve[i_curve][perfect_i][perfect_j] += 1
 
             if variable == "speed":
                 heatmap_each_curve[i_curve] = array_division_ignoring_zeros(heatmap_each_curve[i_curve], counts_each_curve[i_curve])
 
-            first_traj_point = traj[traj["folder"] == plate].reset_index().iloc[0]
-            if len(curve_list) > 1:
-                axes[i_curve].scatter(first_traj_point["x"], first_traj_point["y"], color="white")
-            else:
-                plt.scatter(first_traj_point["x"], first_traj_point["y"], color="white")
+            #first_traj_point = traj[traj["folder"] == plate].reset_index().iloc[0]
+            #if len(curve_list) > 1:
+            #    axes[i_curve].scatter(first_traj_point["x"], first_traj_point["y"], color="white")
+            #else:
+            #    plt.scatter(first_traj_point["x"], first_traj_point["y"], color="white")
 
         heatmap_each_curve[i_curve] /= np.sum(heatmap_each_curve[i_curve])
         np.save(heatmap_path, heatmap_each_curve[i_curve])
 
         if len(curve_list) == 1:
-            plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map)
+            plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.0000001)
             #for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
             #    plt.scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1], ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0], color="white")
             plt.title(curve_names[i_curve])
@@ -357,12 +371,12 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
             axes[i_curve].set_title(curve_names[i_curve])
 
     plt.show()
-    print("hey")
+    print("")
 
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(test_pipeline=True)
+    path = gen.generate(test_pipeline=False)
     results = pd.read_csv(path + "clean_results.csv")
     trajectories = pd.read_csv(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
@@ -383,14 +397,20 @@ if __name__ == "__main__":
 
     #generate_average_patch_radius_each_condition(path, full_list_of_folders)
 
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[3]],
+    #             ["cluster 0.2"], variable="pixel_visits", regenerate_pixel_values=False,
+    #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
     plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
-                 ["close 0.2"], variable="speed", regenerate_pixel_values=False,
+                 ["close 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
                  regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    #plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2]],
-    #             ["close 0.2", "med 0.2", "far 0.2"], variable="pixel_visits", regenerate_pixel_values=False,
-    #             regenerate_polar_maps=False, regenerate_perfect_map=True, collapse_patches=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[1]],
+                 ["med 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
+                 regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[2]],
+                 ["far 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
+                 regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6]],
-    #             ["close 0.5", "med 0.5", "far 0.5"], variable="pixel_visits",
+    #             ["close 0.5", "med 0.5", "far 0.5"], variable="speed",
     #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=True,
     #             collapse_patches=False)
     #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[0, 4], [1, 5, 8, 9, 10], [2, 6], [3, 7]],
