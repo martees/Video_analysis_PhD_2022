@@ -26,6 +26,13 @@ def array_division_ignoring_zeros(a, b):
     return np.divide(a, b, out=np.zeros(a.shape, dtype=float), where=b != 0)
 
 
+def keep_only_short_visits(traj, threshold, longer_or_shorter):
+    """
+    Returns traj but keeping only time points that correspond to visits longer/shorter than threshold
+    """
+    return 0
+#TODO then, in generate pixelwise visits, keep only visits that correspond to something in traj??? :thonk:
+
 def generate_pixelwise_speeds(traj, folder):
     """
     Function that takes a folder containing a time series of silhouettes, and returns a list of lists with the dimension
@@ -305,7 +312,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
 
             # If it's not already done, or has to be redone, compute the experimental to perfect mapping
             if not os.path.isfile(xp_to_perfect_path) or regenerate_perfect_map:
-                print(">>>>>> Converting to perfect coordinates...")
+                print(">>>>>> Generating perfect coordinates...")
                 # Then, if it's not already done, or has to be redone, compute the polar coordinates for the plate
                 polar_map_path = plate[:-len("traj.csv")] + "polar_map.npy"
                 if not os.path.isfile(polar_map_path) or regenerate_polar_maps:
@@ -347,7 +354,8 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
                     if not np.isnan(current_values):
                         perfect_i, perfect_j = xp_to_perfect_indices[i][j]
                         heatmap_each_curve[i_curve][perfect_i][perfect_j] += values_each_pixel[i][j]
-                        counts_each_curve[i_curve][perfect_i][perfect_j] += 1
+                        if variable == "speed":
+                            counts_each_curve[i_curve][perfect_i][perfect_j] += 1
 
             if variable == "speed":
                 heatmap_each_curve[i_curve] = array_division_ignoring_zeros(heatmap_each_curve[i_curve], counts_each_curve[i_curve])
@@ -362,9 +370,14 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
         np.save(heatmap_path, heatmap_each_curve[i_curve])
 
         if len(curve_list) == 1:
-            plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.0000001)
+            plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.00001)
             #for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
             #    plt.scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1], ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0], color="white")
+            metadata = fd.folder_to_metadata(plate)
+            for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
+                if metadata["patch_densities"][i_patch][0] == 0.5:
+                    plt.scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1],
+                                ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0], color="orange")
             plt.title(curve_names[i_curve])
         else:
             axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map)
@@ -384,31 +397,24 @@ if __name__ == "__main__":
         full_list_of_folders.remove(
             "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
-    # import cProfile
-    # import pstats
-    #
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[0]], [["close 0.2"]],
-    #                                False, False, False, collapse_patches=True, frame_size=1944)
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats('cumtime')
-    # stats.print_stats()
+    import cProfile
+    import pstats
 
-    #generate_average_patch_radius_each_condition(path, full_list_of_folders)
+    profiler = cProfile.Profile()
+    profiler.enable()
 
     #plot_heatmap(path, trajectories, full_list_of_folders, [[3]],
     #             ["cluster 0.2"], variable="pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
-                 ["close 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
+    #             ["close 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
+    #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[8], [9]],
+                 ["med 0.2+0.5", "med 0.5+1.25"], variable="speed", regenerate_pixel_values=False,
                  regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[1]],
-                 ["med 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
-                 regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[2]],
-                 ["far 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
-                 regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[2]],
+    #             ["far 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
+    #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6]],
     #             ["close 0.5", "med 0.5", "far 0.5"], variable="speed",
     #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=True,
@@ -419,3 +425,6 @@ if __name__ == "__main__":
     #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[13]],
     #                                ["control"], False,
     #                                regenerate_polar_maps=False, regenerate_perfect_map=False)
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats.print_stats()
