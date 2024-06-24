@@ -6,19 +6,23 @@
 # d (or p_leave): average duration of a visit to a food patch (inverse of probability of leaving p_leave)
 # p_rev: probability, once the agent left a given food patch, that it comes back to the same patch
 # constant: temporal constant of the exponential decay of food intake when foraging on a food patch
+import random
+
 import Parameters.parameters
 import analysis as ana
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+
 from Generating_data_tables import main as gen
+from Models import mvt_null_revisits
 
 
 def plot_matrix(condition_list, value_matrix):
     condition_names = [Parameters.parameters.nb_to_name[condition_list[i]] for i in range(len(condition_list))]
 
     fig, ax = plt.subplots()
-    im = ax.imshow(value_matrix)
+    ax.imshow(value_matrix)
 
     # Show all ticks and label them with the respective list entries
     ax.set_xticks(np.arange(len(condition_names)), labels=condition_names)
@@ -29,14 +33,11 @@ def plot_matrix(condition_list, value_matrix):
              rotation_mode="anchor")
 
     # Loop over data dimensions and create text annotations.
-    for i in range(len(vegetables)):
-        for j in range(len(farmers)):
-            text = ax.text(j, i, harvest[i, j],
-                           ha="center", va="center", color="w")
+    for i in range(len(condition_list)):
+        for j in range(len(condition_list)):
+            ax.text(j, i, value_matrix[i, j], ha="center", va="center", color="w")
 
-    ax.set_title("Harvest of local farmers (in tons/year)")
-    fig.tight_layout()
-    plt.show()
+    return fig, ax
 
 
 def matrix_of_feeding_rates(condition_list, parameter_to_exchange):
@@ -55,16 +56,27 @@ def matrix_of_feeding_rates(condition_list, parameter_to_exchange):
     results_path = gen.generate(test_pipeline=True)
     results = pd.read_csv(results_path + "clean_results.csv")
     # First, load the parameters / distributions for each condition in condition_list
-    t1_list = [[] for _ in range(len(condition_list))]
-    t2_list = [[] for _ in range(len(condition_list))]
-    d_list = [[] for _ in range(len(condition_list))]
-    p_rev = [[] for _ in range(len(condition_list))]
-
+    # Create dictionary to make it easier to access the
+    t1_list = [{} for _ in range(len(condition_list))]
+    t2_list = [{} for _ in range(len(condition_list))]
+    d_list = [{} for _ in range(len(condition_list))]
+    p_rev = [{} for _ in range(len(condition_list))]
     for i_condition, condition in enumerate(condition_list):
-        t1_list[i_condition] = ana.return_value_list(results, "cross_transits", [condition], True)
-        t2_list[i_condition] = ana.return_value_list(results, "same_transits", [condition], True)
-        d_list[i_condition] = ana.return_value_list(results, "visits", [condition], True)
-        p_rev[i_condition] = len(t2_list[i_condition]) / len(t1_list[i_condition])
+        t1_list[i_condition]["t1"] = ana.return_value_list(results, "cross_transits", [condition], True)
+        t2_list[i_condition]["t2"] = ana.return_value_list(results, ")same_transits", [condition], True)
+        d_list[i_condition]["d"] = ana.return_value_list(results, "visits", [condition], True)
+        p_rev[i_condition]["p"] = len(t2_list[i_condition]) / len(t1_list[i_condition])
+
+    feeding_rate_matrix = np.zeros(len(condition_list), len(condition_list))
+    for i_line in range(len(feeding_rate_matrix)):
+        for i_col in range(len(feeding_rate_matrix)):
+            feeding_rate_list = np.zeros(1, 1000)
+
+            for i_repetition in range(1000):
+                if parameter_to_exchange == "t1":
+                    t1 = random.choice(t1_list[i_col]["t1"])
+                    feeding_rate_list[i_repetition] = mvt_null_revisits.mvt_avg_feeding_rate
+
 
 
 
