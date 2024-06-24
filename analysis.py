@@ -9,7 +9,7 @@ import pandas as pd
 # My code
 from Parameters import parameters as param
 import find_data as fd
-from Models import model_mvt as model
+from Models import mvt_null_revisits as model
 from Generating_data_tables import generate_results as gr
 from Generating_data_tables import generate_trajectories as gt
 

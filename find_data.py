@@ -297,7 +297,7 @@ def load_file_path(folder, file_name):
     go look into the parent folder.
     image_name = "composite_patches.tif" or "background.tif"
     """
-    folder = folder[:-len(folder.split("/")[-1])]  # in any case, remove traj.csv (or traj_parent.csv, only used for model_rw.py)
+    folder = folder[:-len(folder.split("/")[-1])]  # in any case, remove traj.csv (or traj_parent.csv, only used for random_walk_experimental_plates.py)
     # Add extension or _patches if it has been forgotten
     if "composite" in file_name:
         file_name = "composite_patches.tif"
