@@ -83,12 +83,12 @@ def simulation_visit_length(leaving_threshold, time_constant, time_already_spent
     given time_constant ( f(t) = exp(-t/constant) ). Optionally, will take the time already spent in the patch as
     an argument, and remove that from output.
     """
-    duration_of_visit = 0
-    f_rate = feeding_rate(time_already_spent, time_constant)
+    duration_of_visit = time_already_spent
+    f_rate = feeding_rate(duration_of_visit, time_constant)
     while f_rate > leaving_threshold:
         duration_of_visit += 1
         f_rate = feeding_rate(duration_of_visit, time_constant)
-    return duration_of_visit
+    return duration_of_visit - time_already_spent
 
 
 def exponential_visit_length(leaving_threshold, time_constant, time_already_spent=0):
