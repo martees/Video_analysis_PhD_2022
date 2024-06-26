@@ -3,8 +3,7 @@
 # We work with a model that has 5 parameters:
 # t1: average time it takes to travel between two different patches
 # t2: average time it takes to exit a food patch and come back to it
-# d (or p_leave): average duration of a visit to a food patch (inverse of probability of leaving p_leave)
-# p_rev: probability, once the agent left a given food patch, that it comes back to the same patch
+# d: average duration of a visit to a food patch
 # constant: temporal constant of the exponential decay of food intake when foraging on a food patch
 import random
 
@@ -13,39 +12,39 @@ import analysis as ana
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from itertools import groupby
 
 from Generating_data_tables import main as gen
 from Parameters import parameters as param
-
-
-def exponential_average_feeding_rate(visit_time, travel_time, revisit_time, p_revisit, n_visits, constant):
-    average_amount_of_food_1patch = 1 - constant*(np.exp(-(visit_time*n_visits)/constant))
-    average_travel_and_feeding_1visit = (1-p_revisit) * travel_time + p_revisit * revisit_time + visit_time
-    return average_amount_of_food_1patch / (n_visits * average_travel_and_feeding_1visit)
 
 
 def plot_parameter_distribution(condition_list, values_dictionary):
     fig, axs = plt.subplots(1, len(values_dictionary))
     condition_names = [Parameters.parameters.nb_to_name[condition_list[i]] for i in range(len(condition_list))]
     condition_color = [Parameters.parameters.name_to_color[condition_names[i]] for i in range(len(condition_names))]
-
+    bins = np.logspace(0, 4, 20)
     for i_parameter in range(len(values_dictionary)):
         current_axis = axs[i_parameter]
         current_parameter = list(values_dictionary.keys())[i_parameter]
         current_values = values_dictionary[current_parameter]
 
-        boxplot = current_axis.boxplot(current_values, patch_artist=True)
-        # Fill with colors
-        for patch, color in zip(boxplot['boxes'], condition_color):
-            patch.set_facecolor(color)
+        #boxplot = current_axis.boxplot(current_values, patch_artist=True)
+        # # Fill with colors
+        #for patch, color in zip(boxplot['boxes'], condition_color):
+        #    patch.set_facecolor(color)
 
-        current_axis.set_xticks(range(1, len(current_values) + 1), condition_names)
+        for i_condition in range(len(condition_list)):
+            current_axis.hist(current_values[i_condition], color=condition_color[i_condition], linewidth=3, label=condition_names[i_condition], histtype="step", density=True, bins=bins)
+
+        # current_axis.set_xticks(range(1, len(current_values) + 1), condition_names)
         current_axis.set_title(current_parameter)
+        current_axis.set_yscale("log")
 
+    plt.legend()
     plt.show()
 
 
-def plot_matrix(condition_list, value_matrix, parameter_to_exchange, time_constant, nb_of_draws):
+def plot_matrix(condition_list, value_matrix, parameter_to_exchange, nb_of_draws):
     condition_names = [Parameters.parameters.nb_to_name[condition_list[i]] for i in range(len(condition_list))]
     value_matrix /= np.max(np.abs(value_matrix))
 
@@ -67,13 +66,13 @@ def plot_matrix(condition_list, value_matrix, parameter_to_exchange, time_consta
 
     fig.set_size_inches(len(condition_list)*0.9, (7.5/(9*0.82)) * len(condition_list))  # don't mind me xD
     plt.tight_layout(pad=2)
-    fig.suptitle("Exchanging "+str(parameter_to_exchange)+", time constant = "+str(time_constant)+", nb_of_draws = "+str(nb_of_draws))
+    fig.suptitle("Exchanging "+str(parameter_to_exchange)+", nb_of_draws = "+str(nb_of_draws))
     ax.set_xlabel("Lends their "+parameter_to_exchange)
     ax.set_ylabel("Steals their "+parameter_to_exchange)
     plt.show()
 
 
-def matrix_of_feeding_rates(condition_list, parameter_to_exchange, time_constant, nb_of_draws):
+def matrix_of_feeding_rates(condition_list, parameter_to_exchange, nb_of_draws, plot_distribution=False):
     """
     Function that takes a list of condition numbers, and will show a matrix of those conditions, with in each cell of
     the matrix, the value of the average feeding rate predicted by a mvt-like model with the feeding rate in a patch
@@ -81,10 +80,6 @@ def matrix_of_feeding_rates(condition_list, parameter_to_exchange, time_constant
     of coming back. For now, "mvt with null revisits": revisits are of length 0.
     For each cell i, j of the output matrix, the algorithm computes the feeding rate for the condition i, but using
     the "parameter_to_exchange" of condition j.
-    @param condition_list:
-    @param parameter_to_exchange:
-    @param time_constant:
-    @return:
     """
     # Load the results because experimental analysis functions use them
     results_path = gen.generate(test_pipeline=False)
@@ -93,47 +88,86 @@ def matrix_of_feeding_rates(condition_list, parameter_to_exchange, time_constant
     t1_list = [[] for _ in range(len(condition_list))]
     t2_list = [[] for _ in range(len(condition_list))]
     d_list = [[] for _ in range(len(condition_list))]
-    p_rev_list = [[] for _ in range(len(condition_list))]
-    n_list = [[] for _ in range(len(condition_list))]
+    patch_list_list = [[] for _ in range(len(condition_list))]
     for i_condition, condition in enumerate(condition_list):
         t1_list[i_condition] = ana.return_value_list(results, "cross transits", [condition], True)
         t2_list[i_condition] = ana.return_value_list(results, "same transits", [condition], True)
         d_list[i_condition] = ana.return_value_list(results, "visits", [condition], True)
-        p_rev_list[i_condition] = len(t2_list[i_condition]) / (len(t1_list[i_condition]) + len(t2_list[i_condition]))
-        n_list[i_condition] = len(d_list[i_condition]) / len(param.distance_to_xy[param.nb_to_distance[condition]])
+        patch_list_list[i_condition] = ana.return_value_list(results, "patch_sequence", [condition], False)
 
-    name_to_values = {"t1": t1_list, "t2": t2_list, "d": d_list, "p": p_rev_list, "n": n_list}
-    plot_parameter_distribution(condition_list, name_to_values)
+    if plot_distribution:
+        name_to_values = {"t1": t1_list, "t2": t2_list, "d": d_list}
+        plot_parameter_distribution(condition_list, name_to_values)
 
     #nb_of_draws = np.max([len(name_to_values[parameter_to_exchange][i]) for i in range(len(condition_list))])
-    feeding_rate_matrix = np.zeros((len(condition_list), len(condition_list)))
-    for i_line in range(len(feeding_rate_matrix)):
-        for i_col in range(len(feeding_rate_matrix)):
-            feeding_rate_list = np.zeros((nb_of_draws, 1))
+    total_time_in_patch_matrix = np.zeros((len(condition_list), len(condition_list)))
+    total_time_matrix = np.zeros((len(condition_list), len(condition_list)))
+    for i_line in range(len(total_time_in_patch_matrix)):
+        print("Condition ", i_line + 1, " / ", len(condition_list))
+        for i_col in range(len(total_time_in_patch_matrix)):
+            total_time_in_patch = np.zeros((nb_of_draws, 1))
+            total_time = np.zeros((nb_of_draws, 1))
 
             for i_repetition in range(nb_of_draws):
+
                 where_to_take_each_parameter_from = {"t1": i_line, "t2": i_line, "d": i_line, "p": i_line, "n": i_line,
-                                                     parameter_to_exchange: i_col}
-                t1 = random.choice(t1_list[where_to_take_each_parameter_from["t1"]])
-                t2 = random.choice(t2_list[where_to_take_each_parameter_from["t2"]])
-                d = random.choice(d_list[where_to_take_each_parameter_from["d"]])
-                p = p_rev_list[where_to_take_each_parameter_from["p"]]
-                n = n_list[where_to_take_each_parameter_from["n"]]
-                feeding_rate_list[i_repetition] = exponential_average_feeding_rate(d, t1, t2, p, n,
-                                                                                   time_constant)
+                                                     "patch_list": i_line, parameter_to_exchange: i_col}
 
-            feeding_rate_matrix[i_line][i_col] = np.mean(feeding_rate_list)
+                # Choose a patch sequence and compute its characteristics
+                patch_list = random.choice(patch_list_list[where_to_take_each_parameter_from["patch_list"]])
+                # Remove double values from patch list ([1, 2, 2, 2, 1] => [1, 2, 1])
+                patch_sequence = [i[0] for i in groupby(patch_list)]
+                nb_of_visits = len(patch_list)
+                total_nb_of_transits = len(patch_list) + 1
+                nb_of_revisits = len(patch_list) - len(patch_sequence)
+                nb_of_non_revisits = total_nb_of_transits - nb_of_revisits
 
-    #plot_matrix(condition_list, feeding_rate_matrix, parameter_to_exchange, time_constant, nb_of_draws)
+                # Choose values from the experimental data
+                if len(t1_list) >= nb_of_non_revisits:
+                    t1 = random.sample(t1_list[where_to_take_each_parameter_from["t1"]], nb_of_non_revisits)
+                else:
+                    t1 = random.choices(t1_list[where_to_take_each_parameter_from["t1"]], k=nb_of_non_revisits)
+
+                if len(t2_list) >= nb_of_revisits:
+                    t2 = random.sample(t2_list[where_to_take_each_parameter_from["t2"]], nb_of_revisits)
+                else:
+                    t2 = random.choices(t2_list[where_to_take_each_parameter_from["t2"]], k=nb_of_revisits)
+
+                if len(d_list) >= nb_of_visits:
+                    d = random.sample(d_list[where_to_take_each_parameter_from["d"]], nb_of_visits)
+                else:
+                    d = random.choices(d_list[where_to_take_each_parameter_from["d"]], k=nb_of_visits)
+
+                # Compute total time spent in each food patch
+                list_of_times = [0 for _ in range(np.max(patch_list) + 1)]
+                #duration_to_this_point = 0
+                #previous_patch = -1
+                for i_visit in range(nb_of_visits):
+                    current_patch = patch_list[i_visit]
+                    list_of_times[current_patch] += d[i_visit]
+                    #duration_to_this_point += d[i_visit]
+                    #if current_patch == previous_patch:
+                    #    duration_to_this_point += t2.pop()
+                    #else:
+                    #    duration_to_this_point += t1.pop()
+                    #previous_patch = current_patch
+
+                #total_time_in_patch[i_repetition] = np.sum(list_of_times)
+                total_time_in_patch[i_repetition] = np.sum(list_of_times) / np.sum(np.sum([t1, t2, d]))
+                total_time[i_repetition] = np.sum(np.sum([t1, t2, d]))
+
+            total_time_in_patch_matrix[i_line][i_col] = np.mean(total_time_in_patch)
+            total_time_matrix[i_line][i_col] = np.mean(total_time)
+
+    plot_matrix(condition_list, total_time_in_patch_matrix, parameter_to_exchange, nb_of_draws)
+    # plot_matrix(condition_list, total_time_matrix, parameter_to_exchange, nb_of_draws)
 
 
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="d", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="t1", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="t2", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="p", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="n", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="d", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="t1", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="t2", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="p", time_constant=1, nb_of_draws=10000)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="n", time_constant=1, nb_of_draws=10000)
+matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="d", nb_of_draws=10000, plot_distribution=False)
+matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="t1", nb_of_draws=10000)
+matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="t2", nb_of_draws=10000)
+matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="patch_list", nb_of_draws=10000)
+matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="d", nb_of_draws=10000, plot_distribution=False)
+matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="t1", nb_of_draws=10000)
+matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="t2", nb_of_draws=10000)
+matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="patch_list", nb_of_draws=10000)
