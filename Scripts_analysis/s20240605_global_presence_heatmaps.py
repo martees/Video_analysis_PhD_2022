@@ -14,7 +14,7 @@ from itertools import repeat
 from Generating_data_tables import main as gen
 from Generating_data_tables import generate_results as gr
 from Generating_data_tables import generate_trajectories as gt
-from Scripts import s20240606_distancetoedgeanalysis as script_distance
+from Scripts_analysis import s20240606_distancetoedgeanalysis as script_distance
 from Parameters import parameters as param
 from Parameters import patch_coordinates
 import find_data as fd
@@ -31,7 +31,10 @@ def keep_only_short_visits(traj, threshold, longer_or_shorter):
     Returns traj but keeping only time points that correspond to visits longer/shorter than threshold
     """
     return 0
+
+
 #TODO then, in generate pixelwise visits, keep only visits that correspond to something in traj??? :thonk:
+
 
 def generate_pixelwise_speeds(traj, folder):
     """
@@ -161,7 +164,7 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
         condition_colors.append(param.name_to_color[param.nb_to_name[condition]])
 
     plt.boxplot(radiuses_each_condition)
-    plt.xticks(range(len(all_conditions_list)), condition_names)
+    plt.xticks(range(1, len(all_conditions_list)+1), condition_names)
     plt.title("Radius distribution for each condition, computed over 100 radiuses for each patch")
     plt.show()
     pd.DataFrame(average_radius).to_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
@@ -323,8 +326,8 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
                 current_condition = condition_each_plate[i_plate]
                 current_patch_centers = ideal_patch_centers_each_cond[current_condition]
                 current_average_radius = \
-                average_patch_radius_each_cond[average_patch_radius_each_cond["condition"] == current_condition][
-                    "avg_patch_radius"].iloc[-1]
+                    average_patch_radius_each_cond[average_patch_radius_each_cond["condition"] == current_condition][
+                        "avg_patch_radius"].iloc[-1]
 
                 # Then FINALLY convert the current pixel wise visits to their "perfect" equivalent (in an environment with
                 # perfectly round patches, while conserving distance to border and angular coordinate w/ respect to center)
@@ -358,29 +361,35 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
                             counts_each_curve[i_curve][perfect_i][perfect_j] += 1
 
             if variable == "speed":
-                heatmap_each_curve[i_curve] = array_division_ignoring_zeros(heatmap_each_curve[i_curve], counts_each_curve[i_curve])
+                heatmap_each_curve[i_curve] = array_division_ignoring_zeros(heatmap_each_curve[i_curve],
+                                                                            counts_each_curve[i_curve])
 
             #first_traj_point = traj[traj["folder"] == plate].reset_index().iloc[0]
             #if len(curve_list) > 1:
             #    axes[i_curve].scatter(first_traj_point["x"], first_traj_point["y"], color="white")
             #else:
             #    plt.scatter(first_traj_point["x"], first_traj_point["y"], color="white")
+            if len(curve_list) > 1:
+                # For mixed densities, plot the 0.5 patch centers in orange
+                if any(["+" in curve_names[i] for i in range(len(curve_names))]):
+                    metadata = fd.folder_to_metadata(plate)
+                    for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
+                        axes[i_curve].scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1],
+                                              ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0],
+                                              color="white")
+                        if metadata["patch_densities"][i_patch][0] == 0.5:
+                            axes[i_curve].scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1],
+                                                  ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0],
+                                                  color="orange")
 
         heatmap_each_curve[i_curve] /= np.sum(heatmap_each_curve[i_curve])
         np.save(heatmap_path, heatmap_each_curve[i_curve])
 
         if len(curve_list) == 1:
             plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.00001)
-            #for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
-            #    plt.scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1], ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0], color="white")
-            metadata = fd.folder_to_metadata(plate)
-            for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
-                if metadata["patch_densities"][i_patch][0] == 0.5:
-                    plt.scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1],
-                                ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0], color="orange")
             plt.title(curve_names[i_curve])
         else:
-            axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map)
+            axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.00001)
             axes[i_curve].set_title(curve_names[i_curve])
 
     plt.show()
@@ -409,8 +418,8 @@ if __name__ == "__main__":
     #plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
     #             ["close 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[8], [9]],
-                 ["med 0.2+0.5", "med 0.5+1.25"], variable="speed", regenerate_pixel_values=False,
+    plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
+                 ["close 0.2"], variable="speed", regenerate_pixel_values=False,
                  regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[2]],
     #             ["far 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
