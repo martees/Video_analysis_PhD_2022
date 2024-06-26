@@ -5,6 +5,7 @@ import time
 import copy
 import os
 import pandas as pd
+from itertools import groupby
 
 # My code
 from Parameters import parameters as param
@@ -457,6 +458,16 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
                 list_of_values += convert_to_durations(current_transit_list)
             else:
                 list_of_values.append(current_transit_list)
+
+    elif column_name == "patch_sequence":
+        for i_plate in range(len(folder_list)):
+            current_plate = folder_list[i_plate]
+            current_results = results[results["folder"] == current_plate].reset_index()
+            current_visits = fd.load_list(current_results, "no_hole_visits")
+            if current_visits:
+                patch_sequence = np.array(current_visits)[:, 2]
+                #patch_sequence = [i[0] for i in groupby(np.array(current_visits)[:, 2])]
+                list_of_values.append(patch_sequence)
 
     else:
         if column_name == "visits":
