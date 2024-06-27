@@ -1,6 +1,5 @@
 # A script to plot a heatmap of the duration of visit to each pixel
 # But munching all the conditions together mouahahahaha
-import copy
 
 from scipy import ndimage
 import pandas as pd
@@ -8,15 +7,12 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-import random
-from itertools import repeat
 
 from Generating_data_tables import main as gen
 from Generating_data_tables import generate_results as gr
 from Generating_data_tables import generate_trajectories as gt
 from Scripts_analysis import s20240606_distancetoedgeanalysis as script_distance
 from Parameters import parameters as param
-from Parameters import patch_coordinates
 import find_data as fd
 import analysis as ana
 import ReferencePoints
@@ -303,7 +299,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
         print(int(time.time() - tic), "s: Curve ", i_curve, " / ", len(curve_list))
         plate_list, condition_each_plate = fd.return_folders_condition_list(full_plate_list, curve_list[i_curve],
                                                                             return_conditions=True)
-        heatmap_path = path + "perfect_heatmaps/heatmap_conditions_" + str(curve_list[i_curve]) + ".npy"
+        heatmap_path = path + "perfect_heatmaps/"+variable+"_heatmap_conditions_" + str(curve_list[i_curve]) + collapse_patches * "_collapsed" + ".npy"
         for i_plate, plate in enumerate(plate_list):
             print(">>> ", int(time.time() - tic), "s: plate ", i_plate, " / ", len(plate_list))
 
@@ -369,18 +365,18 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
             #    axes[i_curve].scatter(first_traj_point["x"], first_traj_point["y"], color="white")
             #else:
             #    plt.scatter(first_traj_point["x"], first_traj_point["y"], color="white")
-            if len(curve_list) > 1:
-                # For mixed densities, plot the 0.5 patch centers in orange
-                if any(["+" in curve_names[i] for i in range(len(curve_names))]):
-                    metadata = fd.folder_to_metadata(plate)
-                    for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
+        if len(curve_list) > 1:
+            # For mixed densities, plot the 0.5 patch centers in orange
+            if "+" in curve_names[i_curve]:
+                metadata = fd.folder_to_metadata(plate)
+                for i_patch in range(len(ideal_patch_centers_each_cond[curve_list[i_curve][0]])):
+                    axes[i_curve].scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1],
+                                          ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0],
+                                          color="white")
+                    if metadata["patch_densities"][i_patch][0] == 0.5:
                         axes[i_curve].scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1],
                                               ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0],
-                                              color="white")
-                        if metadata["patch_densities"][i_patch][0] == 0.5:
-                            axes[i_curve].scatter(ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][1],
-                                                  ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0],
-                                                  color="orange")
+                                              color="orange")
 
         heatmap_each_curve[i_curve] /= np.sum(heatmap_each_curve[i_curve])
         np.save(heatmap_path, heatmap_each_curve[i_curve])
@@ -396,9 +392,29 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
     print("")
 
 
+def plot_existing_heatmap(heatmap_path, control_heatmap_path, v_min=0, v_max=1):
+    heatmap = np.load(heatmap_path)
+    control_heatmap = np.load(control_heatmap_path)
+    plt.title(heatmap_path.split("/")[-1])
+
+    #normalized_array = array_division_ignoring_zeros(heatmap, control_heatmap)
+    #normalized_array = normalized_array / np.nansum(normalized_array)
+    #plt.imshow(normalized_array, interpolation='nearest', vmin=v_min, vmax=v_max)
+
+    normalized_array = heatmap/control_heatmap
+    masked_array = np.ma.array(normalized_array, mask=np.isnan(normalized_array))
+    cmap = plt.cm.viridis
+    cmap.set_bad('black', 1.)
+    plt.imshow(masked_array, interpolation='nearest', cmap=cmap, vmin=v_min, vmax=v_max)
+    plt.show()
+
+
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     path = gen.generate(test_pipeline=False)
+
+    #plot_existing_heatmap(path + "perfect_heatmaps/pixel_visits_heatmap_conditions_[0].npy", path + "perfect_heatmaps/pixel_visits_heatmap_conditions_[12].npy", v_max=10)
+
     results = pd.read_csv(path + "clean_results.csv")
     trajectories = pd.read_csv(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
@@ -406,11 +422,11 @@ if __name__ == "__main__":
         full_list_of_folders.remove(
             "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
-    import cProfile
-    import pstats
+    #import cProfile
+    #import pstats
 
-    profiler = cProfile.Profile()
-    profiler.enable()
+    #profiler = cProfile.Profile()
+    #profiler.enable()
 
     #plot_heatmap(path, trajectories, full_list_of_folders, [[3]],
     #             ["cluster 0.2"], variable="pixel_visits", regenerate_pixel_values=False,
@@ -418,9 +434,9 @@ if __name__ == "__main__":
     #plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
     #             ["close 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
-                 ["close 0.2"], variable="speed", regenerate_pixel_values=False,
-                 regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[0], [4]],
+                 ["close 0.2", "close 0.5"], variable="pixel_visits", regenerate_pixel_values=False,
+                 regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=True)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[2]],
     #             ["far 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
@@ -434,6 +450,6 @@ if __name__ == "__main__":
     #plot_heatmap_of_all_silhouettes(path, trajectories, full_list_of_folders, [[13]],
     #                                ["control"], False,
     #                                regenerate_polar_maps=False, regenerate_perfect_map=False)
-    profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats('cumtime')
-    stats.print_stats()
+    #profiler.disable()
+    #stats = pstats.Stats(profiler).sort_stats('cumtime')
+    #stats.print_stats()
