@@ -18,10 +18,6 @@ import analysis as ana
 import ReferencePoints
 
 
-def array_division_ignoring_zeros(a, b):
-    return np.divide(a, b, out=np.zeros(a.shape, dtype=float), where=b != 0)
-
-
 def keep_only_short_visits(traj, threshold, longer_or_shorter):
     """
     Returns traj but keeping only time points that correspond to visits longer/shorter than threshold
@@ -357,7 +353,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
                             counts_each_curve[i_curve][perfect_i][perfect_j] += 1
 
             if variable == "speed":
-                heatmap_each_curve[i_curve] = array_division_ignoring_zeros(heatmap_each_curve[i_curve],
+                heatmap_each_curve[i_curve] = ana.array_division_ignoring_zeros(heatmap_each_curve[i_curve],
                                                                             counts_each_curve[i_curve])
 
             #first_traj_point = traj[traj["folder"] == plate].reset_index().iloc[0]

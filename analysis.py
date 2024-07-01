@@ -425,6 +425,10 @@ def select_transits(list_of_transits, list_of_visits, to_same_patch=False, to_di
     return new_list_of_transits
 
 
+def array_division_ignoring_zeros(a, b):
+    return np.divide(a, b, out=np.zeros(a.shape, dtype=float), where=b != 0)
+
+
 def return_value_list(results, column_name, condition_list=None, convert_to_duration=True):
     """
     Will return a list of values of column_name in results, pooled for all conditions in condition_list.
