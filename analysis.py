@@ -36,7 +36,7 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
     random_samples = np.apply_along_axis(random_sample, 1, np.array([data] * nb_resample))
     # Depending on the statistic wanted, do a different operation
     if operation == "mean":
-        bootstrapped_stat = np.apply_along_axis(np.nanmean, 0, random_samples)
+        bootstrapped_stat = np.apply_along_axis(np.nanmean, 1, random_samples)
     if operation == "leaving_probability":
         bootstrapped_stat = np.apply_along_axis(compute_leaving_probability, 0, random_samples)
     bootstrapped_stat.sort()
