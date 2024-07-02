@@ -72,7 +72,7 @@ def plot_matrix(condition_list, value_matrix, parameter_to_exchange, nb_of_draws
     plt.show()
 
 
-def matrix_of_feeding_rates(condition_list, parameter_to_exchange, nb_of_draws, plot_distribution=False):
+def matrix_of_total_time_in_patch(condition_list, parameter_to_exchange, nb_of_draws, plot_distribution=False):
     """
     Function that takes a list of condition numbers, and will show a matrix of those conditions, with in each cell of
     the matrix, the value of the average feeding rate predicted by a mvt-like model with the feeding rate in a patch
@@ -162,12 +162,12 @@ def matrix_of_feeding_rates(condition_list, parameter_to_exchange, nb_of_draws, 
     plot_matrix(condition_list, total_time_in_patch_matrix, parameter_to_exchange, nb_of_draws)
     # plot_matrix(condition_list, total_time_matrix, parameter_to_exchange, nb_of_draws)
 
-
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="d", nb_of_draws=10000, plot_distribution=False)
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="t1", nb_of_draws=10000)
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="t2", nb_of_draws=10000)
-matrix_of_feeding_rates([0, 1, 2], parameter_to_exchange="patch_list", nb_of_draws=10000)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="d", nb_of_draws=10000, plot_distribution=False)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="t1", nb_of_draws=10000)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="t2", nb_of_draws=10000)
-matrix_of_feeding_rates([4, 5, 6], parameter_to_exchange="patch_list", nb_of_draws=10000)
+if __name__ == "main":
+    matrix_of_total_time_in_patch([0, 1, 2], parameter_to_exchange="d", nb_of_draws=10000, plot_distribution=False)
+    matrix_of_total_time_in_patch([0, 1, 2], parameter_to_exchange="t1", nb_of_draws=10000)
+    matrix_of_total_time_in_patch([0, 1, 2], parameter_to_exchange="t2", nb_of_draws=10000)
+    matrix_of_total_time_in_patch([0, 1, 2], parameter_to_exchange="patch_list", nb_of_draws=10000)
+    matrix_of_total_time_in_patch([4, 5, 6], parameter_to_exchange="d", nb_of_draws=10000, plot_distribution=False)
+    matrix_of_total_time_in_patch([4, 5, 6], parameter_to_exchange="t1", nb_of_draws=10000)
+    matrix_of_total_time_in_patch([4, 5, 6], parameter_to_exchange="t2", nb_of_draws=10000)
+    matrix_of_total_time_in_patch([4, 5, 6], parameter_to_exchange="patch_list", nb_of_draws=10000)

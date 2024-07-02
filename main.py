@@ -178,7 +178,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
             # Average total time spent in each patch
             if "total_visit_time" in what_to_plot:
-                plots.plot_selected_data(results, "Average total time in patch for " + plot_name + " conditions",
+                plots.plot_selected_data(results, "Average total time per patch for " + plot_name + " conditions",
                                          current_conditions, current_condition_names, "total_visit_time",
                                          divided_by="nb_of_visited_patches", mycolor=current_color, plot_model=False,
                                          is_plot=is_plot, normalize_by_video_length=True)
