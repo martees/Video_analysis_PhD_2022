@@ -28,7 +28,8 @@ def generate_transition_matrices(condition_list, plot_everything=False, plot_tra
     patch_positions = [[] for _ in range(len(condition_list))]
     nb_of_patches_list = [[] for _ in range(len(condition_list))]
     for i_condition, condition in enumerate(condition_list):
-        visit_list[i_condition] = np.array(ana.return_value_list(results, "visits", [condition], convert_to_duration=False))
+        visit_list[i_condition] = np.array(
+            ana.return_value_list(results, "visits", [condition], convert_to_duration=False))
         patch_positions[i_condition] = param.distance_to_xy[param.nb_to_distance[condition]]
         nb_of_patches_list[i_condition] = len(patch_positions[i_condition])
 
@@ -65,7 +66,8 @@ def generate_transition_matrices(condition_list, plot_everything=False, plot_tra
             transition_probability_matrix[i_patch] = probability_each_patch
             # Compute distance to all patches
             curr_patches = patch_positions[i_condition]
-            distance_matrix[i_patch] = [np.sqrt((curr_patches[i_patch][0] - curr_patches[i][0])**2 + (curr_patches[i_patch][1] - curr_patches[i][1])**2) for i in range(nb_of_patches)]
+            distance_matrix[i_patch] = [np.sqrt((curr_patches[i_patch][0] - curr_patches[i][0]) ** 2 + (
+                        curr_patches[i_patch][1] - curr_patches[i][1]) ** 2) for i in range(nb_of_patches)]
 
         #if not os.path.isdir(path_to_save + "transition_matrices"):
         #    os.mkdir(path_to_save + "transition_matrices")
@@ -95,18 +97,77 @@ def generate_transition_matrices(condition_list, plot_everything=False, plot_tra
         if plot_transition_matrix:
             # Transition probability
             plt.imshow(transition_probability_matrix, vmax=0.1)
-            plt.title("Transition probability "+param.nb_to_name[condition]+" , vmax=0.1")
+            plt.title("Transition probability " + param.nb_to_name[condition] + " , vmax=0.1")
             plt.colorbar()
             plt.show()
 
         return transition_probability_matrix, transition_times_matrix
 
 
+def plot_transition_matrix_graph(condition_list):
+    fig, axs = plt.subplots(1, len(condition_list))
+
+    # First, load the matrices for each condition in condition_list
+    transition_probability_matrices = [[] for _ in range(len(condition_list))]
+    transition_duration_matrices = [[] for _ in range(len(condition_list))]
+    for i_condition, condition in enumerate(condition_list):
+        transition_probability_matrices[i_condition], transition_duration_matrices[
+            i_condition] = generate_transition_matrices([condition])
+    # Then, load the patch positions for each distance
+    patch_positions = heatmap_script.idealized_patch_centers_mm(1847)
+
+    colors = plt.cm.viridis(np.linspace(0, 1, 101))
+    for i_condition, condition in enumerate(condition_list):
+        axs[i_condition].set_title(param.nb_to_name[condition])
+        current_transition_matrix = transition_probability_matrices[i_condition]
+        current_patch_positions = patch_positions[condition]
+        # Find the maximal non-diagonal value to normalize edges with that
+        mask = np.ones(np.array(current_transition_matrix).shape, dtype=bool)
+        np.fill_diagonal(mask, 0)
+        max_value = current_transition_matrix[mask].max()
+        # Plot lines between the patches
+        for i_patch in range(len(current_transition_matrix)):
+            for j_patch in range(len(current_transition_matrix[i_patch])):
+                current_probability = current_transition_matrix[i_patch][j_patch]
+                if current_probability != 0 and i_patch != j_patch:
+                    axs[i_condition].axis('scaled')
+                    x_origin = current_patch_positions[i_patch][0]
+                    y_origin = current_patch_positions[i_patch][1]
+                    x_target = current_patch_positions[j_patch][0]
+                    y_target = current_patch_positions[j_patch][1]
+                    # If there is no arrow the other way around, just plot half of the arrow (on the target side)
+                    if current_transition_matrix[j_patch][i_patch] != 0:
+                        x_origin = (x_origin + x_target) / 2
+                        y_origin = (y_origin + y_target) / 2
+                    axs[i_condition].arrow(x_origin, y_origin, x_target - x_origin, y_target - y_origin,
+                                           color=colors[np.clip(int(current_probability/max_value * 100), 0, 100)],
+                                           zorder=-10, width=4, head_length=40, length_includes_head=True)
+
+        #print(np.clip(np.array(current_transition_matrix*100).astype(int), 0, 100))
+
+        # Then, plot a circle around each of the centers + display patch number in the center
+        # Color of the circle depends on probability of revisit of the patch
+        for i_patch in range(len(current_patch_positions)):
+            x = current_patch_positions[i_patch][0]
+            y = current_patch_positions[i_patch][1]
+            p_revisit = current_transition_matrix[i_patch][i_patch]
+            circle = plt.Circle((x, y), radius=20, color=colors[np.clip(int(p_revisit * 100), 0, 100)])
+            circle_outline = plt.Circle((x, y), radius=20, color=colors[0], fill=False)
+            axs[i_condition].text(x, y, str(i_patch), horizontalalignment='center', verticalalignment='center',
+                                  color=colors[0])
+            axs[i_condition].add_artist(circle)
+            axs[i_condition].add_artist(circle_outline)
+
+        axs[i_condition].axis('scaled')
+
+    plt.show()
+
+
 def show_patch_numbers(condition_list):
     # First, load patch positions
     patch_positions = heatmap_script.idealized_patch_centers_mm(1847)
     for i_condition, condition in enumerate(condition_list):
-        current_patch_positions = patch_positions[i_condition]
+        current_patch_positions = patch_positions[condition]
         current_initial_patch_indices = central_patches(param.nb_to_distance[condition])
         # Initialize plot
         fig = plt.gcf()
@@ -141,7 +202,8 @@ def central_patches(distance):
         return [1, 3, 6, 11, 13, 18]
 
 
-def simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list, nb_of_exp, xp_length=30000):
+def simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list, nb_of_exp,
+                        xp_length=30000):
     """
     Will output a list with, for each experiment, a list of visits in the format [start time, end time, patch index].
     """
@@ -150,16 +212,17 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
     for i_exp in range(nb_of_exp):
         i_time = 0
         current_patch = random.choice(initial_positions)
-        visit_list[i_exp].append([i_time, i_time + random.choice(xp_visit_list), current_patch])
+        visit_list[i_exp].append([i_time, i_time + np.mean(xp_visit_list), current_patch])
         while i_time < xp_length:
             # Memorize where we came from
             previous_patch = current_patch
             # Pick a new place to go to
-            current_patch = random.choices(range(len(transition_probability[current_patch])), weights=transition_probability[current_patch])[0]
+            current_patch = random.choices(range(len(transition_probability[current_patch])),
+                                           weights=transition_probability[current_patch])[0]
             # Add a transit between the two
             visit_start = i_time + random.choice(transition_durations[previous_patch][current_patch])
             # Randomly choose a visit duration
-            visit_end = visit_start + random.choice(xp_visit_list)
+            visit_end = visit_start + np.mean(xp_visit_list)
             # Add it to the list and update timer
             visit_list[i_exp].append([visit_start, visit_end, current_patch])
             i_time = visit_end
@@ -179,14 +242,18 @@ def simulate_total_visit_time(results_table, condition_list, nb_of_exp):
         print("Generating transition matrix...")
         transition_probability, transition_durations = generate_transition_matrices([condition])
         print("Running simulations...")
-        visit_list = simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list, nb_of_exp)
-        average_per_plate_per_condition[i_condition] += [np.sum(ana.convert_to_durations(visits))/len(np.unique(np.array(visits)[:, 2])) for visits in visit_list]
+        visit_list = simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list,
+                                         nb_of_exp)
+        average_per_plate_per_condition[i_condition] += [
+            np.sum(ana.convert_to_durations(visits)) / len(np.unique(np.array(visits)[:, 2])) for visits in visit_list]
         average_per_condition[i_condition] = np.mean(average_per_plate_per_condition[i_condition])
         errors = ana.bottestrop_ci(average_per_plate_per_condition[i_condition], 1000)
-        errors_inf[i_condition], errors_sup[i_condition] = [average_per_condition[i_condition] - errors[0], errors[1] - average_per_condition[i_condition]]
+        errors_inf[i_condition], errors_sup[i_condition] = [average_per_condition[i_condition] - errors[0],
+                                                            errors[1] - average_per_condition[i_condition]]
 
     # Experiments
-    xp_average_per_plate_per_condition, xp_average_per_condition, xp_errorbars = ana.results_per_condition(results_table, condition_list, "total_visit_time", "nb_of_visited_patches")
+    xp_average_per_plate_per_condition, xp_average_per_condition, xp_errorbars = ana.results_per_condition(
+        results_table, condition_list, "total_visit_time", "nb_of_visited_patches")
 
     # Plot experiments vs model
     fig, axs = plt.subplots(1, 2, sharey=True)
@@ -197,7 +264,8 @@ def simulate_total_visit_time(results_table, condition_list, nb_of_exp):
     axs[0].set_title("Experimental results")
     axs[0].set_ylabel("Total time per patch")
     # Bar plot
-    axs[0].bar(range(len(condition_list)), xp_average_per_condition, color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
+    axs[0].bar(range(len(condition_list)), xp_average_per_condition,
+               color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
     axs[0].set_xticks(range(len(condition_list)))
     axs[0].set_xticklabels(condition_names, rotation=45)
     axs[0].set(xlabel="Condition number")
@@ -211,7 +279,8 @@ def simulate_total_visit_time(results_table, condition_list, nb_of_exp):
     # MODEL
     axs[1].set_title("Simulated results")
     # Bar plot
-    axs[1].bar(range(len(condition_list)), average_per_condition, color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
+    axs[1].bar(range(len(condition_list)), average_per_condition,
+               color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
     axs[1].set_xticks(range(len(condition_list)))
     axs[1].set_xticklabels(condition_names, rotation=45)
     axs[1].set(xlabel="Condition number")
@@ -237,14 +306,17 @@ def simulate_nb_of_visits(results_table, condition_list, nb_of_exp):
         print("Generating transition matrix...")
         transition_probability, transition_durations = generate_transition_matrices([condition])
         print("Running simulations...")
-        visit_list = simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list, nb_of_exp)
+        visit_list = simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list,
+                                         nb_of_exp)
         average_per_plate_per_condition[i_condition] += [len(visits) for visits in visit_list]
         average_per_condition[i_condition] = np.mean(average_per_plate_per_condition[i_condition])
         errors = ana.bottestrop_ci(average_per_plate_per_condition[i_condition], 1000)
-        errors_inf[i_condition], errors_sup[i_condition] = [average_per_condition[i_condition] - errors[0], errors[1] - average_per_condition[i_condition]]
+        errors_inf[i_condition], errors_sup[i_condition] = [average_per_condition[i_condition] - errors[0],
+                                                            errors[1] - average_per_condition[i_condition]]
 
     # Experiments
-    xp_average_per_plate_per_condition, xp_average_per_condition, xp_errorbars = ana.results_per_condition(results_table, condition_list, "nb_of_visits")
+    xp_average_per_plate_per_condition, xp_average_per_condition, xp_errorbars = ana.results_per_condition(
+        results_table, condition_list, "nb_of_visits")
 
     # Plot experiments vs model
     fig, axs = plt.subplots(1, 2, sharey=True)
@@ -255,7 +327,8 @@ def simulate_nb_of_visits(results_table, condition_list, nb_of_exp):
     axs[0].set_title("Experimental results")
     axs[0].set_ylabel("Number of visits")
     # Bar plot
-    axs[0].bar(range(len(condition_list)), xp_average_per_condition, color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
+    axs[0].bar(range(len(condition_list)), xp_average_per_condition,
+               color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
     axs[0].set_xticks(range(len(condition_list)))
     axs[0].set_xticklabels(condition_names, rotation=45)
     axs[0].set(xlabel="Condition number")
@@ -269,7 +342,8 @@ def simulate_nb_of_visits(results_table, condition_list, nb_of_exp):
     # MODEL
     axs[1].set_title("Simulated results")
     # Bar plot
-    axs[1].bar(range(len(condition_list)), average_per_condition, color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
+    axs[1].bar(range(len(condition_list)), average_per_condition,
+               color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
     axs[1].set_xticks(range(len(condition_list)))
     axs[1].set_xticklabels(condition_names, rotation=45)
     axs[1].set(xlabel="Condition number")
@@ -289,19 +363,25 @@ def parameter_exchange_matrix(results_table, condition_list, variable_to_exchang
     transition_duration_matrices = [[] for _ in range(len(condition_list))]
     xp_visit_duration = [[] for _ in range(len(condition_list))]
     for i_condition, condition in enumerate(condition_list):
-        transition_probability_matrices[i_condition], transition_duration_matrices[i_condition] = generate_transition_matrices([condition])
-        xp_visit_duration[i_condition] = ana.return_value_list(results_table, "visits", [condition], convert_to_duration=True)
+        transition_probability_matrices[i_condition], transition_duration_matrices[
+            i_condition] = generate_transition_matrices([condition])
+        xp_visit_duration[i_condition] = ana.return_value_list(results_table, "visits", [condition],
+                                                               convert_to_duration=True)
 
     total_time_in_patch_matrix = np.zeros((len(condition_list), len(condition_list)))
     for i_line in range(len(condition_list)):
         for i_col in range(len(condition_list)):
-            where_to_take_each_parameter_from = {"transit_prob": i_line, "transit_times": i_line, "visit_times": i_line, variable_to_exchange: i_col}
+            where_to_take_each_parameter_from = {"transit_prob": i_line, "transit_times": i_line, "visit_times": i_line,
+                                                 variable_to_exchange: i_col}
             transition_probability = transition_probability_matrices[where_to_take_each_parameter_from["transit_prob"]]
             transition_durations = transition_duration_matrices[where_to_take_each_parameter_from["transit_times"]]
             visit_durations = xp_visit_duration[where_to_take_each_parameter_from["visit_times"]]
-            list_of_visits = simulate_visit_list(condition_list[i_line], transition_probability, transition_durations, visit_durations, nb_of_exp)
+            list_of_visits = simulate_visit_list(condition_list[i_line], transition_probability, transition_durations,
+                                                 visit_durations, nb_of_exp)
             total_time_in_patch_matrix[i_line][i_col] = np.mean([np.sum(ana.convert_to_durations(visits))/len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
+            #total_time_in_patch_matrix[i_line][i_col] = np.mean([np.sum(ana.convert_to_durations(visits)) for visits in list_of_visits])
             #total_time_in_patch_matrix[i_line][i_col] = np.mean([len(visits) for visits in list_of_visits])
+            #total_time_in_patch_matrix[i_line][i_col] = np.mean([visits[-1][1] for visits in list_of_visits])
 
     exchange_script.plot_matrix(condition_list, total_time_in_patch_matrix, variable_to_exchange, nb_of_exp)
 
@@ -315,12 +395,17 @@ if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean
     full_list_of_folders.remove(
         "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
-list_of_conditions = list(param.nb_to_name.keys())
+#list_of_conditions = list(param.nb_to_name.keys())
 #show_patch_numbers(list_of_conditions)
 #simulate_total_visit_time(results, [0, 1, 2], 30)
 #simulate_nb_of_visits(results, [0, 1, 2], 30)
-#parameter_exchange_matrix(results, [0, 1, 2], "visit_times", 100)
-parameter_exchange_matrix(results, [12, 13, 14], "visit_times", 100)
+parameter_exchange_matrix(results, [0, 1, 2], "visit_times", 100)
+#parameter_exchange_matrix(results, [4, 5, 6], "visit_times", 100)
+#parameter_exchange_matrix(results, [12, 13, 14], "visit_times", 100)
 
-
-
+#plot_transition_matrix_graph([0, 1, 2])
+#plot_transition_matrix_graph([4, 5, 6])
+#plot_transition_matrix_graph([12, 13, 14])
+#plot_transition_matrix_graph([8, 9, 10])
+#plot_transition_matrix_graph([10, 1])
+#plot_transition_matrix_graph([15, 3, 7])
