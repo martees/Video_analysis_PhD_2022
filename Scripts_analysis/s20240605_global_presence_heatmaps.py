@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
+import plots
 from Generating_data_tables import main as gen
 from Generating_data_tables import generate_results as gr
 from Generating_data_tables import generate_trajectories as gt
@@ -190,7 +191,7 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
     @param polar_map: a map containing, for each pixel of the image, a list containing [index of the closest patch,
                       distance to the patch boundary, angular coordinate with respect to the closest patch center].
     @param ideal_patch_centers: coordinates of the ideal patch centers [[x0, y0], [x1, y1], ...].
-    @param ideal_patch_radius: average radius of patches for this condition.
+    @param ideal_patch_radius: average radius of patches.
     @param collapse_all_patches: if set to TRUE, will give indices to collapse everything on a single patch, in the center of the plate!!!
     @return: saves a matrix with the same size as polar_map, in folder_to_save, named "xp_to_perfect.npy"
              with, for each cell, the corresponding [x,y] in the "perfect" landscape.
@@ -199,7 +200,7 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
     nb_of_col = len(polar_map[0])
     #experimental_to_perfect = [[[] for _ in range(nb_of_col)] for _ in range(nb_of_lines)]
 
-    # That's the computation:
+    # That's the computation for each cell in the polar map:
     # i_patch, distance_boundary, angular_coord = polar_map[i_line, i_col]
     # new_x = (ideal_patch_radius + distance_boundary) * np.cos(angular_coord) + ideal_patch_centers[int(i_patch)][0]
     # new_y = (ideal_patch_radius + distance_boundary) * np.sin(angular_coord) + ideal_patch_centers[int(i_patch)][1]
@@ -281,14 +282,16 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
     heatmap_each_curve = [np.zeros((frame_size, frame_size)) for _ in range(len(curve_list))]
     counts_each_curve = [np.zeros((frame_size, frame_size)) for _ in range(len(curve_list))]
 
-    # If it's not already done, compute the average patch radiuses for each condition
+    # If it's not already done, compute the average patch radius
     if not os.path.isfile(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv"):
         generate_average_patch_radius_each_condition(results_path, full_plate_list)
     average_patch_radius_each_cond = pd.read_csv(
         results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
+    average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
 
     # Compute the idealized patch positions by converting the robot xy data to mm in a "perfect" reference frame
     ideal_patch_centers_each_cond = idealized_patch_centers_mm(frame_size)
+
 
     tic = time.time()
     for i_curve in range(len(curve_list)):
@@ -317,15 +320,12 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
                 # Load patch centers and radiuses
                 current_condition = condition_each_plate[i_plate]
                 current_patch_centers = ideal_patch_centers_each_cond[current_condition]
-                current_average_radius = \
-                    average_patch_radius_each_cond[average_patch_radius_each_cond["condition"] == current_condition][
-                        "avg_patch_radius"].iloc[-1]
 
                 # Then FINALLY convert the current pixel wise visits to their "perfect" equivalent (in an environment with
                 # perfectly round patches, while conserving distance to border and angular coordinate w/ respect to center)
                 experimental_to_perfect_pixel_indices(plate[:-len("traj.csv")], current_polar_map,
                                                       current_patch_centers,
-                                                      current_average_radius, frame_size=frame_size,
+                                                      average_radius, frame_size=frame_size,
                                                       collapse_all_patches=collapse_patches)
             # Matrix with, in each cell, the corresponding "perfect" coordinates
             xp_to_perfect_indices = np.load(xp_to_perfect_path)
@@ -405,6 +405,43 @@ def plot_existing_heatmap(heatmap_path, control_heatmap_path, v_min=0, v_max=1):
     plt.show()
 
 
+def plot_distance_map_and_patches(results_path, plate):
+    # Load the matrix with patch to which each pixel belongs
+    in_patch_matrix_path = plate[:-len("traj.csv")] + "in_patch_matrix.csv"
+    in_patch_matrix = pd.read_csv(in_patch_matrix_path).to_numpy()
+
+    # Load the matrix with distance to the closest food patch boundary for each pixel
+    distance_map_path = plate[:-len(plate.split("/")[-1])] + "distance_to_patch_map.csv"
+    if not os.path.isdir(distance_map_path):
+        script_distance.generate_patch_distance_map(in_patch_matrix, plate)
+    distance_map = np.load(plate[:-len(plate.split("/")[-1])] + "distance_to_patch_map.npy")
+
+    # Load patch centers and boundaries
+    patch_centers = fd.folder_to_metadata(plate)["patch_centers"]
+    patch_boundaries = plots.patches(plate, show_composite=False, is_plot=False)
+    patch_x = [patch_centers[i][0] for i in range(len(patch_centers))]
+    patch_y = [patch_centers[i][1] for i in range(len(patch_centers))]
+
+    # Load theoretical patch centers
+    ideal_patch_centers_each_cond = idealized_patch_centers_mm(len(distance_map))
+    ideal_patch_centers = ideal_patch_centers_each_cond[fd.load_condition(plate)]
+
+    # Load the average patch radius
+    average_patch_radius_each_cond = pd.read_csv(
+        results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
+    average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
+
+    plt.title(str(plate[-48:-9]))
+    plt.imshow(distance_map)
+    plt.scatter(patch_boundaries[0], patch_boundaries[1], color="yellow")
+    plt.scatter(patch_x, patch_y, color="yellow", label="experimental patches")
+    plt.scatter(ideal_patch_centers[:, 0], ideal_patch_centers[:, 1], color="white", label="ideal patches")
+    for i_patch in range(len(ideal_patch_centers)):
+        circle = plt.Circle(ideal_patch_centers[i_patch], average_radius, color="white", fill=False)
+        plt.gca().add_patch(circle)
+    plt.show()
+
+
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     path = gen.generate(test_pipeline=False)
@@ -418,6 +455,8 @@ if __name__ == "__main__":
         full_list_of_folders.remove(
             "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
+    plot_distance_map_and_patches(path, full_list_of_folders[0])
+
     #import cProfile
     #import pstats
 
@@ -430,9 +469,9 @@ if __name__ == "__main__":
     #plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
     #             ["close 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[0], [4]],
-                 ["close 0.2", "close 0.5"], variable="pixel_visits", regenerate_pixel_values=False,
-                 regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=True)
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[0], [4]],
+    #             ["close 0.2", "close 0.5"], variable="pixel_visits", regenerate_pixel_values=False,
+    #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=True)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[2]],
     #             ["far 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
