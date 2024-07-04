@@ -721,7 +721,7 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color, is
     leaving_delays_in_one_list = [leaving_delays[i] for i in range(len(leaving_delays))]
     binned_times_in_patch, avg_leaving_delays, y_err_list, full_value_list = ana.xy_to_bins(corresponding_time_in_patch,
                                                                                             leaving_delays_in_one_list,
-                                                                                            bin_size, bootstrap=False)
+                                                                                            bin_size)
     plt.title(plot_title)
     plt.ylabel("Average delay before next exit")
     plt.xlabel("Time already spent in patch")

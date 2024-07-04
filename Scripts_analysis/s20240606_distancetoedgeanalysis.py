@@ -115,10 +115,10 @@ def plot_visit_duration_vs_distance(full_folder_list, trajectories, curve_list, 
                                                                              total_or_average_or_number=average_or_total_or_number)
 
         distance_bins, avg_visit_values, [_, _], binned_visits = ana.xy_to_bins(distance_values, visit_values,
-                                                                                do_not_edit_xy=False, bin_size=10,
+                                                                                bin_size=10,
                                                                                 custom_bins=[-50, -40, -30, -20, -10, 0,
                                                                                              10, 20, 30, 40, 50, 60, 80,
-                                                                                             120],
+                                                                                             120], do_not_edit_xy=False,
                                                                                 compute_bootstrap=False)
 
         condition_name = curve_names[i_curve]

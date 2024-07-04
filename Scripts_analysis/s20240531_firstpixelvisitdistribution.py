@@ -84,6 +84,8 @@ traj = pd.read_csv(path + "clean_trajectories.csv")
 
 #histogram_visit_distribution(resultos, traj, [[0], [1], [2]], ["close 0.2", "med 0.2", "far 0.2"], False, True, y_scale="log")
 #histogram_visit_distribution(resultos, traj, [[4], [5], [6]], ["close 0.5", "med 0.5", "far 0.5"], False, True, y_scale="log")
+histogram_visit_distribution(resultos, traj, [[0], [1], [2]], ["close 0", "med 0", "far 0"], False, True, y_scale="log")
+histogram_visit_distribution(resultos, traj, [[12], [13], [14]], ["close 0", "med 0", "far 0"], False, True, y_scale="log")
 histogram_visit_distribution(resultos, traj, [[12], [13], [14]], ["close 0", "med 0", "far 0"], False, True, y_scale="log")
 #histogram_visit_distribution(resultos, traj, [[0, 4], [1, 5], [2, 6]], ["close", "med", "far"], False, False)
 #histogram_visit_distribution(resultos, traj, [[0, 1, 2, 3], [4, 5, 6, 7], [8], [12, 13, 14, 15]], ["0.2", "0.5", "1.25", "control"], False, True, y_scale="log")
