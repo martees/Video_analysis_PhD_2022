@@ -440,13 +440,13 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
     """
     # If no condition_list was given, just take all folders from results
     if condition_list is None:
-        folder_list = np.unique(results["folders"])
+        folder_list = np.unique(results["folder"])
     else:
         if type(condition_list) == int:  # if there's just one condition, make it a list for the rest to work
             condition_list = [condition_list]
-        list_of_values = []
         folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
 
+    list_of_values = []
     if column_name == "same transits" or column_name == "cross transits":
         for i_plate in range(len(folder_list)):
             plate_name = folder_list[i_plate]
@@ -827,9 +827,7 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars
         leaving_delays, corresponding_time_in_patch = delays_before_leaving(current_plate, condition_list)
         if corresponding_time_in_patch:  # if there are no visits, don't do that
             binned_times_in_patch, avg_leaving_delays, y_err_list, full_list_of_delays = xy_to_bins(
-                corresponding_time_in_patch,
-                leaving_delays, bin_size,
-                bootstrap=False, print_progress=False)
+                corresponding_time_in_patch, leaving_delays, bin_size, print_progress=False)
             binned_delays_each_worm[i_folder] = full_list_of_delays
             times_in_patch_bins_each_worm[i_folder] = binned_times_in_patch
 
@@ -837,7 +835,7 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars
     global_leaving_delays, global_times_in_patch = delays_before_leaving(results, condition_list)
     global_time_in_patch_bins, global_avg_leaving_delays, _, full_list_of_delays = xy_to_bins(global_times_in_patch,
                                                                                               global_leaving_delays,
-                                                                                              bin_size, bootstrap=False,
+                                                                                              bin_size,
                                                                                               print_progress=True)
 
     # Reformat binned_delays_each_worm to have one sublist per bin, and in each bin sublist one sublist per worm
@@ -902,7 +900,7 @@ def list_of_visited_patches(list_of_visits):
     return np.unique(list_of_patches)
 
 
-def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True):
+def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True):
     """
     Will take an x and a y iterable.
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
@@ -956,18 +954,17 @@ def xy_to_bins(x, y, bin_size, bootstrap=True, print_progress=True, custom_bins=
     avg_list = np.zeros(nb_of_bins)
     errors_inf = np.zeros(nb_of_bins)
     errors_sup = np.zeros(nb_of_bins)
-    if bootstrap:
-        for i_bin in range(nb_of_bins):
-            if i_bin % 10 == 0 and print_progress:
-                print("Averaging xy_to_bins... ", int(100 * i_bin / nb_of_bins), "% done")
-            current_values = binned_y_values[i_bin]
-            if current_values:  # if there are values there
-                avg_list[i_bin] = np.mean(current_values)
-                if compute_bootstrap:
-                    # Bootstrapping on the plate avg duration
-                    bootstrap_ci = bottestrop_ci(current_values, 100)
-                    errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
-                    errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
+    for i_bin in range(nb_of_bins):
+        if i_bin % 10 == 0 and print_progress:
+            print("Averaging xy_to_bins... ", int(100 * i_bin / nb_of_bins), "% done")
+        current_values = binned_y_values[i_bin]
+        if current_values:  # if there are values there
+            avg_list[i_bin] = np.nanmean(current_values)
+            if compute_bootstrap:
+                # Bootstrapping on the plate avg duration
+                bootstrap_ci = bottestrop_ci(current_values, 100)
+                errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
+                errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
 
     print("Finished xy_to_bins()")
 
