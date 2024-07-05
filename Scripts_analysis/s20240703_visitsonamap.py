@@ -21,7 +21,7 @@ def visit_duration_on_patches(results_table, condition_list, variable="total"):
     for i_condition, condition in enumerate(condition_list):
         results_this_cond = results_table[results_table["condition"] == condition].reset_index(drop=True)
         visit_list_each_condition[i_condition] = ana.return_value_list(results_this_cond, "no_hole_visits", convert_to_duration=False)
-        if variable == "discovery":
+        if variable == "discovery" or variable == "rank":
             for i_folder in range(len(results_this_cond)):
                 results_this_plate = results_this_cond[results_this_cond["folder"] == results_this_cond["folder"][i_folder]]
                 visit_list_each_condition_each_plate[i_condition].append(ana.return_value_list(results_this_plate, "no_hole_visits", convert_to_duration=False))
@@ -38,6 +38,8 @@ def visit_duration_on_patches(results_table, condition_list, variable="total"):
             axs[i_condition].set_title("Median visit rank in "+param.nb_to_name[condition])
         if variable == "start":
             axs[i_condition].set_title("Average visit start // 100 in "+param.nb_to_name[condition])
+        if variable == "discovery":
+            axs[i_condition].set_title("Minimal discovery time in "+param.nb_to_name[condition])
         visit_list_this_condition = np.array(visit_list_each_condition[i_condition])
         current_patch_positions = patch_positions[condition]
 
@@ -50,7 +52,12 @@ def visit_duration_on_patches(results_table, condition_list, variable="total"):
             if variable == "total":
                 avg_value_each_patch[i_patch] = np.nansum(ana.convert_to_durations(list(visits_this_patch)))
             if variable == "rank":
-                avg_value_each_patch[i_patch] = np.nanmedian(np.where(visit_list_this_condition[:, 2] == i_patch))
+                visit_ranks = []
+                for i_plate in range(len(visit_list_each_condition_each_plate[i_condition])):
+                    visits_this_plate = np.array(visit_list_each_condition_each_plate[i_condition][i_plate])
+                    if len(visits_this_plate) > 0:
+                        visit_ranks.append(np.nanmean(np.where(visits_this_plate[:, 2] == i_patch)))
+                avg_value_each_patch[i_patch] = np.nanmedian(visit_ranks)
             if variable == "start":
                 if len(visits_this_patch) > 0:
                     avg_value_each_patch[i_patch] = np.nanmean(visits_this_patch[0, :]//100)
@@ -58,10 +65,14 @@ def visit_duration_on_patches(results_table, condition_list, variable="total"):
                 first_discoveries = []
                 for i_plate in range(len(visit_list_each_condition_each_plate[i_condition])):
                     visits_this_plate = np.array(visit_list_each_condition_each_plate[i_condition][i_plate])
-                    visits_this_patch = visits_this_plate[visits_this_plate[:, 2] == i_patch]
-                    if len(visits_this_patch) > 0:
-                        first_discoveries.append(visits_this_patch[0, 0])
-                avg_value_each_patch[i_patch] = np.mean(first_discoveries)
+                    if len(visits_this_plate) > 0:
+                        visits_this_patch = visits_this_plate[visits_this_plate[:, 2] == i_patch]
+                        if len(visits_this_patch) > 0:
+                            first_discoveries.append(visits_this_patch[0, 0])
+                if len(first_discoveries) > 0:
+                    avg_value_each_patch[i_patch] = np.nanmin(first_discoveries)
+                else:
+                    avg_value_each_patch[i_patch] = 9999
 
         # Plot a circle around each of the patch centers
         # Write the average visit length inside
