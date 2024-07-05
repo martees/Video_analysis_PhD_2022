@@ -163,6 +163,10 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
     pd.DataFrame(average_radius).to_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
 
 
+def compute_average_ref_points_distance():
+    return 0
+
+
 def idealized_patch_centers_mm(frame_size):
     print(">>> Computing average radius for all conditions...")
     all_conditions_list = param.nb_to_name.keys()
