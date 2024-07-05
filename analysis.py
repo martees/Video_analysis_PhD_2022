@@ -925,6 +925,9 @@ def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edi
         nb_of_bins = len(bin_list)
     else:
         bin_list = sorted(custom_bins)
+        # If the value of the last bin is inferior to the max, there are bugs, so don't do that!
+        if bin_list[-1] < np.max(x):
+            bin_list.append(int(np.max(x) + 1))
         nb_of_bins = len(bin_list)
 
     # Create a list with one sublist of y values for each bin
