@@ -50,22 +50,26 @@ def pixel_visit_duration_vs_centroid_speed(trajectories, full_folder_list, condi
                                                                 pixel_visit_values[i_condition], 1,
                                                                 print_progress=False,
                                                                 custom_bins=[0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6,
-                                                                             1.8, 2, 3, 4, 6, 12, 18, 24, 200], compute_bootstrap=False)
+                                                                             1.8, 2, 3, 4, 6, 12, 18, 24, 40, 80, 120, 160, 200, 240, 300, 340, 400], compute_bootstrap=False)
 
-        # Keep only bins with > 100 points
-        valid_bins = [bin_list[i] for i in range(len(bin_list)) if len(binned_y_values[i]) >= 100]
-        valid_avg = [avg_list[i] for i in range(len(avg_list)) if len(binned_y_values[i]) >= 100]
-        valid_indices = np.argwhere(corresponding_centroid_speeds[i_condition] <= np.max(valid_bins))[0]
+        # Keep only bins with > 20 points
+        valid_bins = [bin_list[i] for i in range(len(bin_list)) if len(binned_y_values[i]) >= 20]
+        valid_avg = [avg_list[i] for i in range(len(avg_list)) if len(binned_y_values[i]) >= 20]
+        valid_indices = np.where(corresponding_centroid_speeds[i_condition] <= np.max(valid_bins))[0]
+
+        plt.hist2d(np.array(corresponding_centroid_speeds)[i_condition, valid_indices],
+        np.array(pixel_visit_values)[i_condition, valid_indices], cmap="YlOrBr", norm="log", bins=100)
+
+        # plt.scatter(np.array(corresponding_centroid_speeds)[i_condition, valid_indices],
+        #            np.array(pixel_visit_values)[i_condition, valid_indices], color="black", alpha=0.1)
 
         plt.plot(valid_bins, valid_avg, label=param.nb_to_name[condition], color="white", linewidth=6)
-        plt.plot(valid_bins, valid_avg, label=param.nb_to_name[condition], color=param.name_to_color[param.nb_to_name[condition]], linewidth=4)
-        #plt.scatter(np.array(corresponding_centroid_speeds)[i_condition, valid_indices],
-        #            np.array(pixel_visit_values)[i_condition, valid_indices], color="black", alpha=0.1)
-        plt.hist2d(np.array(corresponding_centroid_speeds)[i_condition, valid_indices],
-                   np.array(pixel_visit_values)[i_condition, valid_indices], cmap="YlOrBr", norm="log", bins=100)
-        plt.ylabel("Average duration of a visit to this pixel")
-        plt.xlabel("Average centroid speed when this pixel is visited")
-        plt.title(param.nb_to_name[condition])
+        plt.plot(valid_bins, valid_avg, label=param.nb_to_name[condition],
+                 color=param.name_to_color[param.nb_to_name[condition]], linewidth=4)
+
+    plt.ylabel("Average duration of a visit to this pixel")
+    plt.xlabel("Average centroid speed when this pixel is visited")
+    plt.title(param.nb_to_name[condition])
 
     print("Total time: ", int((time.time() - tic) // 60), "min")
     plt.show()
@@ -81,6 +85,6 @@ if __name__ == "__main__":
         full_list_of_folders.remove(
             "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
-    pixel_visit_duration_vs_centroid_speed(traj, full_list_of_folders, [0])
+    pixel_visit_duration_vs_centroid_speed(traj, full_list_of_folders, [4])
     #pixel_visit_duration_vs_centroid_speed(traj, full_list_of_folders, [1])
     #pixel_visit_duration_vs_centroid_speed(traj, full_list_of_folders, [2])
