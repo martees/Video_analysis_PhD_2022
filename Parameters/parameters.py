@@ -167,7 +167,7 @@ def lighten_color(color, amount=0.5):
     return '#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255))
 
 
-name_to_color = {"close": "slateblue", "med": "midnightblue", "far": "deepskyblue", "superfar": "paleturquoise",
+name_to_color = {"close": "mediumslateblue", "med": "royalblue", "far": "deepskyblue", "superfar": "paleturquoise",
                  "cluster": "forestgreen", "0": "bisque",
                  "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate",
                  "0.5+1.25": "orange",
@@ -192,3 +192,5 @@ def test_colors():
         x += 1
     plt.legend()
     plt.show()
+
+
