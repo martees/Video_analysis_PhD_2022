@@ -651,7 +651,7 @@ def generate_pixelwise_visits(trajectories, folder):
     of the plate in :folder:, and in each cell, a list with [start time, end time] of the successive visits to this pixel.
     (a visit starts when a pixel of the worm overlaps with the pixel, and ends when this overlap stops)
     When this function is called, it also saves this output under the name "pixelwise_visits.npy" in folder.
-    Takes trajectory in argument only to access correspondance between index in video and frame number.
+    Takes trajectory in argument only to access correspondence between index in video and frame number.
     """
     # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
     pixels, intensities, frame_size = fd.load_silhouette(folder)

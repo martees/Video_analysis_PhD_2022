@@ -162,6 +162,7 @@ def matrix_of_total_time_in_patch(condition_list, parameter_to_exchange, nb_of_d
     plot_matrix(condition_list, total_time_in_patch_matrix, parameter_to_exchange, nb_of_draws)
     # plot_matrix(condition_list, total_time_matrix, parameter_to_exchange, nb_of_draws)
 
+
 if __name__ == "main":
     matrix_of_total_time_in_patch([0, 1, 2], parameter_to_exchange="d", nb_of_draws=10000, plot_distribution=False)
     matrix_of_total_time_in_patch([0, 1, 2], parameter_to_exchange="t1", nb_of_draws=10000)
