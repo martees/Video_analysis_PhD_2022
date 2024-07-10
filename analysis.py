@@ -429,7 +429,7 @@ def array_division_ignoring_zeros(a, b):
     return np.divide(a, b, out=np.zeros(a.shape, dtype=float), where=b != 0)
 
 
-def return_value_list(results, column_name, condition_list=None, convert_to_duration=True):
+def return_value_list(results, column_name, condition_list=None, convert_to_duration=True, only_first=False):
     """
     Will return a list of values of column_name in results, pooled for all conditions in condition_list.
     For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
@@ -437,6 +437,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
     to_different_patch: if False, will only plot transits that leave and come back to the same patch
     convert_to_duration: by default, it will convert visits and transits to durations, but if set False it will return
                          the list of visit / transit time stamps (same format as in results)
+    only_first: if set to True, will only return the first value of column_name for each folder in results
     """
     # If no condition_list was given, just take all folders from results
     if condition_list is None:
@@ -458,6 +459,8 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             if column_name == "cross transits":
                 current_transit_list = select_transits(current_transit_list, current_visit_list,
                                                        to_different_patch=True)
+            if only_first and current_transit_list:
+                current_transit_list = [current_transit_list[0]]
             if convert_to_duration:
                 list_of_values += convert_to_durations(current_transit_list)
             else:
@@ -471,20 +474,22 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             if current_visits:
                 patch_sequence = np.array(current_visits)[:, 2]
                 #patch_sequence = [i[0] for i in groupby(np.array(current_visits)[:, 2])]
+                if only_first and patch_sequence:
+                    patch_sequence = patch_sequence[0]
                 list_of_values.append(patch_sequence)
 
     else:
         if column_name == "visits":
             column_name = "no_hole_visits"
-            convert_to_duration = convert_to_duration
         if column_name == "transits":
             column_name = "aggregated_raw_transits"
-            convert_to_duration = convert_to_duration
 
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
             current_results = results[results["folder"] == current_plate].reset_index()
             current_values = fd.load_list(current_results, column_name)
+            if only_first and current_values:
+                current_values = [current_values[0]]
             if convert_to_duration:
                 list_of_values += convert_to_durations(current_values)
             else:
@@ -571,7 +576,7 @@ def pool_conditions_by(condition_list, pool_by_variable):
         pool_names = ["food", "control"]
     else:
         pooled_conditions = [[condition_list[i]] for i in range(len(condition_list))]
-        pool_names = [[param.nb_to_name[condition_list[i]]] for i in range(len(condition_list))]
+        pool_names = [param.nb_to_name[condition_list[i]] for i in range(len(condition_list))]
 
     # We build a new list
     new_condition_list = []
@@ -938,8 +943,10 @@ def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edi
             print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
         current_y = y_copy.pop()
         current_x = x_copy.pop()
-        i_bin = np.searchsorted(bin_list, current_x)  # looks for first index at which x can be inserted in the bin list
-        binned_y_values[i_bin - 1].append(current_y)
+        # Looks for first index at which x can be inserted in the bin list
+        # So np.searchsorted([0, 1, 2], 1) = 1
+        i_bin = np.searchsorted(bin_list, current_x)
+        binned_y_values[i_bin].append(current_y)
 
     # If the bins are custom and some lowest / highest bins are empty, remove them:
     if custom_bins is not None:
@@ -972,3 +979,6 @@ def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edi
     print("Finished xy_to_bins()")
 
     return bin_list, avg_list, [list(errors_inf), list(errors_sup)], binned_y_values
+
+
+#bins, avg, _, binned = xy_to_bins([0, 0, 1, 1, 2, 2, 2, 3, 4, 10, 100], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], bin_size=0, custom_bins=[0, 1])

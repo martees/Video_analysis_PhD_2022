@@ -624,24 +624,19 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
             plt.show()
 
 
-def plot_variable_distribution(results, condition_list, effect_of="nothing", variable_list=None, scale_list=None,
-                               plot_cumulative=False, threshold_list=None, is_plot=True):
+def plot_variable_distribution(results, curve_list, curve_names, variable_list=None, scale_list=None,
+                               plot_cumulative=True, threshold_list=None, is_plot=True, only_first=False):
     """
-    Will plot a distribution of each variable from variable_list in results, for conditions in condition_list.
-        effect_of: if set to "nothing", will plot one curve for each condition in condition_list.
-                   if set to "density" will make one curve for each bacterial density, pooling conditions together
-                   if set to "distance" same but for distance
-                   if set to "food", will pool all food conditions together, apart from control w/o food
-                   if set to "aggregation"
+    Will plot a distribution of each variable from variable_list in results, for conditions in each curve of curve_list.
         variable_list: can contain any argument that the return_value_list function can take
         scale_list: say if you want to plot the y-axis linear scale, log scale or both
         plot_cumulative: plot cumulative histograms or not
-    to_same_patch: if False, will only plot transits that go from one patch to another
-    to_different_patch: if False, will only plot transits that leave and come back to the same patch
-    threshold_list: list of thresholds for aggregation of visits
+        to_same_patch: if False, will only plot transits that go from one patch to another
+        to_different_patch: if False, will only plot transits that leave and come back to the same patch
+        threshold_list: list of thresholds for aggregation of visits
     """
     if scale_list is None:
-        scale_list = ["log"]  # could also be "linear"
+        scale_list = ["linear", "log"]  # could also be "linear"
     if variable_list is None:
         variable_list = ["visits", "same transits", "cross transits"]
 
@@ -664,18 +659,18 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
                 variable_list.append("aggregated_visits_thresh_" + str(thresh) + "_leaving_events_time_stamps")
             variable_list.remove("aggregated_leaving_events")
 
-    # Pool conditions depending on the "effect_of" argument
-    condition_pools, condition_names = ana.pool_conditions_by(condition_list, effect_of)
+    # Initialize plot
     fig, axs = plt.subplots(len(scale_list), len(variable_list))
     fig.set_size_inches(7 * len(variable_list), 6 * len(scale_list))
-    colors = plt.cm.jet(np.linspace(0, 1, len(condition_pools)))
-    fig.suptitle("Conditions " + str([param.nb_to_name[i] for i in condition_list]))
+    fig.suptitle("Conditions " + str(curve_names))
     fig.set_tight_layout(True)  # make the margins tighter
 
     for i_variable in range(len(variable_list)):
         variable = variable_list[i_variable]
         avg_values = []
+        median_values = []
         color_list = []
+        ax_lim_list = []
         if variable == "cross transits":
             bins = np.linspace(0, 25000, 60)
         else:
@@ -692,25 +687,28 @@ def plot_variable_distribution(results, condition_list, effect_of="nothing", var
             if i_variable == 0:
                 ax.set(ylabel="normalized " + scale_list[i_scale] + " occurrences")
             if i_scale == 0:
-                ax.set_title(str(variable) + " values")
+                ax.set_title("first "*only_first + str(variable) + " values")
             ax.set_yscale(scale_list[i_scale])
             # For every condition pool in condition_list
-            for i_cond in range(len(condition_pools)):
-                cond = condition_pools[i_cond]
-                name = condition_names[i_cond]
+            for i_curve in range(len(curve_list)):
+                conditions = curve_list[i_curve]
+                name = curve_names[i_curve]
                 if "aggregated" in variable and "transits" not in variable:
                     # This is because our aggregated visits not including transits are in sub-lists already containing durations
-                    values = ana.return_value_list(results, variable, cond, convert_to_duration=False)
+                    values = ana.return_value_list(results, variable, conditions, convert_to_duration=False)
                     values = [sublist[i] for sublist in values for i in range(len(sublist))]
                 else:
-                    values = ana.return_value_list(results, variable, cond, convert_to_duration=True)
+                    values = ana.return_value_list(results, variable, conditions, convert_to_duration=True, only_first=only_first)
                 avg_values.append(np.mean(values))
+                median_values.append(np.median(values))
                 color_list.append(param.name_to_color[name])
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step",
                         color=param.name_to_color[name], linewidth=3)
+                ax_lim_list.append(ax.get_ylim())
 
-    ymin, ymax = ax.get_ylim()
-    ax.vlines(avg_values, color=color_list, ymin=ymin, ymax=ymax)
+        ax.vlines(avg_values, color=color_list, ymin=0, ymax=1, linestyles="dashed", transform=ax.get_xaxis_transform(), label="average")
+        ax.vlines(median_values, color=color_list, ymin=0, ymax=1, linestyles="dotted", transform=ax.get_xaxis_transform(), label="median")
+
     if is_plot:
         plt.legend()
         plt.show()
