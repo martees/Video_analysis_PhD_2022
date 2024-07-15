@@ -1,4 +1,17 @@
 import numpy as np
+import math
+
+
+# These coordinates were retrieved from the robot script "RLlC20221115_small_drops.py"
+
+xy_patches_super_far =[
+    [0, 16], [16*np.cos(30*np.pi/180), -16*np.sin(30*np.pi/180)], [-16*np.cos(30*np.pi/180), -16*np.sin(30*np.pi/180)]
+]
+alpha = 40/180*np.pi
+superDistantSpaceListOrig = xy_patches_super_far.copy()
+for iPatch in range(len(xy_patches_super_far)):
+    xy = xy_patches_super_far[iPatch].copy()
+    xy_patches_super_far[iPatch] = [xy[0] * math.cos(alpha) - xy[1] * math.sin(alpha), xy[0] * math.sin(alpha) + xy[1] * math.cos(alpha)]
 
 # x-y coordinates of the patches in the reference points system
 xy_patches_far = [

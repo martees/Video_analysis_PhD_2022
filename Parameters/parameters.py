@@ -19,8 +19,9 @@ time_threshold = 1
 
 # Condition names
 nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2", 3: "cluster 0.2", 4: "close 0.5", 5: "med 0.5", 6: "far 0.5",
-              7: "cluster 0.5", 8: "med 1.25", 9: "med 0.2+0.5", 10: "med 0.5+1.25", 12: "close 0", 13: "med 0",
-              14: "far 0", 15: "cluster 0"}
+              7: "cluster 0.5", 8: "med 1.25", 9: "med 0.2+0.5", 10: "med 0.5+1.25", 12: "close 1.25", 13: "far 1.25",
+              14: "superfar 0.2", 15: "superfar 0.5", 16: "superfar 1.25", 17: "close 0", 18: "med 0", 19: "far 0",
+              20: "superfar 0", 21: "cluster 0"}
 name_to_nb = {v: k for k, v in nb_to_name.items()}
 
 # Distance to number of patch dictionary (lower we build a condition number to number of patches dictionary from that)
@@ -131,12 +132,15 @@ for condition in nb_to_distance.keys():
         nb_to_xy[condition] = patch_coordinates.xy_patches_med
     if nb_to_distance[condition] == "far":
         nb_to_xy[condition] = patch_coordinates.xy_patches_far
+    if nb_to_distance[condition] == "superfar":
+        nb_to_xy[condition] = patch_coordinates.xy_patches_super_far
     if nb_to_distance[condition] == "cluster":
         nb_to_xy[condition] = patch_coordinates.xy_patches_cluster
 
 # Centers of patches for each condition
 distance_to_xy = {"close": patch_coordinates.xy_patches_close, "med": patch_coordinates.xy_patches_med,
-                  "far": patch_coordinates.xy_patches_far, "cluster": patch_coordinates.xy_patches_cluster}
+                  "far": patch_coordinates.xy_patches_far, "superfar": patch_coordinates.xy_patches_super_far,
+                  "cluster": patch_coordinates.xy_patches_cluster}
 
 
 ## Colors
