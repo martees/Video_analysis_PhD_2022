@@ -41,8 +41,8 @@ def generate_trajectories(path):
     trajectories = pd.read_csv(path + "trajectories.csv")
     # Add a column with the patch where the worm is (-1 is outside)
     print("Computing where the worm is...")
-    trajectories["patch_centroid"], overlapping_patches = gt.in_patch_list(trajectories, using="centroid")
-    # trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouettes")
+    #trajectories["patch_centroid"], overlapping_patches = gt.in_patch_list(trajectories, using="centroid")
+    trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouette")
     overlapping_patches.to_csv(path + "overlapping_patches.csv")
     print("Finished computing in which patch the worm is at each time step")
     print("Computing distances...")
@@ -104,7 +104,7 @@ def generate_aggregated_visits(path, threshold_list):
     return new_results  # return this because this function is also used dynamically
 
 
-def generate(starting_from="", test_pipeline=False, modeled_data=False):
+def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False):
     """
     Will generate the data tables starting more or less from scratch.
     Argument = from which level to regenerate stuff.
@@ -114,13 +114,17 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False):
 
     # Data path
     if fd.is_linux():  # Linux path
-        path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/"
+        path = "/media/admin/T7 Shield/Results_minipatches_retracked/"
         if test_pipeline:
-            path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/"
-            if modeled_data:
-                path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less_model_rw/"
-        elif modeled_data:
-            path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
+            path = "/media/admin/T7 Shield/Results_minipatches_retracked_test/"
+        if old_dataset:
+            path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/"
+            if test_pipeline:
+                path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/"
+                if modeled_data:
+                    path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less_model_rw/"
+            elif modeled_data:
+                path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
     else:  # Windows path
         path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
 

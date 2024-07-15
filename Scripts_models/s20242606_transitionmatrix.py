@@ -282,7 +282,7 @@ def central_patches(distance):
 
 
 def simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list, nb_of_exp,
-                        xp_length=30000):
+                        xp_length=5000):
     """
     Will output a list with, for each experiment, a list of visits in the format [start time, end time, patch index].
     """
@@ -495,7 +495,7 @@ def parameter_exchange_matrix(results_table, condition_list, variable_to_exchang
 
 
 # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-path = gen.generate(test_pipeline=False)
+path = gen.generate(test_pipeline=False, old_dataset=True)
 results = pd.read_csv(path + "clean_results.csv")
 trajectories = pd.read_csv(path + "clean_trajectories.csv")
 full_list_of_folders = list(results["folder"])
@@ -507,8 +507,8 @@ if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean
 #show_patch_numbers(list_of_conditions)
 #simulate_total_visit_time(results, [0, 1, 2], 30)
 #simulate_nb_of_visits(results, [0, 1, 2], 30)
-#parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "total_visit_time", 1000)
-#parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "total_visit_time", 1000)
+parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "total_visit_time", 1000)
+parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "total_visit_time", 1000)
 parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_visit_time", 1000)
 
 parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "avg_visit_duration", 1000)

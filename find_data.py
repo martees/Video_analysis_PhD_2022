@@ -1,4 +1,5 @@
 import os
+import shutil
 from scipy.io import loadmat  # this is the SciPy module that loads mat-files
 import numpy as np
 import pandas as pd
@@ -50,6 +51,7 @@ def trajcsv_to_dataframe(paths_of_mat):
     folder_list = []
     for i_file in range(len(paths_of_mat)): #for every file
         current_path = paths_of_mat[i_file]
+        print(current_path)
         current_data = pd.read_csv(current_path) #dataframe with all the info
         # We add the file number to the worm identifyers, for them to become unique accross all folders
         current_data["id_conservative"] = [id + 100*i_file for id in current_data["id_conservative"]]
@@ -116,38 +118,47 @@ def folder_to_metadata(path):
 
         path_for_holes = path[:-lentoremove] + "holes.mat"
         path_for_patches = path[:-lentoremove] + "foodpatches.mat"
-        path_for_patch_splines = path[:-lentoremove] + "foodpatches_new.mat"
 
-        # Loadmat function loads .mat file into a dictionnary with meta info
-        # the data is stored as a value for the key with the original table name ('traj' for traj.mat)
-        holesmat = loadmat(path_for_holes)  # load holes in a dictionary using loadmat
-        patchesmat = loadmat(path_for_patches)  # load old patch objects (just centers and densities)
-        splinesmat = loadmat(path_for_patch_splines)  # load alfonso's patch objects (with spline info)
+        if not os.path.isfile(path_for_patches):
+            sub_directory = path.split("/")[-2]
+            directory = path.split("/")[-3]
+            shutil.move(path[:-lentoremove-1], path[:-lentoremove-len(sub_directory)-len(directory)-3]+"/Results_minipatches_no_fp/"+sub_directory)
+            return False
 
-        # Extract patch objects
-        patch_objects = splinesmat.get("fp_struct")[0]
-        # In patch_object[0] are 8x2 lists of interpolation points that were used to extract the spline
-        # In patch_object[1] is a 1x2 list with the patch center coordinates
-        # In patch_object[2] is a matlab spline object stuck in two [[[]]], so we access it like that:
-        spline_guides = [patch_objects[i][0] for i in range(len(patch_objects))]
-        patch_centers = [patch_objects[i][1] for i in range(len(patch_objects))]
-        spline_objects = [patch_objects[i][2] for i in range(len(patch_objects))]
-        # In spline_objects[0] is useless strings
-        # In spline_objects[1] is the breaks which give the intervals for each spline equation
-        # In spline_objects[2] are the coefficients of the spline
+        else:
+            # Replace path by reviewed food patches: temporary, because i'm still in the process of clicking the patches
+            if os.path.isfile(path[:-lentoremove] + "foodpatches_reviewed.mat"):
+                path_for_patches = path[:-lentoremove] + "foodpatches_reviewed.mat"
 
-        # Extract the data into the dataframe
-        # holepositions = pd.DataFrame(holesmat.get('pointList')) # gets the holes positions
-        # condition_number = readcode(holepositions) #get the condition from that
+            # Loadmat function loads .mat file into a dictionnary with meta info
+            # the data is stored as a value for the key with the original table name ('traj' for traj.mat)
+            holesmat = loadmat(path_for_holes)  # load holes in a dictionary using loadmat
+            patchesmat = loadmat(path_for_patches)  # load patch objects
 
-        metadata["patch_centers"] = [patch_centers[i][0] for i in range(len(patch_centers))]
-        metadata["spline_guides"] = [spline_guides[i].tolist() for i in range(len(spline_guides))]
-        metadata["spline_breaks"] = [list(spline_objects[i][0][0][1][0]) for i in range(len(spline_objects))]
-        metadata["spline_coefs"] = [[list(spline_objects[j][0][0][2][i]) for i in range(len(spline_objects[j][0][0][2]))] for j in range(len(spline_objects))]
+            # Extract patch objects
+            patch_objects = patchesmat.get("fp_struct")[0]
+            # In patch_object[0] are 8x2 lists of interpolation points that were used to extract the spline
+            # In patch_object[1] is a 1x2 list with the patch center coordinates
+            # In patch_object[2] is a matlab spline object stuck in two [[[]]], so we access it like that:
+            spline_guides = [patch_objects[i][0] for i in range(len(patch_objects))]
+            patch_centers = [patch_objects[i][1] for i in range(len(patch_objects))]
+            spline_objects = [patch_objects[i][2] for i in range(len(patch_objects))]
+            # In spline_objects[0] is useless strings
+            # In spline_objects[1] is the breaks which give the intervals for each spline equation
+            # In spline_objects[2] are the coefficients of the spline
 
-        metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
-        metadata["condition"] = list(patchesmat.get("num_condition"))[0][0]
-        metadata["holes"] = [[hole[0:2] for hole in holesmat.get("pointList").tolist() if hole[2] == 2] for i_patch in range(len(metadata["patch_centers"]))]
+            # Extract the data into the dataframe
+            # holepositions = pd.DataFrame(holesmat.get('pointList')) # gets the holes positions
+            # condition_number = readcode(holepositions) #get the condition from that
+
+            metadata["patch_centers"] = [patch_centers[i][0] for i in range(len(patch_centers))]
+            metadata["spline_guides"] = [spline_guides[i].tolist() for i in range(len(spline_guides))]
+            metadata["spline_breaks"] = [list(spline_objects[i][0][0][1][0]) for i in range(len(spline_objects))]
+            metadata["spline_coefs"] = [[list(spline_objects[j][0][0][2][i]) for i in range(len(spline_objects[j][0][0][2]))] for j in range(len(spline_objects))]
+
+            metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
+            metadata["condition"] = list(patchesmat.get("num_condition"))[0][0]
+            metadata["holes"] = [[hole[0:2] for hole in holesmat.get("pointList").tolist() if hole[2] == 2] for i_patch in range(len(metadata["patch_centers"]))]
 
     return metadata
 

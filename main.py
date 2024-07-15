@@ -304,7 +304,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
 if __name__ == "__main__":
     #   Saves the results in a path that is returned (only needed at the beginning!)
-    path = gr.generate(starting_from="", test_pipeline=False)
+    path = gr.generate(starting_from="controls", test_pipeline=False)
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -341,19 +341,21 @@ if __name__ == "__main__":
     #             [["far 0.2"]])
     # plot_graphs(results, "visit_duration_vs_entry_speed",
     #             [["close 0.5"]])
-    # plot_graphs(results, "visit_duration_vs_entry_speed",
+    # plot_graphs(results, "visit_duration_vs_entry_speed",S
     #             [["med 0.5"]])
     # plot_graphs(results, "visit_duration_vs_entry_speed",
     #             [["far 0.5"]])
 
     # plots.trajectories_1condition(trajectories, 12)
 
-    #plot_graphs(results, "distribution", [["close 0.2", "med 0.2", "far 0.2"]])
-    #plot_graphs(results, "distribution", [["close 0.5", "med 0.5", "far 0.5"]])
-    #plot_graphs(results, "distribution", [["close 0", "med 0", "far 0"]])
+    plots.trajectories_1condition(trajectories, [], is_plot_patches=True, plot_in_patch=True, plate_list=results["folder"].tolist())
 
-    plots.plot_variable_distribution(results, curve_list=[[0], [1], [2]], curve_names=["close 0.2", "med 0.2", "far 0.2"], variable_list=["visits"], only_first=False)
-    plots.plot_variable_distribution(results, curve_list=[[4], [5], [6]], curve_names=["close 0.5", "med 0.5", "far 0.5"], variable_list=["visits"], only_first=False)
+    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
+    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
+    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0"]])
+
+    #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2]], curve_names=["close 0.2", "med 0.2", "far 0.2"], variable_list=["visits"], only_first=False, plot_cumulative=False)
+    #plots.plot_variable_distribution(results, curve_list=[[4], [5], [6]], curve_names=["close 0.5", "med 0.5", "far 0.5"], variable_list=["visits"], only_first=False, plot_cumulative=False)
 
     #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
     #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
