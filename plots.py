@@ -125,11 +125,11 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
     if plate_list is not None:
         if type(plate_list) == str:
             plate_list = [plate_list]
-        folder_list = []
+        #folder_list = []
         condition_list = []
-        for i_plate in range(len(plate_list)):
-            folder_list.append(traj[traj["folder"] == plate_list[i_plate]]["folder"])
-        folder_list = np.unique(folder_list)
+        #for i_plate in range(len(plate_list)):
+        #    folder_list.append(traj[traj["folder"] == plate_list[i_plate]]["folder"])
+        folder_list = np.unique(plate_list)
         # Change condition accordingly
         for plate in folder_list:
             condition_list.append(fd.load_condition(plate))
@@ -700,7 +700,9 @@ def plot_variable_distribution(results, curve_list, curve_names, variable_list=N
                 else:
                     values = ana.return_value_list(results, variable, conditions, convert_to_duration=True, only_first=only_first)
                 avg_values.append(np.mean(values))
+                print("Average value for curve ", str(name), ": ", np.mean(values))
                 median_values.append(np.median(values))
+                print("Median value for curve ", str(name), ": ", np.median(values))
                 color_list.append(param.name_to_color[name])
                 ax.hist(values, bins=bins, density=True, cumulative=-plot_cumulative, label=name, histtype="step",
                         color=param.name_to_color[name], linewidth=3)
