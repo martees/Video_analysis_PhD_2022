@@ -624,8 +624,9 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
             plt.show()
 
 
-def plot_variable_distribution(results, curve_list, curve_names, variable_list=None, scale_list=None,
-                               plot_cumulative=True, threshold_list=None, is_plot=True, only_first=False):
+def plot_variable_distribution(results, curve_list, variable_list=None, scale_list=None,
+                               plot_cumulative=True, threshold_list=None, is_plot=True, only_first=False,
+                               end_time=False):
     """
     Will plot a distribution of each variable from variable_list in results, for conditions in each curve of curve_list.
         variable_list: can contain any argument that the return_value_list function can take
@@ -660,6 +661,7 @@ def plot_variable_distribution(results, curve_list, curve_names, variable_list=N
             variable_list.remove("aggregated_leaving_events")
 
     # Initialize plot
+    curve_names = [param.nb_list_to_name[str(curve)] for curve in curve_list]
     fig, axs = plt.subplots(len(scale_list), len(variable_list))
     fig.set_size_inches(7 * len(variable_list), 6 * len(scale_list))
     fig.suptitle("Conditions " + str(curve_names))
@@ -687,7 +689,7 @@ def plot_variable_distribution(results, curve_list, curve_names, variable_list=N
             if i_variable == 0:
                 ax.set(ylabel="normalized " + scale_list[i_scale] + " occurrences")
             if i_scale == 0:
-                ax.set_title("first "*only_first + str(variable) + " values")
+                ax.set_title("first "*only_first + str(variable) + " values" + (end_time != False) * "until "+str(end_time))
             ax.set_yscale(scale_list[i_scale])
             # For every condition pool in condition_list
             for i_curve in range(len(curve_list)):
@@ -698,7 +700,7 @@ def plot_variable_distribution(results, curve_list, curve_names, variable_list=N
                     values = ana.return_value_list(results, variable, conditions, convert_to_duration=False)
                     values = [sublist[i] for sublist in values for i in range(len(sublist))]
                 else:
-                    values = ana.return_value_list(results, variable, conditions, convert_to_duration=True, only_first=only_first)
+                    values = ana.return_value_list(results, variable, conditions, convert_to_duration=True, only_first=only_first, end_time=end_time)
                 avg_values.append(np.mean(values))
                 print("Average value for curve ", str(name), ": ", np.mean(values))
                 median_values.append(np.median(values))
