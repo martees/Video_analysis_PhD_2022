@@ -64,14 +64,20 @@ def single_traj_analysis(which_patch_list, list_of_frames, patch_centers):
         if patch_where_it_is != -1:  # worm currently inside
             if patch_where_it_was == -1:  # it's a new visit (first patch or was outside before)
                 if len(list_of_timestamps) < patch_where_it_is:
-                    print('oops')
-                list_of_timestamps[patch_where_it_is][-1][0] = current_frame  # begin visit in current patch sublist
+                    print('In single_traj_analysis(), the patch index called was higher than the number of patches.')
+                else:
+                    list_of_timestamps[patch_where_it_is][-1][0] = current_frame  # begin visit in current patch sublist
+
     # Close the last visit
     if which_patch_array[-1] != -1:  # if the worm is inside, last visit hasn't been closed (no exit event)
         list_of_timestamps[patch_where_it_is][-1][1] = int(list_of_frames["frame"].iloc[-1])  # = last frame
     # Clean the table (remove the zeros because they're just here for the duration algorithm)
     for i_patch in range(len(list_of_timestamps)):
         list_of_timestamps[i_patch] = [nonzero for nonzero in list_of_timestamps[i_patch] if nonzero != [0, 0]]
+
+    s = [l[i][1] - l[i][0] for l in list_of_timestamps for i in range(len(l))]
+    if len(np.where(np.array(s) < 0)[0]) > 0:
+        print("Some visits are negative in a folder!")
 
     return list_of_timestamps, order_of_visits
 
@@ -166,8 +172,8 @@ def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_c
             nb_of_visits += current_nb_of_visits
 
         # Same but adjusted for multiple consecutive visits to same patch
-        current_adjusted_list_of_durations = pd.DataFrame(adjusted_list_of_durations[i_patch])
-        if not current_adjusted_list_of_durations.empty:
+        current_adjusted_list_of_durations = np.array(adjusted_list_of_durations[i_patch])
+        if len(current_adjusted_list_of_durations) > 0:
             adjusted_duration_sum += int(np.sum(current_adjusted_list_of_durations))
             adjusted_nb_of_visits += len(current_adjusted_list_of_durations)
 
@@ -369,8 +375,12 @@ def fill_holes(data_per_id):
     were fused into one in the case where the tracking started and stopped in the same patch,
     and another new list in the same format with the same concept but for transit times
     """
+
     # Sort the tracks for them to be in the order in which they were tracked otherwise it's a mess
     data_per_id = data_per_id.sort_values(by=['first_frame']).reset_index()
+
+    # Remove "np.int64()" that appeared in some places
+    data_per_id["raw_visits"] = [data_per_id["raw_visits"][i].replace("np.int64(", "").replace(")", "") for i in range(len(data_per_id))]
 
     # The original dataset: each track sublist = [[t,t],[t,t],...],[[t,t],...],...] with one sublist per patch
     # We want to remove all empty visits: it means the worm was outside before and after the end of the visit, so it
@@ -608,12 +618,12 @@ def add_aggregate_visit_info_to_results(results, threshold_list):
     for i_thresh in range(len(threshold_list)):
         # For visit list
         thresh = threshold_list[i_thresh]
-        results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results)))
-        results["aggregated_visits_thresh_" + str(thresh) + "_visit_durations"] = pd.DataFrame(np.zeros(len(results)))
-        results["aggregated_visits_thresh_" + str(thresh) + "_nb_of_visits"] = pd.DataFrame(np.zeros(len(results)))
-        results["aggregated_visits_thresh_" + str(thresh) + "_total_visit_time"] = pd.DataFrame(np.zeros(len(results)))
+        results["aggregated_visits_thresh_" + str(thresh)] = pd.DataFrame(np.zeros(len(results))).astype("str")
+        results["aggregated_visits_thresh_" + str(thresh) + "_visit_durations"] = pd.DataFrame(np.zeros(len(results))).astype("str")
+        results["aggregated_visits_thresh_" + str(thresh) + "_nb_of_visits"] = pd.DataFrame(np.zeros(len(results))).astype("str")
+        results["aggregated_visits_thresh_" + str(thresh) + "_total_visit_time"] = pd.DataFrame(np.zeros(len(results))).astype("str")
         results["aggregated_visits_thresh_" + str(thresh) + "_leaving_events_time_stamps"] = pd.DataFrame(
-            np.zeros(len(results)))
+            np.zeros(len(results))).astype("str")
 
     # We run this for each plate separately to keep different patches separate
     for i_plate in range(len(results)):
