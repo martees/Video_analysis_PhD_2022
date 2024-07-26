@@ -23,6 +23,7 @@ from Scripts_models import s202406_exchange_experimental_parameters as exchange_
 
 
 def generate_transition_matrices(condition_list, plot_everything=False, plot_transition_matrix=False):
+    print("Generating transition matrices...")
     # First, load the visits, number of patches and patch positions for each condition in condition_list
     visit_list = [[] for _ in range(len(condition_list))]
     patch_positions = [[] for _ in range(len(condition_list))]
@@ -56,6 +57,8 @@ def generate_transition_matrices(condition_list, plot_everything=False, plot_tra
                 previous_visit = current_visits[next_patch_index - 1]
                 next_visit = current_visits[next_patch_index]
                 travel_time = next_visit[0] - previous_visit[1] + 1
+                #TODO check that I don't create fake transits??? if last visit in plate i is [100, 200], and
+                # first visit in plate i+1 is [300, 400], won't it create a transit [200, 300]??
                 # If travel time is negative, it means we're at the junction between two plates
                 # => only look at positive travel times
                 if travel_time >= 0:
@@ -163,7 +166,7 @@ def plot_transition_matrix_graph(condition_list):
     plt.show()
 
 
-def plot_transition_graph_properties(condition_list, plot_neighbors=False):
+def plot_nearest_neighbor_transition_probability(condition_list, plot_neighbors=False):
     patch_positions = heatmap_script.idealized_patch_centers_mm(1847)
     # First, find nearest neighbors for each patch in each condition
     nearest_neighbors = {}
@@ -242,9 +245,9 @@ def plot_transition_graph_properties(condition_list, plot_neighbors=False):
     plt.show()
 
 
-def show_patch_numbers(condition_list):
+def show_patch_numbers(results_path, full_plate_list, condition_list):
     # First, load patch positions
-    patch_positions = heatmap_script.idealized_patch_centers_mm(1847)
+    patch_positions = heatmap_script.idealized_patch_centers_mm(results_path, full_plate_list, 1847)
     for i_condition, condition in enumerate(condition_list):
         current_patch_positions = patch_positions[condition]
         current_initial_patch_indices = central_patches(param.nb_to_distance[condition])
@@ -495,7 +498,7 @@ def parameter_exchange_matrix(results_table, condition_list, variable_to_exchang
 
 
 # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-path = gen.generate(test_pipeline=False, old_dataset=True)
+path = gen.generate(test_pipeline=False, old_dataset=False)
 results = pd.read_csv(path + "clean_results.csv")
 trajectories = pd.read_csv(path + "clean_trajectories.csv")
 full_list_of_folders = list(results["folder"])
@@ -507,27 +510,29 @@ if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean
 #show_patch_numbers(list_of_conditions)
 #simulate_total_visit_time(results, [0, 1, 2], 30)
 #simulate_nb_of_visits(results, [0, 1, 2], 30)
-parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "total_visit_time", 1000)
-parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "total_visit_time", 1000)
-parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_visit_time", 1000)
 
-parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "avg_visit_duration", 1000)
-parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "avg_visit_duration", 1000)
-parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "avg_visit_duration", 1000)
+# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "total_visit_time", 1000)
+# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "total_visit_time", 1000)
+# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_visit_time", 1000)
+#
+# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "avg_visit_duration", 1000)
+# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "avg_visit_duration", 1000)
+# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "avg_visit_duration", 1000)
+#
+# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "avg_nb_of_visits", 1000)
+# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "avg_nb_of_visits", 1000)
+# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "avg_nb_of_visits", 1000)
+#
+# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "total_xp_time", 1000)
+# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "total_xp_time", 1000)
+# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_xp_time", 1000)
+#
+# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "nb_of_explored_patches", 1000)
+# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "nb_of_explored_patches", 1000)
+# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "nb_of_explored_patches", 1000)
 
-parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "avg_nb_of_visits", 1000)
-parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "avg_nb_of_visits", 1000)
-parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "avg_nb_of_visits", 1000)
 
-parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "total_xp_time", 1000)
-parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "total_xp_time", 1000)
-parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_xp_time", 1000)
-
-parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "nb_of_explored_patches", 1000)
-parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "nb_of_explored_patches", 1000)
-parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "nb_of_explored_patches", 1000)
-
-#plot_transition_graph_properties([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15])
+plot_nearest_neighbor_transition_probability(param.list_by_density)
 
 #plot_transition_matrix_graph([0, 1, 2])
 #plot_transition_matrix_graph([4, 5, 6])

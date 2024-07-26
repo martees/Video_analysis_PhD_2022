@@ -60,7 +60,7 @@ def show_frames(folder, trajectories, first_frame):
     pixels = fd.reindex_silhouette(pixels, frame_size)
 
     # Load centers of mass from the tracking
-    centers_of_mass = trajectories[trajectories["folder"] == folder]
+    centers_of_mass = trajectories[trajectories["folder"] == folder].reset_index()
 
     # Plot the background
     composite = plt.imread(fd.load_file_path(folder, "composite.tif"))
@@ -81,7 +81,7 @@ def show_frames(folder, trajectories, first_frame):
 
     # Get patch info
     #patch_list = gt.in_patch_list(centers_of_mass, using="silhouette")
-    patch_list = trajectories["patch_silhouette"]
+    patch_list = centers_of_mass["patch_silhouette"]
     # Get speeds
     centers_of_mass["distances"] = gt.trajectory_distances(centers_of_mass)
     speed_list = gt.trajectory_speeds(centers_of_mass)
@@ -189,4 +189,4 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
 if __name__ == "__main__":
     path = gr.generate(starting_from="", test_pipeline=True)
     traj = pd.read_csv(path + "clean_trajectories.csv")
-    show_frames("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_less/20221011T111213_SmallPatches_C1-CAM1/traj.csv", traj, 1467)
+    show_frames('/media/admin/T7 Shield/Results_minipatches_retracked_test/20221011T191645_SmallPatches_C3-CAM7/traj.csv', traj, 31917)

@@ -348,14 +348,18 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(trajectories, 12)
 
-    plots.trajectories_1condition(trajectories, [], is_plot_patches=True, plot_in_patch=True, plate_list=results["folder"].tolist())
+    #plots.trajectories_1condition(trajectories, [20], is_plot_patches=True, plot_in_patch=True, plate_list=results["folder"].tolist())
+    plots.trajectories_1condition(trajectories, [2], is_plot_patches=True, plot_in_patch=True)
 
-    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
-    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
-    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0"]])
+    #plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
+    #plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    #plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    #plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2]], curve_names=["close 0.2", "med 0.2", "far 0.2"], variable_list=["visits"], only_first=False, plot_cumulative=False)
-    #plots.plot_variable_distribution(results, curve_list=[[4], [5], [6]], curve_names=["close 0.5", "med 0.5", "far 0.5"], variable_list=["visits"], only_first=False, plot_cumulative=False)
+    #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20], [21]], variable_list=["transits"], only_first=False, plot_cumulative=True)
+    #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)
+    #plots.plot_variable_distribution(results, curve_list=[[4], [5], [6], [15]], variable_list=["transits"], only_first=False, plot_cumulative=True)
+    #plots.plot_variable_distribution(results, curve_list=[[12], [8], [13], [16]], variable_list=["transits"], only_first=False, plot_cumulative=True)
 
     #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
     #plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
