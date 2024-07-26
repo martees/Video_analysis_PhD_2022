@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import csv
 
 import find_data as fd
 from Parameters import parameters as param
@@ -8,7 +9,7 @@ from Generating_data_tables import generate_controls as gc
 from Generating_data_tables import generate_trajectories as gt
 
 
-def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders):
+def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders, path):
     # Remove the plates which have overlapping patches
     folders_with_bad_patches = bad_patches_folders[bad_patches_folders["overlapping_patches"] == True].reset_index(drop=True)
     for i_folder in range(len(results_per_plate)):
@@ -19,13 +20,44 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders)
     cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
     cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
 
+    print("Finished cleaning results. Cleaning trajectories...")
     # Once the bad folders have been excluded from clean_results, remove them from the trajectory file
     valid_folders = pd.unique(cleaned_results["folder"])  # pd.unique to keep order
-    cleaned_traj = pd.DataFrame(columns=trajectories.columns)
-    cleaned_traj["is_smoothed"] = cleaned_traj["is_smoothed"].astype(bool)
-    for plate in valid_folders:
-        cleaned_traj = pd.concat([cleaned_traj, trajectories[trajectories["folder"] == plate]])
-    return cleaned_traj, cleaned_results
+    # Initialize a dictionary with one key per column
+    cleaned_traj = {}
+    trajectory_columns = list(trajectories.columns)
+    for col in trajectory_columns:
+        cleaned_traj[col] = []
+    # Fill each dictionary list with the values in traj that correspond to valid folders
+    for i_line in range(len(trajectories)):
+        if i_line % 2000000 == 0:
+            print("Line ", i_line, " / ", len(trajectories))
+        if trajectories["folder"].iloc[i_line] in valid_folders:
+            for col in list(trajectories.columns):
+                cleaned_traj[col].append(trajectories[col].iloc[i_line])
+
+    print("Saving clean_trajectories...")
+    columns = list(cleaned_traj.keys())
+    nb_of_lines = len(cleaned_traj[columns[0]])
+    csv_file = path + "clean_trajectories.csv"
+    try:
+        with open(csv_file, 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=columns)
+            writer.writeheader()
+            for i in range(nb_of_lines):
+                if i % 2000000 == 0:
+                    print("Line ", i_line, " / ", len(trajectories))
+                writer.writerow({col: cleaned_traj[col][i] for col in columns})
+    except IOError:
+        print("I/O error")
+
+    cleaned_results.to_csv(path + "clean_results.csv")
+
+    #cleaned_traj["is_smoothed"] = cleaned_traj["is_smoothed"].astype(bool)
+    #for plate in valid_folders:
+    #
+    #    cleaned_traj = pd.concat([cleaned_traj, trajectories[trajectories["folder"] == plate]])
+    #return cleaned_traj, cleaned_results
 
 
 def generate_smooth_trajectories(path):
@@ -84,11 +116,12 @@ def generate_clean_tables_and_speed(path):
     trajectories = pd.read_csv(path + "trajectories.csv", index_col=0)
     overlapping_patches = pd.read_csv(path + "overlapping_patches.csv")
     print("Cleaning results...")
-    clean_trajectories, clean_results = exclude_invalid_videos(trajectories, results_per_plate, overlapping_patches)
-    clean_results.to_csv(path + "clean_results.csv")
+    exclude_invalid_videos(trajectories, results_per_plate, overlapping_patches, path)
     print("Computing speeds...")
     # For faster execution, we compute speeds here (and not at the same time as distances), when invalid
     # trajectories have been excluded
+    clean_trajectories = pd.read_csv(path + "clean_trajectories.csv", index_col=0)
+    clean_trajectories = pd.DataFrame(clean_trajectories)
     clean_trajectories["speeds"] = gt.trajectory_speeds(clean_trajectories)
     clean_trajectories.to_csv(path + "clean_trajectories.csv")
     return 0
