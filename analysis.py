@@ -22,6 +22,14 @@ def r2(x, y):
     return stats.pearsonr(x, y)[0] ** 2
 
 
+def distance(xy0, xy1):
+    """
+    Returns the Euclidean distance between the two points xy0 and xy1.
+    xy0 and xy1 are two lists containing x and y for the two points.
+    """
+    return np.sqrt((xy0[0] - xy1[0]) ** 2 + (xy0[1] - xy1[1]) ** 2)
+
+
 def random_sample(array_1D):
     # This returns a list of random samples from array_1D (same size as the original array)
     # It does so by applying random_choice to a table with the values in array_1D repeated to make a square array
@@ -86,6 +94,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     visited_patches_list = list_of_visited_patches(fd.load_list(current_plate, "no_hole_visits"))
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / max(1, len(visited_patches_list))
                 elif np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
+                    if np.sum(current_plate[column_name]) < 0:
+                        print("Negative ", column_name, " for plate: ", current_plate["folder"].iloc[0])
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
                 else:
                     print("Trying to divide by 0 in plot_selected_data for plate" + str(
@@ -368,7 +378,7 @@ def convert_to_durations(list_of_time_stamps):
     #    list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
     # Code using lambda function instead:
     if list_of_time_stamps:
-        return list(np.apply_along_axis(lambda x: x[1]-x[0] + 1, 1, list_of_time_stamps))
+        return list(np.apply_along_axis(lambda x: x[1] - x[0] + 1, 1, list_of_time_stamps))
     else:  # If there are no time stamps
         return []
 
@@ -429,7 +439,7 @@ def array_division_ignoring_zeros(a, b):
     return np.divide(a, b, out=np.zeros(a.shape, dtype=float), where=b != 0)
 
 
-def return_value_list(results, column_name, condition_list=None, convert_to_duration=True, only_first=False):
+def return_value_list(results, column_name, condition_list=None, convert_to_duration=True, only_first=False, end_time=False):
     """
     Will return a list of values of column_name in results, pooled for all conditions in condition_list.
     For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
@@ -438,6 +448,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
     convert_to_duration: by default, it will convert visits and transits to durations, but if set False it will return
                          the list of visit / transit time stamps (same format as in results)
     only_first: if set to True, will only return the first value of column_name for each folder in results
+    end_time: if False, just take all values. if = 3000, will only return values that start before 3000.
     """
     # If no condition_list was given, just take all folders from results
     if condition_list is None:
@@ -461,6 +472,8 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
                                                        to_different_patch=True)
             if only_first and current_transit_list:
                 current_transit_list = [current_transit_list[0]]
+            if end_time and current_transit_list:
+                print("Implement end_time in return_value_list for transits!!!")
             if convert_to_duration:
                 list_of_values += convert_to_durations(current_transit_list)
             else:
@@ -476,6 +489,8 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
                 #patch_sequence = [i[0] for i in groupby(np.array(current_visits)[:, 2])]
                 if only_first and patch_sequence:
                     patch_sequence = patch_sequence[0]
+                if end_time and patch_sequence:
+                    print("Implement end_time in return_value_list for patch_sequence!!!")
                 list_of_values.append(patch_sequence)
 
     else:
@@ -489,7 +504,15 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             current_results = results[results["folder"] == current_plate].reset_index()
             current_values = fd.load_list(current_results, column_name)
             if only_first and current_values:
-                current_values = [current_values[0]]
+                list_of_found_patches = []
+                first_value_each_patch = []
+                for value in current_values:
+                    if value[2] not in list_of_found_patches:
+                        list_of_found_patches.append(value[2])
+                        first_value_each_patch.append(value)
+                current_values = first_value_each_patch
+            if end_time and current_values:
+                current_values = [current_values[i] for i in range(len(current_values)) if current_values[i][0] <= end_time]
             if convert_to_duration:
                 list_of_values += convert_to_durations(current_values)
             else:
@@ -939,7 +962,7 @@ def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edi
     binned_y_values = [[] for _ in range(nb_of_bins)]
     original_y_len = len(y_copy)
     for i in range(len(y_copy)):
-        if print_progress and i % (original_y_len//10) == 0:
+        if print_progress and i % (original_y_len // 10) == 0:
             print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
         current_y = y_copy.pop()
         current_x = x_copy.pop()
@@ -979,6 +1002,5 @@ def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edi
     print("Finished xy_to_bins()")
 
     return bin_list, avg_list, [list(errors_inf), list(errors_sup)], binned_y_values
-
 
 #bins, avg, _, binned = xy_to_bins([0, 0, 1, 1, 2, 2, 2, 3, 4, 10, 100], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], bin_size=0, custom_bins=[0, 1])
