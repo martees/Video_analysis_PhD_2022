@@ -53,7 +53,7 @@ def generate_controls(path):
             print(folder_list[i_folder])
         folder = folder_list[i_folder]
         # Find the corresponding control sub-folders (eg ./parent_folder/parent_folder_control_far/traj.csv)
-        current_control_folders = fd.control_folders(folder, ["close", "med", "far", "cluster"])
+        current_control_folders = fd.control_folders(folder, ["close", "med", "far", "superfar", "cluster"])
         for current_control_folder in current_control_folders:
             # First check if the folder exists, and create it if it doesn't
             if not os.path.isdir(current_control_folder):
