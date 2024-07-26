@@ -18,11 +18,17 @@ threshold_list = [100000]
 time_threshold = 1
 
 # Condition names
-nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2", 3: "cluster 0.2", 4: "close 0.5", 5: "med 0.5", 6: "far 0.5",
-              7: "cluster 0.5", 8: "med 1.25", 9: "med 0.2+0.5", 10: "med 0.5+1.25", 12: "close 1.25", 13: "far 1.25",
-              14: "superfar 0.2", 15: "superfar 0.5", 16: "superfar 1.25", 17: "close 0", 18: "med 0", 19: "far 0",
-              20: "superfar 0", 21: "cluster 0"}
+nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2",  14: "superfar 0.2", 3: "cluster 0.2",
+              4: "close 0.5", 5: "med 0.5", 6: "far 0.5", 15: "superfar 0.5",  7: "cluster 0.5",
+              12: "close 1.25", 8: "med 1.25", 13: "far 1.25", 16: "superfar 1.25",
+              9: "med 0.2+0.5", 10: "med 0.5+1.25", 17: "close 0", 18: "med 0", 19: "far 0",
+              21: "cluster 0"}
+# 20: "superfar 0",
 name_to_nb = {v: k for k, v in nb_to_name.items()}
+
+# TODO add superfar 0
+list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 16, 21, 3, 7]
+list_by_density = [17, 18, 19, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
 
 # Distance to number of patch dictionary (lower we build a condition number to number of patches dictionary from that)
 distance_to_nb_of_patches = {"close": 52, "med": 24, "far": 7, "superfar": 3, "cluster": 25}
@@ -40,10 +46,10 @@ for condition in nb_to_name.keys():
         nb_to_distance[condition] = "close"
     elif "med" in nb_to_name[condition]:
         nb_to_distance[condition] = "med"
+    elif "superfar" in nb_to_name[condition]:  # superfar before because "far" is in "superfar"
+        nb_to_distance[condition] = "superfar"
     elif "far" in nb_to_name[condition]:
         nb_to_distance[condition] = "far"
-    elif "superfar" in nb_to_name[condition]:
-        nb_to_distance[condition] = "superfar"
     elif "cluster" in nb_to_name[condition]:
         nb_to_distance[condition] = "cluster"
 
@@ -81,8 +87,9 @@ for condition in nb_to_name.keys():
 
 # Convert condition names into lists of condition numbers
 # eg {"close": [0, 4], "med": [1, 5, 8, 9, 10, 11], "far": [2, 6]}
-name_to_nb_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [], "0.5+1.25": [],
-                   "0.2+0.5": [], "0.5": [], "1.25": [], "0.2": [], "0": []}
+name_to_nb_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [],
+                   "0.2": [], "0.5": [], "1.25": [],
+                   "0.5+1.25": [], "0.2+0.5": [], "0": []}
 for condition in nb_to_name.keys():
     name_to_nb_list["all"].append(condition)  # the all should have everyone
     name_to_nb_list[nb_to_name[condition]] = [
@@ -92,7 +99,7 @@ for condition in nb_to_name.keys():
     # (this is to avoid all conditions being put in 0)
     distance_found = False
     for condition_pool in name_to_nb_list.keys():
-        if condition_pool in nb_to_name[condition]:
+        if condition_pool in nb_to_name[condition] and (distance_found or nb_to_name[condition][0] == condition_pool[0]):
             name_to_nb_list[condition_pool].append(condition)
             if not distance_found:
                 distance_found = True
@@ -171,7 +178,7 @@ def lighten_color(color, amount=0.5):
     return '#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255))
 
 
-name_to_color = {"close": "mediumslateblue", "med": "royalblue", "far": "deepskyblue", "superfar": "paleturquoise",
+name_to_color = {"close": "mediumslateblue", "med": "royalblue", "far": "deepskyblue", "superfar": "turquoise",
                  "cluster": "forestgreen", "0": "bisque",
                  "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate",
                  "0.5+1.25": "orange",
@@ -179,22 +186,33 @@ name_to_color = {"close": "mediumslateblue", "med": "royalblue", "far": "deepsky
                  "food": "brown",
                  "mixed": "goldenrod"}
 
-# Add colors for single conditions, distance override but color is lighter when density is lower
+# Add colors for single conditions, distance override but color is lighter when density is 0.2, darker when 1.25
 for condition in nb_to_name.keys():
     distance_color = name_to_color[nb_to_distance[condition]]
-    density = float(nb_to_density[condition][:3])
-    name_to_color[nb_to_name[condition]] = lighten_color(mc.cnames[distance_color], amount=min(1, max(0.1, density)*2.5))
-name_to_color["med 1.25"] = "black"
-name_to_color["med 0.5+1.25"] = "grey"
+    density = nb_to_density[condition]
+    if "+" not in density:
+        density = float(density)
+    else:
+        density1, density2 = density.split("+")
+        # for mixed densities, density will be intermediate
+        density = (float(density1) + float(density2)) / 2
+    name_to_color[nb_to_name[condition]] = lighten_color(mc.cnames[distance_color], amount=min(1.35, max(0.1, density)*2))
+#name_to_color["med 1.25"] = "black"
+#name_to_color["med 0.5+1.25"] = "grey"
 
 
 def test_colors():
-    x = 0
     y = 1
-    for pool in name_to_color.keys():
-        plt.scatter(x, y, color=name_to_color[pool], label=pool, s=100)
-        x += 1
-    plt.legend()
+    for pool_name, pool in name_to_nb_list.items():
+        x = 1
+        for cond in pool:
+            if len(pool) > 1:
+                plt.text(0, y, pool_name)
+                plt.scatter(x, y, color=name_to_color[nb_to_name[cond]], s=300)
+                x += 1
+        y += 1
     plt.show()
 
 
+if __name__ == "__main__":
+    test_colors()
