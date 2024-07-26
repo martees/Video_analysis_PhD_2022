@@ -50,11 +50,14 @@ def trajcsv_to_dataframe(paths_of_mat):
     """
     folder_list = []
     for i_file in range(len(paths_of_mat)): #for every file
+        if i_file % 10 == 0:
+            print(i_file)
         current_path = paths_of_mat[i_file]
-        print(current_path)
         current_data = pd.read_csv(current_path) #dataframe with all the info
+        if len(np.unique(current_data["id_conservative"])) > 100000:
+            print("Problem in trajcsv_to_dataframe! id's will overlap")
         # We add the file number to the worm identifyers, for them to become unique accross all folders
-        current_data["id_conservative"] = [id + 100*i_file for id in current_data["id_conservative"]]
+        current_data["id_conservative"] = [id + 100000*i_file for id in current_data["id_conservative"]]
 
         if i_file == 0:
             dataframe = current_data
@@ -98,11 +101,14 @@ def folder_to_metadata(path):
         # In case the strings already have commas, replace them with single space
         patch_centers = [patch_centers[i].replace(", ", " ").replace(",", " ") for i in range(len(patch_centers))]
         spline_guides = [spline_guides[i].replace(", ", " ").replace(",", " ") for i in range(len(spline_guides))]
+        # For the spline breaks and coefs, sometimes it comes with a weird format "[[np.float64(-0.2), ...]", remove that
+        spline_breaks = [metadata["spline_breaks"][i].replace("np.float64", "").replace("(", "").replace(")", "") for i in range(len(metadata["spline_breaks"]))]
+        spline_coefs = [metadata["spline_coefs"][i].replace("np.float64", "").replace("(", "").replace(")", "") for i in range(len(metadata["spline_coefs"]))]
         # Finally, replace spaces by commas and use json.loads
         metadata["patch_centers"] = [json.loads(patch_centers[i].replace(" ", ",")) for i in range(len(patch_centers))]
         metadata["spline_guides"] = [json.loads(spline_guides[i].replace(" ", ",").replace("\n", "")) for i in range(len(spline_guides))]
-        metadata["spline_breaks"] = [json.loads(metadata["spline_breaks"][i]) for i in range(len(metadata["patch_centers"]))]
-        metadata["spline_coefs"] = [json.loads(metadata["spline_coefs"][i]) for i in range(len(metadata["patch_centers"]))]
+        metadata["spline_breaks"] = [json.loads(spline_breaks[i]) for i in range(len(spline_breaks))]
+        metadata["spline_coefs"] = [json.loads(spline_coefs[i]) for i in range(len(spline_coefs))]
         metadata["holes"] = [json.loads(metadata["holes"][i]) for i in range(len(metadata["patch_centers"]))]
 
         return metadata
@@ -126,14 +132,20 @@ def folder_to_metadata(path):
             return False
 
         else:
-            # Replace path by reviewed food patches: temporary, because i'm still in the process of clicking the patches
+            # Replace path by reviewed food patches if they exist
             if os.path.isfile(path[:-lentoremove] + "foodpatches_reviewed.mat"):
                 path_for_patches = path[:-lentoremove] + "foodpatches_reviewed.mat"
+            path_for_info = path_for_patches
+
+            # For old dataset: replaced by foodpatches_new if available, because the non-new one does not contain splines
+            if os.path.isfile(path[:-lentoremove] + "foodpatches_new.mat"):
+                path_for_patches = path[:-lentoremove] + "foodpatches_new.mat"
 
             # Loadmat function loads .mat file into a dictionnary with meta info
             # the data is stored as a value for the key with the original table name ('traj' for traj.mat)
             holesmat = loadmat(path_for_holes)  # load holes in a dictionary using loadmat
             patchesmat = loadmat(path_for_patches)  # load patch objects
+            infomat = loadmat(path_for_info) # load condition & patch densities (same as patchesmat for new dataset)
 
             # Extract patch objects
             patch_objects = patchesmat.get("fp_struct")[0]
@@ -156,8 +168,8 @@ def folder_to_metadata(path):
             metadata["spline_breaks"] = [list(spline_objects[i][0][0][1][0]) for i in range(len(spline_objects))]
             metadata["spline_coefs"] = [[list(spline_objects[j][0][0][2][i]) for i in range(len(spline_objects[j][0][0][2]))] for j in range(len(spline_objects))]
 
-            metadata["patch_densities"] = list(patchesmat.get("densities_patches"))
-            metadata["condition"] = list(patchesmat.get("num_condition"))[0][0]
+            metadata["patch_densities"] = list(infomat.get("densities_patches"))
+            metadata["condition"] = list(infomat.get("num_condition"))[0][0]
             metadata["holes"] = [[hole[0:2] for hole in holesmat.get("pointList").tolist() if hole[2] == 2] for i_patch in range(len(metadata["patch_centers"]))]
 
     return metadata
@@ -240,7 +252,7 @@ def load_list(results, column_name):
     """
     if column_name in results.columns:
         try:
-            return list(json.loads(results[column_name][0]))
+            return list(json.loads(results[column_name][0].replace("np.float64(", "").replace(")", "")))
         except KeyError:
             results = results.reset_index()
             return list(json.loads(results[column_name][0]))
