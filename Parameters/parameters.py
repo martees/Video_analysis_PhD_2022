@@ -22,13 +22,12 @@ nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2",  14: "superfar 0.2", 3
               4: "close 0.5", 5: "med 0.5", 6: "far 0.5", 15: "superfar 0.5",  7: "cluster 0.5",
               12: "close 1.25", 8: "med 1.25", 13: "far 1.25", 16: "superfar 1.25",
               9: "med 0.2+0.5", 10: "med 0.5+1.25", 17: "close 0", 18: "med 0", 19: "far 0",
-              21: "cluster 0"}
-# 20: "superfar 0",
+              20: "superfar 0", 21: "cluster 0"}
 name_to_nb = {v: k for k, v in nb_to_name.items()}
 
 # TODO add superfar 0
-list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 16, 21, 3, 7]
-list_by_density = [17, 18, 19, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
+list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 20, 16, 21, 3, 7]
+list_by_density = [17, 18, 19, 20, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
 
 # Distance to number of patch dictionary (lower we build a condition number to number of patches dictionary from that)
 distance_to_nb_of_patches = {"close": 52, "med": 24, "far": 7, "superfar": 3, "cluster": 25}
