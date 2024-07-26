@@ -7,6 +7,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import matplotlib as mpl
+mpl.use("TkAgg")
 
 import plots
 from Generating_data_tables import main as gen
@@ -116,11 +118,13 @@ def generate_polar_map(plate):
 
 def generate_average_patch_radius_each_condition(results_path, full_plate_list):
     """
-    Will compute the average radius of patches in all conditions, based on 20 radius for 3 random patches for 6 random
-    plates from each condition. Will save it in a csv, in path/average_patch_radius_each_condition.csv.
+    Will compute the average radius of patches in all conditions, based on 100 radii from each patch.
+    Will save it in a csv, in path/average_patch_radius_each_condition.csv.
+    Column "condition" contains the condition. Column "avg_patch_radius" contains the corresponding radius.
+    Will also plot the distribution of all the radii for each condition in a boxplot (sanity check).
     @param results_path: path to the whole dataset, where the map will be saved
     @param full_plate_list: list of data path ("./*traj.csv" format)
-    @return: None, saves a matrix
+    @return: None, saves a csv
     """
     print(">>> Computing average radius for all conditions...")
     all_conditions_list = param.nb_to_name.keys()
@@ -138,13 +142,13 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
         # Compute average radius from a few plates of this condition
         plates_this_condition = fd.return_folders_condition_list(full_plate_list, condition)
         for i_plate, plate in enumerate(plates_this_condition):
-            # Take a few random patches in each
+            # Load patch info
             plate_metadata = fd.folder_to_metadata(plate)
             patch_centers = plate_metadata["patch_centers"]
             patch_spline_breaks = plate_metadata["spline_breaks"]
             patch_spline_coefs = plate_metadata["spline_coefs"]
             for i_patch in range(len(patch_centers)):
-                # For a range of 20 angular positions
+                # For a range of 100 angular positions
                 angular_pos = np.linspace(-np.pi, np.pi, 100)
                 # Compute the local spline value for each of those angles
                 for i_angle in range(len(angular_pos)):
@@ -163,21 +167,95 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
     pd.DataFrame(average_radius).to_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
 
 
-def compute_average_ref_points_distance():
-    return 0
-
-
-def idealized_patch_centers_mm(frame_size):
-    print(">>> Computing average radius for all conditions...")
+def compute_average_ref_points_distance(results_path, full_plate_list):
+    """
+    Will compute the average distance between reference points in all conditions.
+    Will save it in a csv, in path/average_ref_points_distance_each_condition.csv.
+    Will also plot the distribution of all the distances for each condition in a boxplot (sanity check),
+    and a boxplot showing the average for each of the distances (top, left, right, bottom).
+    @param results_path: path to the whole dataset, where the map will be saved
+    @param full_plate_list: list of data path ("./*traj.csv" format)
+    @return: None, saves a csv
+    """
+    print(">>> Computing average reference point distance for all conditions...")
     all_conditions_list = param.nb_to_name.keys()
+
+    if not os.path.isdir(results_path + "perfect_heatmaps"):
+        os.mkdir(results_path + "perfect_heatmaps")
+
+    average_distance = {"condition": [], "avg_ref_points_distance": []}
+    distances_each_condition = [[] for _ in range(len(all_conditions_list))]
+    distances_each_condition_top = []
+    distances_each_condition_left = []
+    distances_each_condition_right = []
+    distances_each_condition_bottom = []
+    condition_names = []
+    condition_colors = []
+    for i_condition, condition in enumerate(all_conditions_list):
+        if i_condition % 3 == 0:
+            print(">>>>>> Condition ", i_condition, " / ", len(all_conditions_list))
+        # Compute average radius from a few plates of this condition
+        plates_this_condition = fd.return_folders_condition_list(full_plate_list, condition)
+        for i_plate, plate in enumerate(plates_this_condition):
+            # Take a few random patches in each
+            plate_metadata = fd.folder_to_metadata(plate)
+            holes = plate_metadata["holes"][0]
+            if len(holes) == 4:
+                point1, point2, point3, point4 = holes
+                left_dist = ana.distance(point1, point2)
+                top_dist = ana.distance(point2, point3)
+                right_dist = ana.distance(point3, point4)
+                bottom_dist = ana.distance(point4, point1)
+                distances_each_condition[i_condition].append(np.mean([left_dist, top_dist, right_dist, bottom_dist]))
+                distances_each_condition_top.append(top_dist)
+                distances_each_condition_left.append(left_dist)
+                distances_each_condition_right.append(right_dist)
+                distances_each_condition_bottom.append(bottom_dist)
+
+        average_distance["condition"].append(condition)
+        average_distance["avg_ref_points_distance"].append(np.nanmean(distances_each_condition[i_condition]))
+        condition_names.append(param.nb_to_name[condition])
+        condition_colors.append(param.name_to_color[param.nb_to_name[condition]])
+
+    fig, [ax0, ax1] = plt.subplots(1, 2)
+    # Boxplot with values for each condition
+    ax0.boxplot(distances_each_condition)
+    ax0.set_xticks(range(1, len(all_conditions_list) + 1), condition_names, rotation=45)
+    ax0.set_title("Reference point distance for each condition")
+    # Boxplot with one box for top edge, left edge, etc.
+    ax1.boxplot([distances_each_condition_left, distances_each_condition_top, distances_each_condition_right, distances_each_condition_bottom])
+    ax1.set_xticks([1, 2, 3, 4], ["Left", "Top", "Right", "Bottom"])
+    ax1.set_title("Reference point distance for each edge")
+    plt.show()
+    pd.DataFrame(average_distance).to_csv(results_path + "perfect_heatmaps/average_reference_points_distance_each_condition.csv")
+
+
+def idealized_patch_centers_mm(results_path, full_plate_list, output_frame_size):
+    print(">>> Computing patch positions...")
+    all_conditions_list = param.nb_to_name.keys()
+
+    # Load the average distance between reference points
+    if not os.path.isfile(results_path + "perfect_heatmaps/average_reference_points_distance_each_condition.csv"):
+        if len(full_plate_list) == 1:
+            print("Run compute_average_ref_points_distance() on all the plates first!!!")
+            return 0
+        compute_average_ref_points_distance(results_path, full_plate_list)
+    ref_points = pd.read_csv(results_path + "perfect_heatmaps/average_reference_points_distance_each_condition.csv")
+    average_ref_points_distance = np.mean(ref_points["avg_ref_points_distance"])
+
+    # Deduce reference points from that
+    margin = (output_frame_size - average_ref_points_distance)/2
+    bottom_left = [margin, margin]
+    bottom_right = [output_frame_size - margin, margin]
+    top_left = [margin, output_frame_size - margin]
+    top_right = [output_frame_size - margin, output_frame_size - margin]
 
     patch_centers_each_cond = {}
     robot_xy_each_cond = param.distance_to_xy
     for i_condition, condition in enumerate(all_conditions_list):
         small_ref_points = ReferencePoints.ReferencePoints([[-20, 20], [20, 20], [20, -20], [-20, -20]])
-        big_ref_points = ReferencePoints.ReferencePoints(
-            [[frame_size / 4, frame_size / 4], [3 * frame_size / 4, frame_size / 4],
-             [frame_size / 4, 3 * frame_size / 4], [3 * frame_size / 4, 3 * frame_size / 4]])
+        big_ref_points = ReferencePoints.ReferencePoints([bottom_left, bottom_right, top_left, top_right])
+        #small_ref_points = big_ref_points
         robot_xy = np.array(robot_xy_each_cond[param.nb_to_distance[condition]])
         robot_xy[:, 0] = - robot_xy[:, 0]
         patch_centers_each_cond[condition] = big_ref_points.mm_to_pixel(small_ref_points.pixel_to_mm(robot_xy))
@@ -275,6 +353,26 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
                  regenerate_pixel_values=False,
                  regenerate_polar_maps=False, regenerate_perfect_map=False,
                  frame_size=1847, collapse_patches=False):
+    """
+    Plots a heatmap with color that varies according to a variable that can be inputted as a string parameter.
+    In order to maintain patch structure across all plates, will plot this heatmap in an idealized landscape,
+    where patches are perfectly round and equidistant.
+    Will compute the average of that variable for each pixel, dividing the value by the number of pixels that got mapped
+    in this idealized pixel (to avoid biases linked to the idealization).
+    Will save the resulting heatmap to save computing cost.
+    @param results_path:
+    @param traj:
+    @param full_plate_list:
+    @param curve_list:
+    @param curve_names:
+    @param variable:
+    @param regenerate_pixel_values:
+    @param regenerate_polar_maps:
+    @param regenerate_perfect_map:
+    @param frame_size:
+    @param collapse_patches:
+    @return:
+    """
     # Plot initialization
     fig, axes = plt.subplots(1, len(curve_list))
     if variable == "pixel_visits":
@@ -294,8 +392,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
     average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
 
     # Compute the idealized patch positions by converting the robot xy data to mm in a "perfect" reference frame
-    ideal_patch_centers_each_cond = idealized_patch_centers_mm(frame_size)
-
+    ideal_patch_centers_each_cond = idealized_patch_centers_mm(results_path, full_plate_list, frame_size)
 
     tic = time.time()
     for i_curve in range(len(curve_list)):
@@ -353,11 +450,10 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
                     if not np.isnan(current_values):
                         perfect_i, perfect_j = xp_to_perfect_indices[i][j]
                         heatmap_each_curve[i_curve][perfect_i][perfect_j] += values_each_pixel[i][j]
-                        if variable == "speed":
-                            counts_each_curve[i_curve][perfect_i][perfect_j] += 1
+                        counts_each_curve[i_curve][perfect_i][perfect_j] += 1
 
-            if variable == "speed":
-                heatmap_each_curve[i_curve] = ana.array_division_ignoring_zeros(heatmap_each_curve[i_curve],
+            # Divide the values by the number of pixels that went there
+            heatmap_each_curve[i_curve] = ana.array_division_ignoring_zeros(heatmap_each_curve[i_curve],
                                                                             counts_each_curve[i_curve])
 
             #first_traj_point = traj[traj["folder"] == plate].reset_index().iloc[0]
@@ -392,20 +488,24 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
     print("")
 
 
-def plot_existing_heatmap(heatmap_path, control_heatmap_path, v_min=0, v_max=1):
+def plot_existing_heatmap(heatmap_path, control_heatmap_path=None, v_min=0, v_max=1):
     heatmap = np.load(heatmap_path)
-    control_heatmap = np.load(control_heatmap_path)
-    plt.title(heatmap_path.split("/")[-1])
+    if control_heatmap_path is None:
+        plt.imshow(heatmap, vmin=v_min, vmax=v_max, cmap="plasma")
+    else:
+        control_heatmap = np.load(control_heatmap_path)
+        plt.title(heatmap_path.split("/")[-1])
 
-    #normalized_array = array_division_ignoring_zeros(heatmap, control_heatmap)
-    #normalized_array = normalized_array / np.nansum(normalized_array)
-    #plt.imshow(normalized_array, interpolation='nearest', vmin=v_min, vmax=v_max)
+        #normalized_array = array_division_ignoring_zeros(heatmap, control_heatmap)
+        #normalized_array = normalized_array / np.nansum(normalized_array)
+        #plt.imshow(normalized_array, interpolation='nearest', vmin=v_min, vmax=v_max)
 
-    normalized_array = heatmap/control_heatmap
-    masked_array = np.ma.array(normalized_array, mask=np.isnan(normalized_array))
-    cmap = plt.cm.viridis
-    cmap.set_bad('black', 1.)
-    plt.imshow(masked_array, interpolation='nearest', cmap=cmap, vmin=v_min, vmax=v_max)
+        normalized_array = heatmap/control_heatmap
+        masked_array = np.ma.array(normalized_array, mask=np.isnan(normalized_array))
+        cmap = plt.cm.viridis
+        cmap.set_bad('black', 1.)
+        plt.imshow(masked_array, interpolation='nearest', cmap=cmap, vmin=v_min, vmax=v_max)
+
     plt.show()
 
 
@@ -427,7 +527,7 @@ def plot_distance_map_and_patches(results_path, plate):
     patch_y = [patch_centers[i][1] for i in range(len(patch_centers))]
 
     # Load theoretical patch centers
-    ideal_patch_centers_each_cond = idealized_patch_centers_mm(len(distance_map))
+    ideal_patch_centers_each_cond = idealized_patch_centers_mm(results_path, [plate], len(distance_map))
     ideal_patch_centers = ideal_patch_centers_each_cond[fd.load_condition(plate)]
 
     # Load the average patch radius
@@ -446,6 +546,8 @@ def plot_distance_map_and_patches(results_path, plate):
     plt.show()
 
 
+#plot_existing_heatmap("/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/perfect_heatmaps/pixel_visits_heatmap_conditions_[2].npy", v_max=0.00001)
+
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     path = gen.generate(test_pipeline=False)
@@ -459,7 +561,11 @@ if __name__ == "__main__":
         full_list_of_folders.remove(
             "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
-    plot_distance_map_and_patches(path, full_list_of_folders[0])
+    #compute_average_ref_points_distance(path, full_list_of_folders)
+
+    #compute_average_ref_points_distance(path, full_list_of_folders)
+    #generate_average_patch_radius_each_condition(path, full_list_of_folders)
+    #plot_distance_map_and_patches(path, full_list_of_folders[11])
 
     #import cProfile
     #import pstats
@@ -470,9 +576,9 @@ if __name__ == "__main__":
     #plot_heatmap(path, trajectories, full_list_of_folders, [[3]],
     #             ["cluster 0.2"], variable="pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    #plot_heatmap(path, trajectories, full_list_of_folders, [[0]],
-    #             ["close 0.2"], variable="short_pixel_visits", regenerate_pixel_values=False,
-    #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
+    plot_heatmap(path, trajectories, full_list_of_folders[:100], [[0]],
+                 ["close 0.2"], variable="pixel_visits", regenerate_pixel_values=True,
+                 regenerate_polar_maps=True, regenerate_perfect_map=True, collapse_patches=False)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[0], [4]],
     #             ["close 0.2", "close 0.5"], variable="pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=True)
@@ -492,3 +598,4 @@ if __name__ == "__main__":
     #profiler.disable()
     #stats = pstats.Stats(profiler).sort_stats('cumtime')
     #stats.print_stats()
+
