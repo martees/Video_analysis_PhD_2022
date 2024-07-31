@@ -3,11 +3,13 @@
 
 from scipy import ndimage
 import pandas as pd
+import datatable as dt
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 import matplotlib as mpl
+import random
 mpl.use("TkAgg")
 
 import plots
@@ -19,6 +21,7 @@ from Parameters import parameters as param
 import find_data as fd
 import analysis as ana
 import ReferencePoints
+
 
 
 def keep_only_short_visits(traj, threshold, longer_or_shorter):
@@ -271,7 +274,7 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
     and the angular coordinate with respect to the patch center.
     @param folder_to_save: where to save the resulting npy
     @param polar_map: a map containing, for each pixel of the image, a list containing [index of the closest patch,
-                      distance to the patch boundary, angular coordinate with respect to the closest patch center].
+                      distance to the patch boundary, angular coordinate (rad) with respect to the closest patch center].
     @param ideal_patch_centers: coordinates of the ideal patch centers [[x0, y0], [x1, y1], ...].
     @param ideal_patch_radius: average radius of patches.
     @param collapse_all_patches: if set to TRUE, will give indices to collapse everything on a single patch, in the center of the plate!!!
@@ -296,12 +299,68 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
         x_shift_matrix = frame_size // 2
         y_shift_matrix = frame_size // 2
     else:
-        x_shift_matrix = [list(map(lambda x: ideal_patch_centers[int(x)][0], y)) for y in closest_patch_index]
-        y_shift_matrix = [list(map(lambda x: ideal_patch_centers[int(x)][1], y)) for y in closest_patch_index]
+        x_shift_matrix = np.array([list(map(lambda x: ideal_patch_centers[int(x)][0], y)) for y in closest_patch_index])
+        y_shift_matrix = np.array([list(map(lambda x: ideal_patch_centers[int(x)][1], y)) for y in closest_patch_index])
 
     # Then, array operations
     perfect_x = (ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix) + x_shift_matrix
     perfect_y = (ideal_patch_radius + distance_to_boundary_matrix) * np.sin(angular_coordinates_matrix) + y_shift_matrix
+    #
+    # fig, ax = plt.subplots(2, 4)
+    # ax[0, 0].set_title("radius")
+    # ax[0, 0].imshow(np.ones(angular_coordinates_matrix.shape) * ideal_patch_radius)
+    #
+    # ax[0, 1].set_title("distance == 0")
+    # ax[0, 1].imshow(distance_to_boundary_matrix)
+    # ax[0, 1].scatter(np.where(distance_to_boundary_matrix == 0)[1], np.where(distance_to_boundary_matrix == 0)[0], color="white", s=100)
+    #
+    # ax[0, 2].set_title("angle")
+    # ax[0, 2].imshow(angular_coordinates_matrix)
+    #
+    # ax[0, 3].set_title("x_shift")
+    # ax[0, 3].imshow(x_shift_matrix)
+
+    # ax[1, 0].set_title("radius + distance == radius")
+    # ax[1, 0].imshow(ideal_patch_radius + distance_to_boundary_matrix)
+    # indices = np.where(ideal_patch_radius + distance_to_boundary_matrix == ideal_patch_radius)
+    # ax[1, 0].scatter(indices[1], indices[0], color="white", s=100)
+    # indices = np.where(np.round(ideal_patch_radius + distance_to_boundary_matrix, 2) == np.round(ideal_patch_radius, 2))
+    # ax[1, 0].scatter(indices[1], indices[0], color="orange", s=100)
+    #
+    # ax[1, 1].set_title("(radius + distance) * cos(angle) == radius * cos(angle)")
+    # ax[1, 1].imshow((ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix))
+    # value_1 = (ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix)
+    # value_2 = ideal_patch_radius * np.cos(angular_coordinates_matrix)
+    # #indices = np.where(np.round(value_1, 2) == np.round(value_2, 2))
+    # indices = np.where(value_1 == value_2)
+    # ax[1, 1].scatter(indices[1], indices[0], color="white", s=100)
+    #
+    # ax[1, 0].set_title("(radius + distance) * cos(angle) + x_shift == radius * cos(angle) + x_shift")
+    # indices = np.where((ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix) + x_shift_matrix
+    #                    == ideal_patch_radius * np.cos(angular_coordinates_matrix) + x_shift_matrix)
+    # ax[1, 0].scatter(indices[1], indices[0], color="white", s=100)
+    # ax[1, 0].imshow((ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix) + x_shift_matrix)
+    #
+    # ax[1, 1].set_title("perfect_x == radius * cos(angle) + x_shift")
+    # indices = np.where(perfect_x == ideal_patch_radius * np.cos(angular_coordinates_matrix) + x_shift_matrix)
+    # ax[1, 1].scatter(indices[1], indices[0], color="white", s=100)
+    # ax[1, 1].imshow(perfect_x)
+    #
+    # ax[1, 2].set_title("perfect_x - x_shift == radius * cos(angle)")
+    # value_1 = np.round(perfect_x - x_shift_matrix, 4)
+    # value_2 = np.round(ideal_patch_radius * np.cos(angular_coordinates_matrix), 4)
+    # indices = np.where(value_1 == value_2)
+    # #indices = np.where(perfect_x - x_shift_matrix == ideal_patch_radius * np.cos(angular_coordinates_matrix))
+    # ax[1, 2].scatter(indices[1], indices[0], color="white", s=100)
+    # ax[1, 2].imshow(perfect_x - x_shift_matrix)
+    #
+    # ax[1, 3].set_title("(perfect_x - x_shift)/cos(angle) == radius")
+    # indices = np.where((perfect_x - x_shift_matrix) / np.cos(angular_coordinates_matrix) == ideal_patch_radius)
+    # ax[1, 3].scatter(indices[1], indices[0], color="white", s=100)
+    # ax[1, 3].imshow((perfect_x - x_shift_matrix) / np.cos(angular_coordinates_matrix))
+    #
+    # plt.show()
+
     # Stack all of those so that you get the array with for each pixel [x, y]
     experimental_to_perfect = np.stack((perfect_x, perfect_y), axis=2)
     # Clip them so that their values are not too high
@@ -349,7 +408,7 @@ def load_short_pixel_visits(traj, plate, regenerate=False):
     return 0
 
 
-def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, variable="pixel_visits",
+def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixel_visits",
                  regenerate_pixel_values=False,
                  regenerate_polar_maps=False, regenerate_perfect_map=False,
                  frame_size=1847, collapse_patches=False):
@@ -375,6 +434,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, curve_names, v
     """
     # Plot initialization
     fig, axes = plt.subplots(1, len(curve_list))
+    curve_names = [param.nb_list_to_name[str(curve)] for curve in curve_list]
     if variable == "pixel_visits":
         color_map = "viridis"
         fig.suptitle("Heatmap of worm presence")
@@ -555,7 +615,7 @@ if __name__ == "__main__":
     #plot_existing_heatmap(path + "perfect_heatmaps/pixel_visits_heatmap_conditions_[0].npy", path + "perfect_heatmaps/pixel_visits_heatmap_conditions_[12].npy", v_max=10)
 
     results = pd.read_csv(path + "clean_results.csv")
-    trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
     if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv" in full_list_of_folders:
         full_list_of_folders.remove(
@@ -576,9 +636,8 @@ if __name__ == "__main__":
     #plot_heatmap(path, trajectories, full_list_of_folders, [[3]],
     #             ["cluster 0.2"], variable="pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=False)
-    plot_heatmap(path, trajectories, full_list_of_folders[:100], [[0]],
-                 ["close 0.2"], variable="pixel_visits", regenerate_pixel_values=True,
-                 regenerate_polar_maps=True, regenerate_perfect_map=True, collapse_patches=False)
+    plot_heatmap(path, trajectories, full_list_of_folders[:40], [[17]], variable="pixel_visits", regenerate_pixel_values=False,
+                 regenerate_polar_maps=False, regenerate_perfect_map=True, collapse_patches=False)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[0], [4]],
     #             ["close 0.2", "close 0.5"], variable="pixel_visits", regenerate_pixel_values=False,
     #             regenerate_polar_maps=False, regenerate_perfect_map=False, collapse_patches=True)
