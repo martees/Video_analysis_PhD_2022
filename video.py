@@ -5,6 +5,7 @@ from matplotlib.backend_bases import MouseButton
 import pandas as pd
 
 # My code
+from Parameters import parameters as param
 import find_data as fd
 import plots
 from Generating_data_tables import generate_trajectories as gt
@@ -161,6 +162,11 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
     global top_ax
     global xmin, xmax, ymin, ymax
 
+    print(len(pixels[index][0]))
+    if len(pixels[index][0]) > param.invalid_silhouette_threshold:
+        worm_plot[0].set_color("red")
+    else:
+        worm_plot[0].set_color("gray")
     worm_plot[0].set_data([pixels[index][0]], [pixels[index][1]])
     center_of_mass_plot.set_offsets([centers_of_mass["x"][index], centers_of_mass["y"][index]])
 
@@ -187,6 +193,6 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
 
 
 if __name__ == "__main__":
-    path = gr.generate(starting_from="", test_pipeline=True)
+    path = gr.generate(starting_from="", test_pipeline=False)
     traj = pd.read_csv(path + "clean_trajectories.csv")
-    show_frames('/media/admin/T7 Shield/Results_minipatches_retracked_test/20221011T191645_SmallPatches_C3-CAM7/traj.csv', traj, 31917)
+    show_frames(path + '20221011T191645_SmallPatches_C3-CAM7/traj.csv', traj, 31917)
