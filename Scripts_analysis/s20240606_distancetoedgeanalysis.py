@@ -36,10 +36,12 @@ def generate_patch_distance_map(in_patch_matrix, folder_to_save):
 
     # Create a distance matrix with 0 inside food patches and distance to boundary outside
     distance_transform_outside = ndimage.distance_transform_edt(zeros_inside)
-    # Create a distance matrix with 0 outside food patches and distance to boundary inside (add 1 so that boundary = 0)
-    distance_transform_inside = ndimage.distance_transform_edt(zeros_outside) + 1
+    # Create a distance matrix with 0 outside food patches and distance to boundary inside
+    distance_transform_inside = ndimage.distance_transform_edt(zeros_outside)
     # Subtract them from one another so that distance to patch boundary is positive outside, negative inside
-    distance_transform = distance_transform_outside - distance_transform_inside
+    # Add 1 to make inside (negative) distances go to zero at boundary
+    # And then remove 1 outside otherwise there'd be no 1 in the distances
+    distance_transform = distance_transform_outside - distance_transform_inside + 1 - zeros_inside
 
     np.save(folder_to_save[:-len(folder_to_save.split("/")[-1])] + "distance_to_patch_map.npy", distance_transform)
 
