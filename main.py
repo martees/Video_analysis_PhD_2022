@@ -273,20 +273,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
             if "print_parameters_for_model" in what_to_plot:
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = ana.transit_properties(
-                    results, conditions_each_curve, split_conditions=True, is_print=True)
-
-                revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = ana.transit_properties(
-                    results, conditions_each_curve, split_conditions=False)
-
-                print("Transit properties for conditions ", current_condition_names)
-                print("Revisit probability: ", revisit_probability)
-                print("Cross-patch probability: ", cross_transit_probability)
-                print("Exponential leaving probability: ", exponential_leaving_probability)
-                print("Minimal duration of visits: ", min_visit)
-                print("Average duration of visits: ", average_visit)
-                print("Average duration of same patch transits: ", average_same_patch)
-                print("Average duration of cross patch transits: ", average_cross_patch)
-                print("-----")
+                    results, conditions_each_curve[0], split_conditions=True, is_print=True)
 
             # Proportion of time spent in patches
             if "total_video_time" in what_to_plot:
@@ -304,7 +291,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
 if __name__ == "__main__":
     #   Saves the results in a path that is returned (only needed at the beginning!)
-    path = gr.generate(starting_from="controls", test_pipeline=False)
+    path = gr.generate(starting_from="", test_pipeline=False)
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -323,7 +310,7 @@ if __name__ == "__main__":
     # NOTE: lists are stored as strings in the csv, so we retrieve the values with json loads function
 
     # Retrieve results from what generate_and_save has saved
-    trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    #trajectories = pd.read_csv(path + "clean_trajectories.csv")
     results = pd.read_csv(path + "clean_results.csv")
     print("Finished retrieving stuff")
 
@@ -349,12 +336,12 @@ if __name__ == "__main__":
     # plots.trajectories_1condition(trajectories, 12)
 
     #plots.trajectories_1condition(trajectories, [20], is_plot_patches=True, plot_in_patch=True, plate_list=results["folder"].tolist())
-    plots.trajectories_1condition(trajectories, [2], is_plot_patches=True, plot_in_patch=True)
+    #plots.trajectories_1condition(trajectories, [2], is_plot_patches=True, plot_in_patch=True)
 
-    #plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
-    #plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    #plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    #plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #plot_graphs(results, "print_parameters_for_model", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
+    plot_graphs(results, "print_parameters_for_model", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2", "cluster 0.2"]])
+    plot_graphs(results, "print_parameters_for_model", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5", "cluster 0.5"]])
+    plot_graphs(results, "print_parameters_for_model", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20], [21]], variable_list=["transits"], only_first=False, plot_cumulative=True)
     #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)

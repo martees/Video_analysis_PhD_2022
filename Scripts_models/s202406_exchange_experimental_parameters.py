@@ -66,7 +66,7 @@ def plot_matrix(condition_list, value_matrix, parameter_to_exchange, nb_of_draws
 
     fig.set_size_inches(len(condition_list)*0.9, (7.5/(9*0.82)) * len(condition_list))  # don't mind me xD
     plt.tight_layout(pad=2)
-    fig.suptitle("Exchanging "+str(parameter_to_exchange)+", nb_of_draws = "+str(nb_of_draws))
+    fig.suptitle(nb_of_draws)
     ax.set_xlabel("Lends their "+parameter_to_exchange)
     ax.set_ylabel("Steals their "+parameter_to_exchange)
     plt.show()

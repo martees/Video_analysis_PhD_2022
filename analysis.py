@@ -564,8 +564,8 @@ def transit_properties(results, condition_list, split_conditions, is_print=False
         average_cross_patch = np.mean(cross_transits)
 
     if is_print:
-        for i_cond in range(len(condition_list)):
-            print("Transit properties for condition ", param.nb_to_name[i_cond])
+        for i_cond, cond in enumerate(condition_list):
+            print("Transit properties for condition ", param.nb_to_name[cond])
             print("Revisit probability: ", revisit_probability[i_cond])
             print("Cross-patch probability: ", cross_transit_probability[i_cond])
             print("Exponential leaving probability: ", exponential_leaving_probability[i_cond])

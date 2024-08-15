@@ -1,11 +1,13 @@
 from main import *
 import numpy as np
 import matplotlib.pyplot as plt
-
+import find_data as fd
+from Generating_data_tables import main as gen
 # Analysis of the worms' speeds near the patch border
 # The goal is to plot speed right before and after worm enters / exits a food patch
 # Note: the script will pool all given conditions into two curves, one for exit, and one for entry
 
+path = gen.generate("")
 clean_results = pd.read_csv(path + "/clean_results.csv", index_col=0)
 clean_trajectories = pd.read_csv(path + "/clean_trajectories.csv", index_col=0)
 

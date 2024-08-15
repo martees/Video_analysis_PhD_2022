@@ -17,6 +17,9 @@ threshold_list = [100000]
 #   N time steps, with N being this threshold)
 time_threshold = 1
 
+# Number of pixel threshold to consider that a silhouette is invalid (if it has more than the threshold, invalid)
+invalid_silhouette_threshold = 150
+
 # Condition names
 nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2",  14: "superfar 0.2", 3: "cluster 0.2",
               4: "close 0.5", 5: "med 0.5", 6: "far 0.5", 15: "superfar 0.5",  7: "cluster 0.5",
@@ -25,7 +28,6 @@ nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2",  14: "superfar 0.2", 3
               20: "superfar 0", 21: "cluster 0"}
 name_to_nb = {v: k for k, v in nb_to_name.items()}
 
-# TODO add superfar 0
 list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 20, 16, 21, 3, 7]
 list_by_density = [17, 18, 19, 20, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
 
@@ -38,19 +40,6 @@ distance_to_nb_of_patches = {"close": 52, "med": 24, "far": 7, "superfar": 3, "c
 # nb_to_density
 # nb_to_nb_of_patches
 # name_to_nb_list
-
-nb_to_distance = {}
-for condition in nb_to_name.keys():
-    if "close" in nb_to_name[condition]:
-        nb_to_distance[condition] = "close"
-    elif "med" in nb_to_name[condition]:
-        nb_to_distance[condition] = "med"
-    elif "superfar" in nb_to_name[condition]:  # superfar before because "far" is in "superfar"
-        nb_to_distance[condition] = "superfar"
-    elif "far" in nb_to_name[condition]:
-        nb_to_distance[condition] = "far"
-    elif "cluster" in nb_to_name[condition]:
-        nb_to_distance[condition] = "cluster"
 
 nb_to_density = {}
 for condition in nb_to_name.keys():
@@ -70,6 +59,22 @@ for condition in nb_to_name.keys():
         nb_to_density[condition] = "0"
     else:
         nb_to_density[condition] = "all"
+
+
+nb_to_distance = {}
+for condition in nb_to_name.keys():
+    if "0" in nb_to_density[condition]:
+        nb_to_distance[condition] = "control"
+    if "close" in nb_to_name[condition]:
+        nb_to_distance[condition] = "close"
+    elif "med" in nb_to_name[condition]:
+        nb_to_distance[condition] = "med"
+    elif "superfar" in nb_to_name[condition]:  # superfar before because "far" is in "superfar"
+        nb_to_distance[condition] = "superfar"
+    elif "far" in nb_to_name[condition]:
+        nb_to_distance[condition] = "far"
+    elif "cluster" in nb_to_name[condition]:
+        nb_to_distance[condition] = "cluster"
 
 nb_to_nb_of_patches = {}
 for condition in nb_to_name.keys():
