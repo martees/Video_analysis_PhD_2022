@@ -4,6 +4,7 @@ from itertools import groupby
 import copy
 import json
 import numpy as np
+import datatable as dt
 
 # My code
 import analysis as ana
@@ -669,7 +670,7 @@ def generate_pixelwise_visits(trajectories, folder):
     pixels = fd.reindex_silhouette(pixels, frame_size)
 
     # Get list of frame numbers
-    frame_list = trajectories[trajectories["folder"] == folder]["frame"].reset_index(drop=True)
+    frame_list = trajectories[dt.f.folder == folder, "frame"]
 
     # Create a table with a list containing, for each pixel in the image, a sublist with the [start, end] of the visits
     # to this pixel. In the following algorithm, when the last element of a sublist is -1, it means that the pixel
@@ -684,10 +685,10 @@ def generate_pixelwise_visits(trajectories, folder):
             current_pixel = [current_visited_pixels[0][i_pixel], current_visited_pixels[1][i_pixel]]
             # If visit just started, start it
             if visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] == [-1]:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [frame_list[j_time], frame_list[j_time]]
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [frame_list[j_time, 0], frame_list[j_time, 0]]
             # If visit is continuing, update end time
             else:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = frame_list[j_time]
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = frame_list[j_time, 0]
         # Then, close the visits of the previous time step that are not being continued
         if j_time > 0:
             previous_visited_pixels = pixels[j_time - 1]
