@@ -5,6 +5,7 @@
 #       (so p_ii is the revisit probability), for condition 0
 # "transition_duration_0.npy":
 #       In each cell [i, j]: a list of transit durations, going from patch i to patch j.
+import copy
 
 from scipy import ndimage
 import pandas as pd
@@ -70,7 +71,7 @@ def generate_transition_matrices(condition_list, plot_everything=False, plot_tra
             # Compute distance to all patches
             curr_patches = patch_positions[i_condition]
             distance_matrix[i_patch] = [np.sqrt((curr_patches[i_patch][0] - curr_patches[i][0]) ** 2 + (
-                        curr_patches[i_patch][1] - curr_patches[i][1]) ** 2) for i in range(nb_of_patches)]
+                    curr_patches[i_patch][1] - curr_patches[i][1]) ** 2) for i in range(nb_of_patches)]
 
         #if not os.path.isdir(path_to_save + "transition_matrices"):
         #    os.mkdir(path_to_save + "transition_matrices")
@@ -143,7 +144,7 @@ def plot_transition_matrix_graph(condition_list):
                         x_origin = (x_origin + x_target) / 2
                         y_origin = (y_origin + y_target) / 2
                     axs[i_condition].arrow(x_origin, y_origin, x_target - x_origin, y_target - y_origin,
-                                           color=colors[np.clip(int(current_probability/max_value * 100), 0, 100)],
+                                           color=colors[np.clip(int(current_probability / max_value * 100), 0, 100)],
                                            zorder=-10, width=4, head_length=40, length_includes_head=True)
 
         #print(np.clip(np.array(current_transition_matrix*100).astype(int), 0, 100))
@@ -166,8 +167,13 @@ def plot_transition_matrix_graph(condition_list):
     plt.show()
 
 
-def plot_nearest_neighbor_transition_probability(condition_list, plot_neighbors=False):
-    patch_positions = heatmap_script.idealized_patch_centers_mm(1847)
+def find_nearest_neighbors(results_path, folder_list, condition_list):
+    """
+    Will return a dictionary with, for each condition in condition_list, a matrix of size NxN with
+    N the number of patches in that condition, and containing a 1 in cell [i, j] if patch i and j
+    are nearest neighbors, and a 0 otherwise.
+    """
+    patch_positions = heatmap_script.idealized_patch_centers_mm(results_path, folder_list, 1847)
     # First, find nearest neighbors for each patch in each condition
     nearest_neighbors = {}
     for i_condition, condition in enumerate(condition_list):
@@ -181,7 +187,7 @@ def plot_nearest_neighbor_transition_probability(condition_list, plot_neighbors=
             for j_patch in range(nb_of_patches):
                 target_x = current_patch_positions[j_patch][0]
                 target_y = current_patch_positions[j_patch][1]
-                distance_to_others.append(np.sqrt((curr_x - target_x)**2 + (curr_y - target_y)**2))
+                distance_to_others.append(np.sqrt((curr_x - target_x) ** 2 + (curr_y - target_y) ** 2))
             neighbors_sorted_by_distance = np.argsort(distance_to_others)
             counter = 1  # start at 1 cause 0 is the distance of patch to itself
             i_neighbor = neighbors_sorted_by_distance[counter]
@@ -190,9 +196,14 @@ def plot_nearest_neighbor_transition_probability(condition_list, plot_neighbors=
                 counter += 1
                 if counter < nb_of_patches:
                     i_neighbor = neighbors_sorted_by_distance[counter]
+    return nearest_neighbors
 
+
+def plot_nearest_neighbor_transition_probability(condition_list, results_path, folder_list, plot_neighbors=False):
+    patch_positions = heatmap_script.idealized_patch_centers_mm(results_path, folder_list, 1847)
+    nearest_neighbors = find_nearest_neighbors(results_path, folder_list, condition_list)
     if plot_neighbors:
-        # Then just plot them cause i'm scared
+        # Then just plot them 'cause I'm scared
         for i_condition, condition in enumerate(condition_list):
             current_patch_positions = patch_positions[condition]
             current_nearest_neighbors = nearest_neighbors[condition]
@@ -209,7 +220,8 @@ def plot_nearest_neighbor_transition_probability(condition_list, plot_neighbors=
                 x = current_patch_positions[i_patch][0]
                 y = current_patch_positions[i_patch][1]
                 circle = plt.Circle((x, y), radius=100, color="xkcd:ochre")
-                plt.text(x, y, str(np.where(current_nearest_neighbors[i_patch] == 1)[0]), horizontalalignment='center', verticalalignment='center', color="white")
+                plt.text(x, y, str(np.where(current_nearest_neighbors[i_patch] == 1)[0]), horizontalalignment='center',
+                         verticalalignment='center', color="white")
                 ax.add_artist(circle)
             plt.title(param.nb_to_distance[condition])
             plt.show()
@@ -233,7 +245,8 @@ def plot_nearest_neighbor_transition_probability(condition_list, plot_neighbors=
             else:
                 nearest_prob_each_patch[i_patch] = np.nan
         # Add it to the main list and remember names+colors for last plot
-        values_each_condition[i_condition] += [nearest_prob_each_patch[i] for i in range(len(nearest_prob_each_patch)) if not np.isnan(nearest_prob_each_patch[i])]
+        values_each_condition[i_condition] += [nearest_prob_each_patch[i] for i in range(len(nearest_prob_each_patch))
+                                               if not np.isnan(nearest_prob_each_patch[i])]
         names.append(condition_name)
         colors.append(param.name_to_color[condition_name])
     boxplot = plt.boxplot(values_each_condition, patch_artist=True, labels=names, bootstrap=1000)
@@ -280,6 +293,8 @@ def central_patches(distance):
         return [6, 11, 12, 17]
     if distance == "far":
         return [3]
+    if distance == "superfar":
+        return [0, 1, 2]
     if distance == "cluster":
         return [1, 3, 6, 11, 13, 18]
 
@@ -294,7 +309,9 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
     for i_exp in range(nb_of_exp):
         i_time = 0
         current_patch = random.choice(initial_positions)
-        visit_list[i_exp].append([i_time, i_time + np.mean(xp_visit_list), current_patch])
+        visit_end = i_time + random.choice(xp_visit_list)
+        visit_list[i_exp].append([i_time, visit_end, current_patch])
+        i_time = visit_end
         while i_time < xp_length:
             # Memorize where we came from
             previous_patch = current_patch
@@ -305,7 +322,7 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
             visit_start = i_time + random.choice(transition_durations[previous_patch][current_patch])
             if visit_start < xp_length:
                 # Randomly choose a visit duration
-                visit_end = visit_start + np.mean(xp_visit_list)
+                visit_end = visit_start + random.choice(xp_visit_list)
                 # Add it to the list and update timer
                 visit_list[i_exp].append([visit_start, visit_end, current_patch])
                 i_time = visit_end
@@ -314,6 +331,9 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
         # If end time is > xp_length, cut the last visit
         if visit_list[i_exp][-1][1] > xp_length:
             visit_list[i_exp][-1][1] = xp_length
+
+        if any([visit[1] > xp_length for visit in visit_list[i_exp]]):
+            print("ayayay")
 
     return visit_list
 
@@ -445,7 +465,7 @@ def simulate_nb_of_visits(results_table, condition_list, nb_of_exp):
     plt.show()
 
 
-def parameter_exchange_matrix(results_table, condition_list, variable_to_exchange, what_to_plot, nb_of_exp):
+def parameter_exchange_matrix(results_table, condition_list, variable_to_exchange, what_to_plot, nb_of_exp, xp_length):
     # First, load the parameters / distributions for each condition in condition_list
     transition_probability_matrices = [[] for _ in range(len(condition_list))]
     transition_duration_matrices = [[] for _ in range(len(condition_list))]
@@ -461,30 +481,42 @@ def parameter_exchange_matrix(results_table, condition_list, variable_to_exchang
         for i_col in range(len(condition_list)):
             where_to_take_each_parameter_from = {"transit_prob": i_line, "transit_times": i_line, "visit_times": i_line,
                                                  "revisit_probability": i_line, variable_to_exchange: i_col}
-            transition_probability = transition_probability_matrices[where_to_take_each_parameter_from["transit_prob"]]
-            revisit_probability_matrix = transition_probability_matrices[where_to_take_each_parameter_from["revisit_probability"]]
+            transition_probability = copy.deepcopy(
+                transition_probability_matrices[where_to_take_each_parameter_from["transit_prob"]])
+            revisit_probability_matrix = transition_probability_matrices[
+                where_to_take_each_parameter_from["revisit_probability"]]
             # Transform the matrix to match the correct revisit_probability
             # (same-patch transitions are set to be the average revisit probability of the matrix we steal from, and
             # cross-patch transitions are normalized so that the sum of a line is still 1)
-            original_revisit_probability = np.mean([transition_probability[i][i] for i in range(len(transition_probability))])
-            target_revisit_probability = np.mean([revisit_probability_matrix[i][i] for i in range(len(revisit_probability_matrix))])
+            original_revisit_probability = np.mean(
+                [transition_probability[i][i] for i in range(len(transition_probability))])
+            target_revisit_probability = np.mean(
+                [revisit_probability_matrix[i][i] for i in range(len(revisit_probability_matrix))])
             for i_patch in range(len(transition_probability)):
                 for j_patch in range(len(transition_probability[i_patch])):
                     if i_patch == j_patch and transition_probability[i_patch][j_patch] != 0:
                         transition_probability[i_patch][j_patch] = target_revisit_probability
                     else:
-                        transition_probability[i_patch][j_patch] *= (1-target_revisit_probability)/(1-original_revisit_probability)
+                        transition_probability[i_patch][j_patch] *= (1 - target_revisit_probability) / (
+                                1 - original_revisit_probability)
 
             transition_durations = transition_duration_matrices[where_to_take_each_parameter_from["transit_times"]]
             visit_durations = xp_visit_duration[where_to_take_each_parameter_from["visit_times"]]
             list_of_visits = simulate_visit_list(condition_list[i_line], transition_probability, transition_durations,
-                                                 visit_durations, nb_of_exp)
+                                                 visit_durations, nb_of_exp, xp_length=xp_length)
             if what_to_plot == "total_visit_time":
                 # Total visit time / nb of visited patches
-                total_time_in_patch_matrix[i_line][i_col] = np.mean([np.sum(ana.convert_to_durations(visits))/len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
+                total_time_in_patch_matrix[i_line][i_col] = np.mean(
+                    [np.sum(ana.convert_to_durations(visits)) / len(np.unique(np.array(visits)[:, 2])) for visits in
+                     list_of_visits])
             if what_to_plot == "avg_visit_duration":
                 # Average visit length
-                total_time_in_patch_matrix[i_line][i_col] = np.mean([np.mean(ana.convert_to_durations(visits)) for visits in list_of_visits])
+                total_time_in_patch_matrix[i_line][i_col] = np.mean(
+                    [np.mean(ana.convert_to_durations(visits)) for visits in list_of_visits])
+            if what_to_plot == "avg_nb_of_visits_per_patch":
+                # Average number of visits
+                total_time_in_patch_matrix[i_line][i_col] = np.mean(
+                    [len(visits) / len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
             if what_to_plot == "avg_nb_of_visits":
                 # Average number of visits
                 total_time_in_patch_matrix[i_line][i_col] = np.mean([len(visits) for visits in list_of_visits])
@@ -492,51 +524,57 @@ def parameter_exchange_matrix(results_table, condition_list, variable_to_exchang
                 # Average total experimental time
                 total_time_in_patch_matrix[i_line][i_col] = np.mean([visits[-1][1] for visits in list_of_visits])
             if what_to_plot == "nb_of_explored_patches":
-                total_time_in_patch_matrix[i_line][i_col] = np.mean([len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
+                total_time_in_patch_matrix[i_line][i_col] = np.mean(
+                    [len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
 
-    exchange_script.plot_matrix(condition_list, total_time_in_patch_matrix, variable_to_exchange, nb_of_exp)
+    exchange_script.plot_matrix(condition_list, total_time_in_patch_matrix, variable_to_exchange, what_to_plot)
 
+if __name__ == "__main__":
+    # Load path and clean_results.csv, because that's where the list of folders we work on is stored
+    path = gen.generate(test_pipeline=False, old_dataset=False)
+    results = pd.read_csv(path + "clean_results.csv")
+    # trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    full_list_of_folders = list(results["folder"])
+    if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv" in full_list_of_folders:
+        full_list_of_folders.remove(
+            "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
-# Load path and clean_results.csv, because that's where the list of folders we work on is stored
-path = gen.generate(test_pipeline=False, old_dataset=False)
-results = pd.read_csv(path + "clean_results.csv")
-trajectories = pd.read_csv(path + "clean_trajectories.csv")
-full_list_of_folders = list(results["folder"])
-if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv" in full_list_of_folders:
-    full_list_of_folders.remove(
-        "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
+    #list_of_conditions = list(param.nb_to_name.keys())
+    #show_patch_numbers(list_of_conditions)
+    #simulate_total_visit_time(results, [0, 1, 2], 30)
+    #simulate_nb_of_visits(results, [0, 1, 2], 30)
 
-#list_of_conditions = list(param.nb_to_name.keys())
-#show_patch_numbers(list_of_conditions)
-#simulate_total_visit_time(results, [0, 1, 2], 30)
-#simulate_nb_of_visits(results, [0, 1, 2], 30)
+    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "total_xp_time", 1000, 30000)
 
-# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "total_visit_time", 1000)
-# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "total_visit_time", 1000)
-# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_visit_time", 1000)
-#
-# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "avg_visit_duration", 1000)
-# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "avg_visit_duration", 1000)
-# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "avg_visit_duration", 1000)
-#
-# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "avg_nb_of_visits", 1000)
-# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "avg_nb_of_visits", 1000)
-# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "avg_nb_of_visits", 1000)
-#
-# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "total_xp_time", 1000)
-# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "total_xp_time", 1000)
-# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_xp_time", 1000)
-#
-# parameter_exchange_matrix(results, [0, 1, 2], "revisit_probability", "nb_of_explored_patches", 1000)
-# parameter_exchange_matrix(results, [4, 5, 6], "revisit_probability", "nb_of_explored_patches", 1000)
-# parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "nb_of_explored_patches", 1000)
+    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
+    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
+    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
 
+    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_visit_duration", 1000, 30000)
+    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_visit_duration", 1000, 30000)
+    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_visit_duration", 1000, 30000)
 
-plot_nearest_neighbor_transition_probability(param.list_by_density)
+    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "total_visit_time", 1000, 30000)
 
-#plot_transition_matrix_graph([0, 1, 2])
-#plot_transition_matrix_graph([4, 5, 6])
-#plot_transition_matrix_graph([12, 13, 14])
-#plot_transition_matrix_graph([8, 9, 10])
-#plot_transition_matrix_graph([10, 1])
-#plot_transition_matrix_graph([15, 3, 7])
+    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
+    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
+    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
+
+    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "total_xp_time", 1000, 30000)
+    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "total_xp_time", 1000, 30000)
+    parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_xp_time", 1000, 30000)
+
+    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
+    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
+    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
+
+    #plot_nearest_neighbor_transition_probability(param.list_by_density)
+
+    #plot_transition_matrix_graph([0, 1, 2])
+    #plot_transition_matrix_graph([4, 5, 6])
+    #plot_transition_matrix_graph([12, 13, 14])
+    #plot_transition_matrix_graph([8, 9, 10])
+    #plot_transition_matrix_graph([10, 1])
+    #plot_transition_matrix_graph([15, 3, 7])
