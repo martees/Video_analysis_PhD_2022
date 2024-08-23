@@ -11,6 +11,7 @@ import find_data as fd
 from Generating_data_tables import main as gen
 from Generating_data_tables import generate_trajectories as gt
 from Scripts_analysis import s20240605_global_presence_heatmaps as heatmap_script
+from Scripts_sanity_checks import s20240810_interpatch_distance as interpatch_script
 
 # Analysis of the worm's displacement evolution after leaving a food patch
 
@@ -19,17 +20,35 @@ results = pd.read_csv(path + "clean_results.csv")
 trajectories = dt.fread(path + "clean_trajectories.csv")
 
 # Parameters
-curve_list = ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]
 #curve_list = ["close 0", "med 0", "far 0", "superfar 0"]
+#curve_list = ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]
 #curve_list = ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]
-#curve_list = ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
+curve_list = ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
 # curve_list = ["close 1.25"]
-bin_list = [1, 100, 200, 400, 800, 1600, 3200, 6400, 12800]
-min_length = 1  # minimal transit length to get considered
-min_nb_data_points = 4  # minimal number of transits for a point to get plotted
+bin_list = [1, 4, 8, 16, 32, 64, 128]
+min_length = 128  # minimal transit length to get considered
+min_nb_data_points = 20  # minimal number of transits for a point to get plotted
 
+# Computed from the parameters
 time_window = max(bin_list)
 nb_of_bins = len(bin_list)
+
+# Extract the average distance between patches in the conditions to analyze.
+# That is because, to avoid sampling biases, when comparing a "close" condition to a "med" or "far" one,
+# we exclude transits once they have exceeded the point where there could've been a food patch in the "close".
+# (This also affects close trajectories, since we ignore worms after they cross that radius, but we found that it was
+# the cleanest way of not having the fastest worms in the "close" only in short transits, because they find a patch.)
+if not os.path.isfile(gen.generate("") + "interpatch_distance.csv"):
+    interpatch_script.generate_patch_distances()
+interpatch_dataframe = pd.read_csv(gen.generate("") + "interpatch_distance.csv")
+# Remove the radius!
+if not os.path.isfile(path + "perfect_heatmaps/average_patch_radius_each_condition.csv"):
+    heatmap_script.generate_average_patch_radius_each_condition(path, results["folder"])
+average_patch_radius_each_cond = pd.read_csv(
+    path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
+average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
+# Compute the average interpatch distance from boundary to boundary (so remove twice the radius)
+smallest_distance = np.min(interpatch_dataframe["interpatch_distance"]) - 2 * average_radius
 
 for i_curve in range(len(curve_list)):
     curve_name = curve_list[i_curve]
@@ -54,23 +73,16 @@ for i_curve in range(len(curve_list)):
         if not os.path.isfile(in_patch_matrix_path):
             gt.in_patch_all_pixels(in_patch_matrix_path)
         in_patch_matrix = pd.read_csv(in_patch_matrix_path).to_numpy()
-        # Load the polar map matrix, which contains [i, r_b, theta], where we're interested in i,
-        # the index of the closest food patch
-        # Then, if it's not already done, or has to be redone, compute the polar coordinates for the plate
-        polar_map_path = current_folder[:-len("traj.csv")] + "polar_map.npy"
-        if not os.path.isfile(polar_map_path):
-            heatmap_script.generate_polar_map(current_folder)
-        current_polar_map = np.load(polar_map_path)
-        closest_patch_index = current_polar_map[:, :, 0]
         # For each patch, create a map with, for each pixel, the distance to the boundary of that patch
         nb_of_patches = len(np.unique(in_patch_matrix)) - 1
         distance_map_each_patch = [[] for _ in range(nb_of_patches)]
         for i_patch in range(nb_of_patches):
-            zeros_inside = np.where((closest_patch_index == i_patch) & (in_patch_matrix != -1), 0, 1)
+            zeros_inside = np.where(in_patch_matrix == i_patch, 0, 1)
+            # Create a distance matrix with 0 inside food patches and distance to boundary outside
             distance_map_each_patch[i_patch] = ndimage.distance_transform_edt(zeros_inside)
-
         # Lists of frames where worm exits patches (visit and transit starts) and it lasts more than time window
-        # (any visit or transit shorter than time window would lead to an "impure" behavior => excluded from analysis)
+        # (used to exclude transits that are so short that we might want to consider them as artifacts)
+        # (but for now it's set at 1 so does not do anything lol)
         long_enough_transits = [list_of_transits[i] for i in range(len(list_of_transits)) if
                                 list_of_transits[i][1] - list_of_transits[i][0] >= min_length]
         exit_frames = [long_enough_transits[i][0] for i in range(len(long_enough_transits))]
@@ -84,29 +96,32 @@ for i_curve in range(len(curve_list)):
             exit_index = fd.find_closest(current_traj[:, dt.f.frame].to_list()[0], current_exit_frame)
             end_index = fd.find_closest(current_traj[:, dt.f.frame].to_list()[0], current_end_frame)
             exit_from = current_traj[exit_index, dt.f.patch_silhouette][0, 0]
-            distance_this_patch = distance_map_each_patch[exit_from]
-            # Check if frames are continuous around exit: otherwise, exclude it completely (for now because I'm tired)
-            if end_index - exit_index >= current_end_frame - current_exit_frame:
-                x_list = current_traj[exit_index:end_index, dt.f.x].to_list()[0]
-                y_list = current_traj[exit_index:end_index, dt.f.y].to_list()[0]
-                xy_list = np.stack((x_list, y_list), axis=1)
-                distance_function: Callable[[Any], int] = lambda xy: distance_this_patch[int(xy[1])][int(xy[0])]
-                displacement_list = list(map(distance_function, xy_list))
-                current_bin = 0
-                i_time = 0
-                while i_time < len(displacement_list) and current_bin < nb_of_bins:
-                    if i_time > bin_list[current_bin]:
-                        current_bin += 1
+            if exit_from != -1:  # if the video starts with a transit, then the worm is not exiting any patch
+                distance_this_patch = distance_map_each_patch[exit_from]
+                # Check if frames are continuous around exit: otherwise, exclude it completely (for now because I'm tired)
+                if end_index - exit_index >= current_end_frame - current_exit_frame:
+                    x_list = current_traj[exit_index:end_index, dt.f.x].to_list()[0]
+                    y_list = current_traj[exit_index:end_index, dt.f.y].to_list()[0]
+                    xy_list = np.stack((x_list, y_list), axis=1)
+                    distance_function: Callable[[Any], int] = lambda xy: distance_this_patch[int(xy[1])][int(xy[0])]
+                    displacement_list = list(map(distance_function, xy_list))
+                    # Compute index at which to stop (because we exclude trajectories once they reach some radius, see
+                    # explanation near definition of smallest_distance
+                    if np.max(displacement_list) > smallest_distance:
+                        index_to_stop = fd.find_closest(displacement_list, smallest_distance)
                     else:
-                        #print("len folder val: ", len(current_folder_values), "curr b: ", current_bin)
-                        #print("len disp list: ", len(displacement_list), "i time: ", i_time)
-                        current_folder_values[current_bin].append(displacement_list[i_time])
-                        if displacement_list[i_time] > 2000:
-                            print("wtf")
-                        i_time += 1
+                        index_to_stop = len(displacement_list)
+                    current_bin = 0
+                    i_time = 0
+                    while i_time < index_to_stop and current_bin < nb_of_bins:
+                        if i_time > bin_list[current_bin]:
+                            current_bin += 1
+                        else:
+                            current_folder_values[current_bin].append(displacement_list[i_time])
+                            i_time += 1
 
-        # At this point, speed_before_entry, speed_after_... etc. are filled with one sublist per bin
-        # and each sublist contains the worms' speeds during those time steps. Now we average for each bin
+        # At this point, avg_displacement_each_bin_each_plate is filled with one sublist per bin
+        # and each sublist contains the worms' displacement during those time steps. Now we average for each bin
         for i_bin in range(nb_of_bins):
             if i_bin == 0:
                 current_bin_size = 1
@@ -139,7 +154,7 @@ for i_curve in range(len(curve_list)):
             errors_sup[i_bin] = bootstrap_ci[1] - current_avg
 
     y_list = avg_displacement_each_bin[np.nansum(nb_of_points_each_bin_each_plate, axis=1) > min_nb_data_points]
-    x_list = np.array(bin_list) + 10*i_curve
+    x_list = np.array(bin_list) + i_curve*0.2
     x_list = x_list[np.nansum(nb_of_points_each_bin_each_plate, axis=1) > min_nb_data_points]
     errors_inf = errors_inf[np.nansum(nb_of_points_each_bin_each_plate, axis=1) > min_nb_data_points]
     errors_sup = errors_sup[np.nansum(nb_of_points_each_bin_each_plate, axis=1) > min_nb_data_points]
