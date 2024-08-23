@@ -529,6 +529,7 @@ def parameter_exchange_matrix(results_table, condition_list, variable_to_exchang
 
     exchange_script.plot_matrix(condition_list, total_time_in_patch_matrix, variable_to_exchange, what_to_plot)
 
+
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     path = gen.generate(test_pipeline=False, old_dataset=False)
@@ -544,11 +545,13 @@ if __name__ == "__main__":
     #simulate_total_visit_time(results, [0, 1, 2], 30)
     #simulate_nb_of_visits(results, [0, 1, 2], 30)
 
-    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "total_xp_time", 1000, 30000)
+    parameter_exchange_matrix(results, [0, 1, 2, 14], "visit_times", "avg_visit_duration", 1000, 30000)
+    parameter_exchange_matrix(results, [4, 5, 6, 15], "visit_times", "avg_visit_duration", 1000, 30000)
+    parameter_exchange_matrix(results, [12, 8, 13, 16], "visit_times", "avg_visit_duration", 1000, 30000)
 
-    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
-    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
-    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
+    parameter_exchange_matrix(results, [0, 1, 2, 14], "visit_times", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(results, [4, 5, 6, 15], "visit_times", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(results, [12, 8, 13, 16], "visit_times", "total_visit_time", 1000, 30000)
 
     parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_visit_duration", 1000, 30000)
     parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_visit_duration", 1000, 30000)
@@ -558,17 +561,21 @@ if __name__ == "__main__":
     parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "total_visit_time", 1000, 30000)
     parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "total_visit_time", 1000, 30000)
 
-    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
-    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
-    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
-
-    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "total_xp_time", 1000, 30000)
-    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "total_xp_time", 1000, 30000)
-    parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_xp_time", 1000, 30000)
-
-    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
-    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
-    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
+    # parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
+    # parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
+    # parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
+    #
+    # parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
+    # parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
+    # parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
+    #
+    # parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "total_xp_time", 1000, 30000)
+    # parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "total_xp_time", 1000, 30000)
+    # parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_xp_time", 1000, 30000)
+    #
+    # parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
+    # parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
+    # parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
 
     #plot_nearest_neighbor_transition_probability(param.list_by_density)
 

@@ -89,10 +89,10 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
             # Speed plots
             if "average_speed" in what_to_plot:
-                plots.plot_selected_data(results, "Average speed in " + plot_name + " conditions (inside)",
+                plots.plot_selected_data(results, "Average speed inside",
                                          current_conditions, current_condition_names, "average_speed_inside",
                                          divided_by="", mycolor=current_color, is_plot=is_plot)
-                plots.plot_selected_data(results, "Average speed in " + plot_name + " conditions (outside)",
+                plots.plot_selected_data(results, "Average speed outside",
                                          current_conditions, current_condition_names, "average_speed_outside",
                                          divided_by="", mycolor=current_color, is_plot=is_plot)
 
@@ -222,7 +222,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 plots.plot_visit_time(results, trajectories,
                                       "Visit duration vs. previous transit in " + plot_name + " conditions",
                                       current_conditions, "last_travel_time", current_condition_names,
-                                      split_conditions=True, is_plot=is_plot, patch_or_pixel="pixel", only_first=False)
+                                      split_conditions=True, is_plot=is_plot, patch_or_pixel="pixel", only_first=True)
 
             if "visit_duration_vs_visit_start" in what_to_plot:
                 plots.plot_visit_time(results, trajectories,
@@ -310,12 +310,12 @@ if __name__ == "__main__":
     # NOTE: lists are stored as strings in the csv, so we retrieve the values with json loads function
 
     # Retrieve results from what generate_and_save has saved
-    #trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    trajectories = pd.read_csv(path + "clean_trajectories.csv")
     results = pd.read_csv(path + "clean_results.csv")
     print("Finished retrieving stuff")
 
     #plot_graphs(results, "visit_duration_vs_entry_speed",
-    #            [["close 0"]])
+    #            [["close 0.2"]])
     #plot_graphs(results, "visit_duration_vs_entry_speed",
     #            [["med 0"]])
     #plot_graphs(results, "visit_duration_vs_entry_speed",
@@ -335,13 +335,13 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(trajectories, 12)
 
-    #plots.trajectories_1condition(trajectories, [20], is_plot_patches=True, plot_in_patch=True, plate_list=results["folder"].tolist())
+    #plots.trajectories_1condition(trajectories, [18], is_plot_patches=True, plot_in_patch=False, plot_speed=True, save_fig=True, is_plot=False)
     #plots.trajectories_1condition(trajectories, [2], is_plot_patches=True, plot_in_patch=True)
 
-    #plot_graphs(results, "print_parameters_for_model", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
-    plot_graphs(results, "print_parameters_for_model", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2", "cluster 0.2"]])
-    plot_graphs(results, "print_parameters_for_model", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5", "cluster 0.5"]])
-    plot_graphs(results, "print_parameters_for_model", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "visit_duration_vs_previous_transit", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
 
     #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20], [21]], variable_list=["transits"], only_first=False, plot_cumulative=True)
     #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)

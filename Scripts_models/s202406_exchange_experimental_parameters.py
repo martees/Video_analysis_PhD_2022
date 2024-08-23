@@ -20,6 +20,7 @@ from Parameters import parameters as param
 
 def plot_parameter_distribution(condition_list, values_dictionary):
     fig, axs = plt.subplots(1, len(values_dictionary))
+
     condition_names = [Parameters.parameters.nb_to_name[condition_list[i]] for i in range(len(condition_list))]
     condition_color = [Parameters.parameters.name_to_color[condition_names[i]] for i in range(len(condition_names))]
     bins = np.logspace(0, 4, 20)
@@ -46,7 +47,7 @@ def plot_parameter_distribution(condition_list, values_dictionary):
 
 def plot_matrix(condition_list, value_matrix, parameter_to_exchange, nb_of_draws):
     condition_names = [Parameters.parameters.nb_to_name[condition_list[i]] for i in range(len(condition_list))]
-    value_matrix /= np.max(np.abs(value_matrix))
+    #value_matrix /= np.max(np.abs(value_matrix))
 
     fig, ax = plt.subplots()
     ax.imshow(value_matrix, cmap="coolwarm")
@@ -62,14 +63,16 @@ def plot_matrix(condition_list, value_matrix, parameter_to_exchange, nb_of_draws
     # Loop over data dimensions and create text annotations.
     for i in range(len(condition_list)):
         for j in range(len(condition_list)):
-            ax.text(j, i, np.round(value_matrix[i, j], 2), ha="center", va="center", color="w")
+            ax.text(j, i, int(np.rint(value_matrix[i, j])), ha="center", va="center", color="w")
 
     fig.set_size_inches(len(condition_list)*0.9, (7.5/(9*0.82)) * len(condition_list))  # don't mind me xD
     plt.tight_layout(pad=2)
     fig.suptitle(nb_of_draws)
     ax.set_xlabel("Lends their "+parameter_to_exchange)
     ax.set_ylabel("Steals their "+parameter_to_exchange)
+
     plt.show()
+
 
 
 def matrix_of_total_time_in_patch(condition_list, parameter_to_exchange, nb_of_draws, plot_distribution=False):

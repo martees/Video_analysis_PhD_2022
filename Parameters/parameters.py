@@ -24,8 +24,8 @@ invalid_silhouette_threshold = 150
 nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2",  14: "superfar 0.2", 3: "cluster 0.2",
               4: "close 0.5", 5: "med 0.5", 6: "far 0.5", 15: "superfar 0.5",  7: "cluster 0.5",
               12: "close 1.25", 8: "med 1.25", 13: "far 1.25", 16: "superfar 1.25",
-              9: "med 0.2+0.5", 10: "med 0.5+1.25", 17: "close 0", 18: "med 0", 19: "far 0",
-              20: "superfar 0", 21: "cluster 0"}
+              9: "med 0.2+0.5", 10: "med 0.5+1.25",
+              17: "close 0", 18: "med 0", 19: "far 0", 20: "superfar 0", 21: "cluster 0"}
 name_to_nb = {v: k for k, v in nb_to_name.items()}
 
 list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 20, 16, 21, 3, 7]
@@ -82,10 +82,10 @@ for condition in nb_to_name.keys():
         nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["close"]
     elif "med" in nb_to_name[condition]:
         nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["med"]
-    elif "far" in nb_to_name[condition]:
-        nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["far"]
     elif "superfar" in nb_to_name[condition]:
         nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["superfar"]
+    elif "far" in nb_to_name[condition]:
+        nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["far"]
     elif "cluster" in nb_to_name[condition]:
         nb_to_nb_of_patches[condition] = distance_to_nb_of_patches["cluster"]
 
