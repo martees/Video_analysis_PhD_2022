@@ -1,4 +1,4 @@
-# Distance transform algorithm based on https://pure.rug.nl/ws/files/3059926/2002CompImagVisMeijster.pdf
+# Distance transform algorithm based on https://pure.rug.nl/ws/fidrawles/3059926/2002CompImagVisMeijster.pdf
 # Computes distance transform running on each column / line separately, allowing for parallelization
 import numpy as np
 import multiprocessing as mp
