@@ -87,8 +87,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             # When we want to divide column name by another one
             if divided_by != "":
                 if divided_by == "nb_of_patches":
-                    list_total_patch = list(param.nb_to_nb_of_patches.values())  # total nb of patches for each cond
-                    list_of_values[i_plate] = np.sum(current_plate[column_name]) / list_total_patch[i_condition]
+                    nb_of_patches = param.nb_to_nb_of_patches[i_condition]  # total nb of patches for each cond
+                    list_of_values[i_plate] = np.sum(current_plate[column_name]) / nb_of_patches
                 elif divided_by == "nb_of_visited_patches":
                     current_plate = current_plate.reset_index()
                     visited_patches_list = list_of_visited_patches(fd.load_list(current_plate, "no_hole_visits"))
@@ -104,8 +104,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             # When no division has to be made
             else:
                 if column_name == "average_speed_inside" or column_name == "average_speed_outside":
-                    # Exclude the 0's which are the cases were the worm didn't go to a patch / out of a patch for a full track
-                    list_speed_current_plate = [nonzero for nonzero in current_plate[column_name] if int(nonzero) != 0]
+                    # Exclude the 0's which are the cases were the worm didn't go to a patch / out of a patch for a full plate
+                    list_speed_current_plate = [nonzero for nonzero in current_plate[column_name] if nonzero != 0]
                     if list_speed_current_plate:  # If any non-zero speed was recorded for that plate
                         list_of_values[i_plate] = np.average(list_speed_current_plate)
                 elif column_name == "proportion_of_visited_patches" or column_name == "nb_of_visited_patches":  # Special case: divide by total nb of patches in plate
@@ -114,8 +114,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     if column_name == "nb_of_visited_patches":
                         list_of_values[i_plate] = len(visited_patches_list)
                     else:
-                        list_total_patch = list(param.nb_to_nb_of_patches.values())  # total nb of patches for each cond
-                        list_of_values[i_plate] = len(np.unique(visited_patches_list)) / list_total_patch[
+                        nb_of_patches = list(param.nb_to_nb_of_patches.values())  # total nb of patches for each cond
+                        list_of_values[i_plate] = len(np.unique(visited_patches_list)) / nb_of_patches[
                             i_condition]
                 elif column_name == "furthest_patch_distance":  # in this case we want the maximal value and not the average
                     list_of_values[i_plate] = np.max(current_plate[column_name])
@@ -125,16 +125,11 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             if normalize_by_video_length:
                 list_of_values[i_plate] /= current_plate["total_tracked_time"]
 
-        # In the case of speed, 0 values are for plates where there was no speed inside/outside recorded so we remove their values
-        # (idk if this case happens but at least it's taken care of)
-        if column_name == "average_speed_inside" or column_name == "average_speed_outside":
-            list_of_values = [nonzero for nonzero in list_of_values if int(nonzero) != 0]
-
         # Keep in memory the full list of averages
         full_list_of_values[i_condition] = list_of_values
 
         # Average for the current condition
-        list_of_avg_values[i_condition] = np.mean(list_of_values)
+        list_of_avg_values[i_condition] = np.nanmean(list_of_values)
 
         # Bootstrapping on the plate avg duration
         bootstrap_ci = bottestrop_ci(list_of_values, 1000)
@@ -215,7 +210,8 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
             # Lists that we'll fill up for this plate
             list_of_visit_lengths = []
             list_of_previous_transit_lengths = []
-
+            if only_first_visit:
+                already_visited_patches = []
             if list_of_visits and list_of_transits:  # if there's at least one visit and one transit
                 last_tracked_frame = max(list_of_visits[-1][1], list_of_transits[-1][1])  # for later computations
                 # Check whether the plate starts and ends with a visit or a transit
@@ -288,6 +284,15 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                     # Go to next visit!
                     i_visit += 1
 
+                    # If "only_first_visits", remove the last elements that we just added if this was an already
+                    # visited patch (I do it now because otherwise it messes with the i_visit, i_double_whatever etc.)
+                    if only_first_visit:
+                        if current_visit[2] in already_visited_patches:
+                            list_of_visit_lengths = list_of_visit_lengths[:-1]
+                            list_of_previous_transit_lengths = list_of_previous_transit_lengths[:-1]
+                        else:
+                            already_visited_patches.append(current_visit[2])
+
             condition = fd.load_condition(folder_list[i_folder])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
             # plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths, color=colors[i_condition], label=str(condition_names[i_condition]), zorder=i_condition)
@@ -355,13 +360,8 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                         full_variable_list[i_condition].append(current_visit[0])
                     if variable == "speed_when_entering":
                         visit_start = current_traj[current_traj["frame"] == current_visit[0]].reset_index()
-                        if len(visit_start) == 0:
-                            print("gey")
                         speed_when_entering = visit_start["speeds"][0]
                         full_variable_list[i_condition].append(speed_when_entering)
-
-            print("It took ", int(time.time() - time_start), " sec to analyse plate ", i_folder, " / ",
-                  len(folder_list))
 
     return full_visit_list, full_variable_list
 
