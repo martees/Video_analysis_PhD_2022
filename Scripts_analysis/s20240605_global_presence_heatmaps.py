@@ -265,7 +265,15 @@ def idealized_patch_centers_mm(results_path, full_plate_list, output_frame_size)
         robot_xy = np.array(robot_xy_each_cond[param.nb_to_distance[condition]])
         robot_xy[:, 0] = - robot_xy[:, 0]
         patch_centers_each_cond[condition] = big_ref_points.mm_to_pixel(small_ref_points.pixel_to_mm(robot_xy))
-
+        # For superfar distance patches are mirrored on the x-axis??? idk why but fix that
+        if len(patch_centers_each_cond[condition]) == 3:
+            patch_centers_to_fix = patch_centers_each_cond[condition]
+            y_max = np.max([patch_centers_to_fix[0][1], patch_centers_to_fix[1][1], patch_centers_to_fix[2][1]])
+            y_min = np.min([patch_centers_to_fix[0][1], patch_centers_to_fix[1][1], patch_centers_to_fix[2][1]])
+            y_extent = y_max - y_min
+            for i_patch in range(len(patch_centers_to_fix)):
+                patch_centers_to_fix[i_patch][1] = y_min + (y_extent - (patch_centers_to_fix[i_patch][1] - y_min))
+            patch_centers_each_cond[condition] = patch_centers_to_fix
     return patch_centers_each_cond
 
 
@@ -299,22 +307,22 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
     distance_to_boundary_matrix = polar_map[:, :, 1]
     angular_coordinates_matrix = polar_map[:, :, 2]
     if collapse_all_patches:
-        x_shift_matrix = frame_size // 2
-        y_shift_matrix = frame_size // 2
+        column_shift_matrix = frame_size // 2
+        row_shift_matrix = frame_size // 2
     else:
-        x_shift_matrix = np.array([list(map(lambda x: ideal_patch_centers[int(x)][0], y)) for y in closest_patch_index])
-        y_shift_matrix = np.array([list(map(lambda x: ideal_patch_centers[int(x)][1], y)) for y in closest_patch_index])
+        column_shift_matrix = np.array([list(map(lambda x: ideal_patch_centers[int(x)][0], y)) for y in closest_patch_index])
+        row_shift_matrix = np.array([list(map(lambda x: ideal_patch_centers[int(x)][1], y)) for y in closest_patch_index])
 
     # Then, array operations
-    perfect_x = (ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix) + x_shift_matrix
-    perfect_y = (ideal_patch_radius + distance_to_boundary_matrix) * np.sin(angular_coordinates_matrix) + y_shift_matrix
+    perfect_x = (ideal_patch_radius + distance_to_boundary_matrix) * np.cos(angular_coordinates_matrix) + column_shift_matrix
+    perfect_y = (ideal_patch_radius + distance_to_boundary_matrix) * np.sin(angular_coordinates_matrix) + row_shift_matrix
 
     perfect_x = np.rint(perfect_x)
     perfect_y = np.rint(perfect_y)
 
     # # Debug for one of those bloody patches
-    # x_indices = np.where(x_shift_matrix == np.unique(x_shift_matrix)[6])
-    # y_indices = np.where(y_shift_matrix == np.unique(y_shift_matrix)[4])
+    # x_indices = np.where(column_shift_matrix == np.unique(column_shift_matrix)[6])
+    # y_indices = np.where(row_shift_matrix == np.unique(row_shift_matrix)[4])
     # # Fancy way to select coordinates that are in both x_indices and y_indices
     # array1 = np.stack((x_indices[0], x_indices[1]), axis=1)
     # array2 = np.stack((y_indices[0], y_indices[1]), axis=1)
@@ -590,10 +598,11 @@ if __name__ == "__main__":
     #plot_existing_heatmap([19], v_max=0.000002)
     #plot_existing_heatmap([20], v_max=0.000002)
     # 0.2
-    plot_existing_heatmap([0], v_max=0.000002)
+    #plot_existing_heatmap([0], v_max=0.000002)
     #plot_existing_heatmap([1], v_max=0.000002)
     #plot_existing_heatmap([2], v_max=0.000002)
-    #plot_existing_heatmap([14], v_max=0.000002)
+    plot_existing_heatmap([14], v_max=0.000002)
+    #plot_existing_heatmap([3], v_max=0.000002)
     # 0.5
     #plot_existing_heatmap([4], v_max=0.000002)
     #plot_existing_heatmap([5], v_max=0.000002)
@@ -632,9 +641,12 @@ if __name__ == "__main__":
     list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 20, 16, 21, 3, 7]
     list_by_density = [17, 18, 19, 20, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
 
-    plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="speed",
-                regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    plot_heatmap(path, trajectories, full_list_of_folders, [[14]], variable="speed",
+               regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
                 collapse_patches=False, show_plot=False)
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="speed",
+    #           regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #            collapse_patches=False, show_plot=False)
     # plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14], [3]], variable="speed",
     #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
     #             collapse_patches=False, show_plot=False)
