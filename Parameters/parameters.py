@@ -8,7 +8,7 @@ from Parameters import patch_coordinates
 # General parameters
 
 # Just a parameter to toggle extensive printing in the functions (for debugging purposes)
-verbose = True
+verbose = False
 
 # Time threshold list for visit aggregation
 threshold_list = [100000]
@@ -123,6 +123,9 @@ nb_list_to_name["[1, 5, 13]"] = "med"
 nb_list_to_name["[2, 6, 14]"] = "far"
 nb_list_to_name["[3, 7, 15]"] = "cluster"
 nb_list_to_name["[9, 10]"] = "mixed"
+nb_list_to_name["[0, 1, 2, 14]"] = "0.2"
+nb_list_to_name["[4, 5, 6, 15]"] = "0.5"
+nb_list_to_name["[8, 12, 13, 16]"] = "1.25"
 
 # Same but to list of names (eg "close" => ["close 0", "close 0.2", "close 0.5"]
 name_to_name_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [], "0.5+1.25": [],

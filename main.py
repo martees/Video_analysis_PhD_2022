@@ -74,7 +74,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
             current_condition_names = condition_names[i_curve]
             current_color = condition_colors[i_curve]
 
-            is_plot = False  # if False, plot functions will not run "plt.show()", so that we can display the next curve
+            is_plot = True  # if False, plot functions will not run "plt.show()", so that we can display the next curve
             if i_curve == len(conditions_each_curve) - 1:  # If this is the last curve to plot
                 is_plot = True
 
@@ -222,7 +222,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 plots.plot_visit_time(results, trajectories,
                                       "Visit duration vs. previous transit in " + plot_name + " conditions",
                                       current_conditions, "last_travel_time", current_condition_names,
-                                      split_conditions=True, is_plot=is_plot, patch_or_pixel="pixel", only_first=True)
+                                      split_conditions=False, is_plot=is_plot, patch_or_pixel="patch", only_first=True)
 
             if "visit_duration_vs_visit_start" in what_to_plot:
                 plots.plot_visit_time(results, trajectories,
@@ -338,10 +338,10 @@ if __name__ == "__main__":
     #plots.trajectories_1condition(trajectories, [18], is_plot_patches=True, plot_in_patch=False, plot_speed=True, save_fig=True, is_plot=False)
     #plots.trajectories_1condition(trajectories, [2], is_plot_patches=True, plot_in_patch=True)
 
+    #plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
     plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
     plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     plot_graphs(results, "visit_duration_vs_previous_transit", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-    plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
 
     #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20], [21]], variable_list=["transits"], only_first=False, plot_cumulative=True)
     #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)
