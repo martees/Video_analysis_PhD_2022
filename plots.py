@@ -569,6 +569,8 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
         bin_size = 0.2
     if variable == "visit_start":
         bin_size = 10000
+    if variable == "last_travel_time":
+        bin_size = 100
 
     if split_conditions:
         for i_cond in range(nb_cond):
@@ -590,10 +592,6 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
             plt.ylabel(label_y)
             plt.xlabel(variable)
 
-    if is_plot:
-        plt.legend()
-        plt.show()
-
     if not split_conditions:
         # Merge the conditions sublists (go from [[values for condition x], [values for condition y]] to [all values])
         full_visit_list = [full_visit_list[i_cond][i_visit] for i_cond in range(len(full_visit_list)) for i_visit in
@@ -602,7 +600,12 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
                               i_visit in range(len(full_variable_list[i_cond]))]
 
         variable_values_bins, average_visit_duration, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
-            full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False)
+            full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False, custom_bins=[0, 40, 100, 200, 400, 600, 1000, 2000])
+        # Exclude the ones that have 10 visits or fewer
+        variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if len(binned_current_visits[i]) > 10]
+        average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if len(binned_current_visits[i]) > 10]
+        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 10]
+        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 10]
 
         condition_name = param.nb_list_to_name[str(sorted(condition_list))]
         condition_color = param.name_to_color[condition_name]
@@ -612,16 +615,16 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
                  label=condition_name)
         plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
         plt.title(plot_title)
-        label_x = "visit duration to " + patch_or_pixel
+        label_y = "visit duration to " + patch_or_pixel
         if only_first:
-            label_x = "first " + label_x
+            label_y = "first " + label_y
 
-        plt.xlabel(label_x)
-        plt.ylabel(variable)
+        plt.ylabel(label_y)
+        plt.xlabel(variable)
 
-        if is_plot:
-            plt.legend()
-            plt.show()
+    if is_plot:
+        plt.legend()
+        plt.show()
 
 
 def plot_variable_distribution(results, curve_list, variable_list=None, scale_list=None,
