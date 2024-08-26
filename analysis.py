@@ -230,6 +230,12 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                     # We remove double_visits because successive visits increase i_visit without going through transits
                     # We add double_transits to account for multiple successive transits that don't go through the visits
                     i_transit = i_visit - double_visits + double_transits - starts_with_visit
+                    # TEMPORARY FIX: sometimes there's a missing transit in the end of the video...
+                    # In that case just stop the analysis there
+                    if i_transit >= len(list_of_transits):
+                        print("Temporary bug fix in visit_time_as_a_function_of(): debug missing transits!")
+                        i_visit += 100000
+                        break
                     current_transit = list_of_transits[i_transit]
 
                     # Debugging shit
