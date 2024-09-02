@@ -39,29 +39,29 @@ for i_folder in range(len(folder_list)):
     long_enough_visits = [list_of_visits[i] for i in range(len(list_of_visits)) if list_of_visits[i][1]-list_of_visits[i][0] >= time_window]
     long_enough_transits = [list_of_transits[i] for i in range(len(list_of_transits)) if list_of_transits[i][1]-list_of_transits[i][0] >= time_window]
     # Since we filtered the two lists, they now contain visits and transits that are not necessarily consecutive => fix that
-    entry_frames = [long_enough_visits[i][0] for i in range(len(long_enough_visits)) if any(long_enough_visits[i][0] in t for t in long_enough_transits)]
-    exit_frames = [long_enough_transits[i][0] for i in range(len(long_enough_transits)) if any(long_enough_transits[i][0] in t for t in long_enough_visits)]
+    entry_time_stamps = [long_enough_visits[i][0] for i in range(len(long_enough_visits)) if any(long_enough_visits[i][0] in t for t in long_enough_transits)]
+    exit_time_stamps = [long_enough_transits[i][0] for i in range(len(long_enough_transits)) if any(long_enough_transits[i][0] in t for t in long_enough_visits)]
 
     # Fill entry list
-    for i_entry in range(len(entry_frames)):
-        current_entry_frame = entry_frames[i_entry]
-        entry_index = fd.find_closest(current_traj["frame"], current_entry_frame)
+    for i_entry in range(len(entry_time_stamps)):
+        current_entry_time = entry_time_stamps[i_entry]
+        entry_index = fd.find_closest(current_traj["time"], current_entry_time)
         # Check if frames are continuous around entry: otherwise, exclude it completely (for now because I'm tired)
         # (check if the difference between the indexes in the "frame" column is the same as the difference between the frames)
-        pre_entry_index = fd.find_closest(current_traj["frame"], current_entry_frame - time_window)
-        post_entry_index = fd.find_closest(current_traj["frame"], current_entry_frame + time_window)
+        pre_entry_index = fd.find_closest(current_traj["time"], current_entry_time - time_window)
+        post_entry_index = fd.find_closest(current_traj["time"], current_entry_time + time_window)
         if pre_entry_index == entry_index - time_window and post_entry_index == entry_index + time_window:
             entry_speeds = current_traj["speeds"].iloc[pre_entry_index:post_entry_index].reset_index(drop=True)
             for time in range(2*time_window):
                 speed_around_entry[time].append(entry_speeds[time])
 
     # Fill exit list
-    for i_exit in range(len(exit_frames)):
-        current_exit_frame = exit_frames[i_exit]
-        exit_index = fd.find_closest(current_traj["frame"], current_exit_frame)
+    for i_exit in range(len(exit_time_stamps)):
+        current_exit_time = exit_time_stamps[i_exit]
+        exit_index = fd.find_closest(current_traj["time"], current_exit_time)
         # Check if frames are continuous around exit: otherwise, exclude it completely (for now because I'm tired)
-        pre_exit_index = fd.find_closest(current_traj["frame"], current_exit_frame - time_window)
-        post_exit_index = fd.find_closest(current_traj["frame"], current_exit_frame + time_window)
+        pre_exit_index = fd.find_closest(current_traj["time"], current_exit_time - time_window)
+        post_exit_index = fd.find_closest(current_traj["time"], current_exit_time + time_window)
         if pre_exit_index == exit_index - time_window and post_exit_index == exit_index + time_window:
             exit_speeds = current_traj["speeds"].iloc[pre_exit_index:post_exit_index].reset_index(drop=True)
             for time in range(2*time_window):
@@ -116,13 +116,13 @@ axs[0].set_title("Speed when entering")
 axs[0].plot(range(-time_window, time_window), avg_speed_around_entry, color=param.name_to_color[condition_pool_name], label=condition_pool_name, linewidth=3)
 axs[0].errorbar(range(-time_window, time_window), avg_speed_around_entry, [errors_inf_around_entry, errors_sup_around_entry], fmt='.k', capsize=5)
 axs[0].set_ylabel("Average speed")
-axs[0].set_xlabel("Time pre/post entry")
+axs[0].set_xlabel("Time pre/post entry (seconds)")
 
 axs[1].set_title("Speed when exiting")
 axs[1].plot(range(-time_window, time_window), avg_speed_around_exit, color=param.name_to_color[condition_pool_name], label=condition_pool_name, linewidth=3)
 axs[1].errorbar(range(-time_window, time_window), avg_speed_around_exit, [errors_inf_around_exit, errors_sup_around_exit], fmt='.k', capsize=5)
 axs[1].set_ylabel("Average speed")
-axs[1].set_xlabel("Time pre/post exit")
+axs[1].set_xlabel("Time pre/post exit (seconds)")
 
 plt.legend()
 plt.show()

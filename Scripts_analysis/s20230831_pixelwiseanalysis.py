@@ -160,11 +160,11 @@ def plot_in_patch_silhouette(folder):
     plt.show()
 
 
-def plot_depletion(folder, frame, depletion_rate):
+def plot_depletion(folder, time, depletion_rate):
     """
     Plots the depletion patterns of the patches of a plate at a given frame.
     @param folder: folder in which to analyse
-    @param frame: frame at which to stop, if set to 100,000 or more it will just take the whole thing
+    @param time: time at which to stop, if set to 100,000 or more it will just take the whole thing
     @param depletion_rate: how much a pixel is depleted every time a worm pixel visits it (values from 0 to 1)
     """
     # Load pixelwise trajectory from current folder
@@ -173,11 +173,11 @@ def plot_depletion(folder, frame, depletion_rate):
         print("Pixelwise trajectory file has not been generated yet. Run generate_pixelwise function in the current path.")
     pixels = pd.read_csv(pixels_path)
 
-    # If necessary, slice
-    if frame < 100000:
+    # If necessary, slice (if frame is higher than 100000, just assume we want the full thing)
+    if time < 100000:
         # Find at which index in the table we need to stop to exclude frames after :frame:
         stop_index = 0
-        while pixels["frame"][stop_index] <= frame:  # linear search because dichotomy is tiring (one day I'll write a function)
+        while pixels["time"][stop_index] <= time:  # linear search because dichotomy is tiring (one day I'll write a function)
             stop_index += 1
         pixels = pixels[:-stop_index]  # slice pixel visits to keep only previous frames
 
@@ -253,17 +253,17 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
         pixel_visits = pixels[pixels["patch_silhouette"] == patch]  # pixels that were counted as inside this patch
         pixels_visited = pixel_visits.drop_duplicates()  # list of unique pixels visited by the worm
         nb_of_visited_pixels = len(pixels_visited)
-        list_of_visit_frames = pd.unique(pixel_visits["frame"])  # frames at which those visits happened
+        list_of_visit_times = pd.unique(pixel_visits["time"])  # time stamps at which those visits happened
 
         # Initialize a column to record depletion level of all visited pixels (one item per unique visited pixel)
         pixels_visited["fullness"] = [1 for _ in range(len(pixels_visited))]
 
-        for frame in range(nb_of_frames):
-            if frame % 1000 == 0:
-                print("Computing depletion for ", frame, " / ", nb_of_frames)
-            # For each frame with a visit, reduce the fullness of relevant pixels
-            if frame in list_of_visit_frames:
-                visited_pixels_this_frame = pixel_visits[pixel_visits["frame"] == frame].reset_index()
+        for time in range(nb_of_frames):
+            if time % 1000 == 0:
+                print("Computing depletion for ", time, " / ", nb_of_frames)
+            # For each time stamp with a visit, reduce the fullness of relevant pixels
+            if time in list_of_visit_times:
+                visited_pixels_this_frame = pixel_visits[pixel_visits["time"] == time].reset_index()
                 for i in range(len(visited_pixels_this_frame)):
                     pixel = visited_pixels_this_frame.iloc[i,]
                     # This big line is just to adjust the fullness of the right pixel in the pixels_visited dataframe
@@ -280,7 +280,7 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
 
     plt.title("Plate "+folder[-48:-9]+ ", depletion_rate = "+str(depletion_rate))
     plt.ylabel("Food level in each patch")
-    plt.xlabel("Frame")
+    plt.xlabel("Time (s)")
     plt.legend()
     plt.show()
 
