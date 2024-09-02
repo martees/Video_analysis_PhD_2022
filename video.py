@@ -22,7 +22,7 @@ def show_frame(folder, frame, is_plot=True):
     pixels, intensities, frame_size = fd.load_silhouette(folder)
 
     # Because of tracking holes, frames and traj.csv indexes are not the same
-    frame_index = fd.load_frame(folder, frame)
+    frame_index = fd.load_time(folder, frame)
     pixels = pixels[frame_index]
     intensities = intensities[frame_index]
 
@@ -179,14 +179,16 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
         top_ax.set_xlim(img_xmin, img_xmax)
         top_ax.set_ylim(img_ymin, img_ymax)
     else:
-        xmin, xmax, ymin, ymax = curr_x - 30, curr_x + 30, curr_y - 30, curr_y + 30
+        curr_x_sil = np.mean(pixels[index][0])
+        curr_y_sil = np.mean(pixels[index][1])
+        xmin, xmax, ymin, ymax = curr_x_sil - 30, curr_x_sil + 30, curr_y_sil - 30, curr_y_sil + 30
         top_ax.set_xlim(xmin, xmax)
         top_ax.set_ylim(ymax, ymin)  # min and max values reversed because in our background image y-axis is reversed
 
     # Write as x label the speed of the worm
     top_ax.set_xlabel("Speed of the worm: "+str(speed_list[index]))
 
-    top_ax.set_title("Frame: " + str(fd.load_frame(trajectories, folder, index)) + ", patch: " + str(curr_patch)+", worm xy: "+str(curr_x)+", "+str(curr_y))
+    top_ax.set_title("Frame: " + str(fd.load_time(trajectories, folder, index)) + ", patch: " + str(curr_patch) + ", worm xy: " + str(curr_x) + ", " + str(curr_y))
 
     curr_fig = plt.gcf()
     curr_fig.canvas.draw()
@@ -195,4 +197,9 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
 if __name__ == "__main__":
     path = gr.generate(starting_from="", test_pipeline=False)
     traj = pd.read_csv(path + "clean_trajectories.csv")
-    show_frames(path + '20221011T191645_SmallPatches_C3-CAM7/traj.csv', traj, 31917)
+    plate = path + "20221013T201332_SmallPatches_C2-CAM1/traj.csv"
+    current_traj = traj[traj["folder"] == plate].reset_index()
+    indices_of_bad_speed = np.where(current_traj["speeds"] > 100)[0]
+    print(indices_of_bad_speed)
+    #show_frames(path + '20221011T191645_SmallPatches_C3-CAM7/traj.csv', traj, 2627)
+    show_frames(path + '20221013T201332_SmallPatches_C2-CAM1/traj.csv', traj, indices_of_bad_speed[0])

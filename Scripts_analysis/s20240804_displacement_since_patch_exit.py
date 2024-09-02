@@ -14,6 +14,8 @@ from Scripts_analysis import s20240605_global_presence_heatmaps as heatmap_scrip
 from Scripts_sanity_checks import s20240810_interpatch_distance as interpatch_script
 
 # Analysis of the worm's displacement evolution after leaving a food patch
+# Used to plot displacement as a function of time since leaving, now plots time to reach a certain displacement
+# (to avoid sampling biases)
 
 path = gen.generate("")
 results = pd.read_csv(path + "clean_results.csv")

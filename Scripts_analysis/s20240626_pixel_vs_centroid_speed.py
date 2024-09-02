@@ -57,7 +57,7 @@ def pixel_visit_duration_vs_centroid_speed(results_path, trajectories, full_fold
                 for i_visit in range(len(pixelwise_visits)):
                     if i_visit % (len(pixelwise_visits) // 6) == 0:
                         print(">>>>>> Visit ", i_visit, " / ", len(pixelwise_visits))
-                    current_visit_traj = current_traj.loc[(pixelwise_visits[i_visit][0] <= current_traj["frame"]) & (current_traj["frame"] <= pixelwise_visits[i_visit][1])]
+                    current_visit_traj = current_traj.loc[(pixelwise_visits[i_visit][0] <= current_traj["time"]) & (current_traj["time"] <= pixelwise_visits[i_visit][1])]
                     corresponding_centroid_speeds.append(np.mean(current_visit_traj["speeds"]))
             data_to_save = np.array([pixel_visit_values, corresponding_centroid_speeds])
             np.save(existing_data_path, data_to_save)
