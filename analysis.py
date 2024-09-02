@@ -210,8 +210,10 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
             # Lists that we'll fill up for this plate
             list_of_visit_lengths = []
             list_of_previous_transit_lengths = []
-            if only_first_visit:
-                already_visited_patches = []
+            if only_first_visit != False:
+                # Create a list with 0's, and when a patch is visited, increase by 1 the index i when patch i is visited
+                # Used if only a certain nb of first visits should be considered
+                nb_of_visits_each_patch = [0 for _ in range(100)]  # put 100 points because we always have less patches
             if list_of_visits and list_of_transits:  # if there's at least one visit and one transit
                 last_tracked_frame = max(list_of_visits[-1][1], list_of_transits[-1][1])  # for later computations
                 # Check whether the plate starts and ends with a visit or a transit
@@ -234,6 +236,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                     # In that case just stop the analysis there
                     if i_transit >= len(list_of_transits):
                         print("Temporary bug fix in visit_time_as_a_function_of(): debug missing transits!")
+                        print(folder_list[i_folder])
                         i_visit += 100000
                         break
                     current_transit = list_of_transits[i_transit]
@@ -292,12 +295,12 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
 
                     # If "only_first_visits", remove the last elements that we just added if this was an already
                     # visited patch (I do it now because otherwise it messes with the i_visit, i_double_whatever etc.)
-                    if only_first_visit:
-                        if current_visit[2] in already_visited_patches:
+                    if only_first_visit != False:
+                        if nb_of_visits_each_patch[current_visit[2]] > only_first_visit:
                             list_of_visit_lengths = list_of_visit_lengths[:-1]
                             list_of_previous_transit_lengths = list_of_previous_transit_lengths[:-1]
                         else:
-                            already_visited_patches.append(current_visit[2])
+                            nb_of_visits_each_patch[current_visit[2]] += 1
 
             condition = fd.load_condition(folder_list[i_folder])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
@@ -365,7 +368,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                     if variable == "visit_start":
                         full_variable_list[i_condition].append(current_visit[0])
                     if variable == "speed_when_entering":
-                        visit_start = current_traj[current_traj["frame"] == current_visit[0]].reset_index()
+                        visit_start = current_traj[current_traj["time"] == current_visit[0]].reset_index()
                         speed_when_entering = visit_start["speeds"][0]
                         full_variable_list[i_condition].append(speed_when_entering)
 
