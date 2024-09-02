@@ -294,21 +294,14 @@ def trajectory_speeds(traj):
         current_traj = traj[traj["folder"] == folder].reset_index()
         current_list_of_distances = current_traj["distances"]
 
-        # Generate shifted versions of our position columns, either shifted leftwards or rightwards
-        array_frame_r = np.array(current_traj["frame"].iloc[1:])
-        array_frame_l = np.array(current_traj["frame"].iloc[:-1])
+        # Generate shifted versions of our time stamps columns, either shifted upwards or downwards
+        array_times_r = np.array(current_traj["time"].iloc[1:])
+        array_times_l = np.array(current_traj["time"].iloc[:-1])
 
-        # Compute the number of frames elapsed between each two lines
-        current_list_of_time_steps = array_frame_r - array_frame_l
+        # Compute the amount of time elapsed between each two lines
+        current_list_of_time_steps = array_times_r - array_times_l
         # Add 1 in the beginning because the first point isn't relevant (not zero to avoid division issues)
         current_list_of_time_steps = np.insert(current_list_of_time_steps, 0, 1)
-
-        if param.verbose:
-            nb_double_frames = np.count_nonzero(current_list_of_time_steps - np.maximum(current_list_of_time_steps,
-                                                                                        0.1 * np.ones(
-                                                                                            len(current_list_of_time_steps))))
-            if nb_double_frames > 0:
-                print("number of double frames:", str(nb_double_frames))
 
         # Remove the zeros and replace them by 0.1
         current_list_of_time_steps = np.maximum(current_list_of_time_steps,
@@ -343,7 +336,6 @@ def smooth_trajectory(trajectory, radius):
             current_circle_center_x = current_x
             current_circle_center_y = current_y
         else:
-            # trajectory["x"][i_time] = np.nan
             trajectory.loc[i_time, "is_smoothed"] = True  # we mark as True points that are not far enough
 
     # Make a copy of pre-smoothing x and y coordinates, for verification purposes
@@ -355,28 +347,40 @@ def smooth_trajectory(trajectory, radius):
     # So if in three points A, B, C, B has to be smoothed out, their new coordinates become
     # A: (xA, yA), B: ((xA+xC)/2, (yA+yC)/2), C: (xC, yC)
     false_indices = np.where(trajectory["is_smoothed"] == False)[0]
+    # Remember the points where the id_conservative changes (see later why)
+    id_array = np.array(trajectory["id_conservative"])
+    switches = id_array[1:] - id_array[:-1]
+    id_switches_indices = np.where(switches != 0)[0]
     for i_gap in range(len(false_indices) - 1):
         if i_gap % 50000 == 0:
             print("Smoothing time point ", i_gap, " / ", len(false_indices))
         previous_false_index = false_indices[i_gap]
         next_false_index = false_indices[i_gap + 1]
         nb_of_points_to_smooth = next_false_index - previous_false_index - 1
+        # Now we want to correct for tracking holes:
+        # If there is a hole in the tracking (switch between two "id_conservative" values in the trajectories table),
+        # the last point(s) before the hole cannot be smoothed (since otherwise we would interpolate between them across
+        # a hole in the tracking, which can be a big jump, creating fake points)
+        if len(id_switches_indices[(id_switches_indices > previous_false_index) & (id_switches_indices < next_false_index)]) >= 1:
+            # If there's a tracking hole between the two frames, just don't smooth
+            for i_time in range(previous_false_index, next_false_index):
+                trajectory.loc[i_time, "is_smoothed"] = False
+            nb_of_points_to_smooth = 0
         # If smoothing needs to be done, define coordinates of the points between which to smooth
         if nb_of_points_to_smooth > 0:
             x1 = trajectory.loc[previous_false_index, "x"]
             y1 = trajectory.loc[previous_false_index, "y"]
             x2 = trajectory.loc[next_false_index, "x"]
             y2 = trajectory.loc[next_false_index, "y"]
-        # Loop runs only if there is at least one index between the two current false indices
-        for i_point in range(previous_false_index + 1, next_false_index):
-            # We interpolate linearly between the two points
-            # i_point is the index of the current point being smoothed, and its value depends on its rank among the
-            # points to smooth (so if we smooth between index 20 and 24, we will smooth point 21, 22 and 23, and their
-            # new coordinates are based on the fact that they are the 1st, 2nd and 3rd points on the interpolation).
-            rank_of_point = i_point - previous_false_index
-            trajectory.loc[i_point, "x"] = x1 + rank_of_point * (x2 - x1) / (nb_of_points_to_smooth + 1)
-            trajectory.loc[i_point, "y"] = y1 + rank_of_point * (y2 - y1) / (nb_of_points_to_smooth + 1)
-
+            # Loop runs only if there is at least one index between the two current false indices
+            for i_point in range(previous_false_index + 1, next_false_index):
+                # We interpolate linearly between the two points
+                # i_point is the index of the current point being smoothed, and its value depends on its rank among the
+                # points to smooth (so if we smooth between index 20 and 24, we will smooth point 21, 22 and 23, and their
+                # new coordinates are based on the fact that they are the 1st, 2nd and 3rd points on the interpolation).
+                rank_of_point = i_point - previous_false_index
+                trajectory.loc[i_point, "x"] = x1 + rank_of_point * (x2 - x1) / (nb_of_points_to_smooth + 1)
+                trajectory.loc[i_point, "y"] = y1 + rank_of_point * (y2 - y1) / (nb_of_points_to_smooth + 1)
     return trajectory
 
 
