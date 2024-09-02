@@ -50,8 +50,8 @@ def trajcsv_to_dataframe(paths_of_mat):
     """
     folder_list = []
     for i_file in range(len(paths_of_mat)): #for every file
-        if i_file % 10 == 0:
-            print(i_file)
+        if i_file % 100 == 0:
+            print("Retrieving trajectories for file ", i_file, " / ", len(paths_of_mat), "!")
         current_path = paths_of_mat[i_file]
         current_data = pd.read_csv(current_path) #dataframe with all the info
         if len(np.unique(current_data["id_conservative"])) > 100000:
@@ -264,24 +264,24 @@ def load_condition(folder):
     return folder_to_metadata(folder)["condition"][0]
 
 
-def load_index(trajectories, folder, frame):
+def load_index(trajectories, folder, time):
     """
     Will load the part of trajectories that corresponds to the folder, and find at which index of the table it is the
-    frame-th frame of the tracking (if there are holes in the tracking, frame 800 could be at index 750, because of
+    time stamp time of the tracking (if there are holes in the tracking, time 800 could be at index 750, because of
     50 frames with no tracking)
     """
     current_traj = trajectories[trajectories["folder"] == folder]
-    index = find_closest(current_traj["frame"], frame)
+    index = find_closest(current_traj["time"], time)
     return index
 
 
-def load_frame(trajectories, folder, index):
+def load_time(trajectories, folder, index):
     """
-    Will load the traj.csv matrix in folder, and find at which frame of the table it is the index-th tracked frame of the
-    tracking (if there are holes in the tracking, frame 800 could be at index 750, because of 50 frames with no tracking)
+    Will load the traj.csv matrix in folder, and find at which frame of the table it is the index-th time stamp of the
+    tracking (if there are holes in the tracking, time 800 could be at index 750, because of 50 frames with no tracking)
     """
     current_traj = trajectories[trajectories["folder"] == folder].reset_index()
-    return current_traj["frame"][index]
+    return current_traj["time"][index]
 
 
 def find_closest(iterable, value):

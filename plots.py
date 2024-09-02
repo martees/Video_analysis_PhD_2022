@@ -145,7 +145,7 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
             os.mkdir(path + "trajectory_plots")
 
     nb_of_folders = len(folder_list)
-    colors = plt.cm.jet(np.linspace(0, 1, nb_of_folders))
+    #colors = plt.cm.jet(np.linspace(0, 1, nb_of_folders))
     previous_folder = 0
     n_plate = 1
     for i_folder in range(nb_of_folders):
@@ -188,7 +188,8 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
                 patch_centers = metadata["patch_centers"]
                 x_list, y_list = patches([current_folder], is_plot=False)
                 for i_patch in range(len(patch_centers)):
-                    ax.plot(x_list[i_patch], y_list[i_patch], color="yellow", zorder=0)
+                    ax.plot(x_list[i_patch], y_list[i_patch], color="black", zorder=0, linewidth=4)
+                    #ax.plot(x_list[i_patch], y_list[i_patch], color="black", alpha=0.5, zorder=10, linewidth=4)
                     # to show density, add this to previous call: , alpha=patch_densities[i_patch][0]
                     # ax.annotate(str(i_patch), xy=(patch_centers[i_patch][0] + 80, patch_centers[i_patch][1] + 80), color='white')
 
@@ -216,7 +217,7 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
 
         # Plot black dots when the worm is inside
         if plot_in_patch:
-            plt.scatter(current_list_x, current_list_y, color=colors[i_folder], s=.5)
+            plt.scatter(current_list_x, current_list_y, color=param.name_to_color[param.nb_to_distance[condition_list[0]]], s=.5)
             if "patch_silhouette" in current_traj.columns:
                 indexes_in_patch = np.where(current_traj["patch_silhouette"] != -1)
             else:
@@ -239,9 +240,9 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
 
         # Plot the trajectory, one color per worm
         else:
-            plt.scatter(current_list_x, current_list_y, color=colors[i_folder], s=.5)
+            plt.scatter(current_list_x, current_list_y, color=param.name_to_color[param.nb_to_distance[condition_list[0]]], s=1.6)
             if plot_lines:
-                plt.plot(current_list_x, current_list_y, color=colors[i_folder], linewidth=1)
+                plt.plot(current_list_x, current_list_y, color=param.name_to_color[param.nb_to_distance[condition_list[0]]], linewidth=1)
 
         previous_folder = current_folder
 
@@ -526,14 +527,21 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     plt.title(plot_title)
     fig = plt.gcf()
     ax = fig.gca()
-    fig.set_size_inches(5, 6)
+    fig.set_size_inches(6, 7)
     # plt.style.use('dark_background')
 
     # Plot condition averages as a bar plot
     ax.bar(range(len(condition_list)), average_per_condition, color=mycolor)
     ax.set_xticks(range(len(condition_list)))
     ax.set_xticklabels(condition_names, rotation=45)
-    ax.set(xlabel="Condition number")
+    ax.set(xlabel="Condition")
+
+    if column_name == "total_visit_time" and divided_by=="nb_of_visited_patches":
+        ax.set(ylabel="Total time in patch (seconds)")
+    if column_name == "average_speed_inside":
+        ax.set(ylabel="Average speed inside food patches (pixel/second)")
+    if column_name == "average_speed_outside":
+        ax.set(ylabel="Average speed outside food patches (pixel/second)")
 
     # Plot plate averages as scatter on top
     for i in range(len(condition_list)):
@@ -587,8 +595,8 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
             plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
             plt.title(plot_title)
             label_y = "visit duration to " + patch_or_pixel
-            if only_first:
-                label_y = "first " + label_y
+            if only_first != False:
+                label_y = "first " + str(only_first) + " " + label_y
             plt.ylabel(label_y)
             plt.xlabel(variable)
 
@@ -600,17 +608,16 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
                               i_visit in range(len(full_variable_list[i_cond]))]
 
         variable_values_bins, average_visit_duration, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
-            full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False, custom_bins=[0, 40, 100, 200, 400, 600, 1000, 2000])
-        # Exclude the ones that have 10 visits or fewer
-        variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if len(binned_current_visits[i]) > 10]
-        average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if len(binned_current_visits[i]) > 10]
-        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 10]
-        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 10]
+            full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False, custom_bins=[1, 10, 100, 1000, 10000])
+        # Exclude the ones that have 100 visits or fewer
+        variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if len(binned_current_visits[i]) > 100]
+        average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if len(binned_current_visits[i]) > 100]
+        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 100]
+        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 100]
 
         condition_name = param.nb_list_to_name[str(sorted(condition_list))]
         condition_color = param.name_to_color[condition_name]
 
-        # Plot error bars
         plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
                  label=condition_name)
         plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
@@ -621,10 +628,13 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
 
         plt.ylabel(label_y)
         plt.xlabel(variable)
+        plt.xscale("log")
 
     if is_plot:
         plt.legend()
         plt.show()
+    else:
+        return variable_values_bins, average_visit_duration, [errors_inf, errors_sup]
 
 
 def plot_variable_distribution(results, curve_list, variable_list=None, scale_list=None,

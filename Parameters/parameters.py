@@ -20,16 +20,21 @@ time_threshold = 1
 # Number of pixel threshold to consider that a silhouette is invalid (if it has more than the threshold, invalid)
 invalid_silhouette_threshold = 150
 
+# Ratio for conversion between seconds and frames
+# (for now measured on just one plate)
+one_frame_in_seconds = 0.82817
+
 # Condition names
-nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2",  14: "superfar 0.2", 3: "cluster 0.2",
-              4: "close 0.5", 5: "med 0.5", 6: "far 0.5", 15: "superfar 0.5",  7: "cluster 0.5",
+nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2", 14: "superfar 0.2", 3: "cluster 0.2",
+              4: "close 0.5", 5: "med 0.5", 6: "far 0.5", 15: "superfar 0.5", 7: "cluster 0.5",
               12: "close 1.25", 8: "med 1.25", 13: "far 1.25", 16: "superfar 1.25",
               9: "med 0.2+0.5", 10: "med 0.5+1.25",
               17: "close 0", 18: "med 0", 19: "far 0", 20: "superfar 0", 21: "cluster 0"}
 name_to_nb = {v: k for k, v in nb_to_name.items()}
 
-list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 20, 16, 21, 3, 7]
-list_by_density = [17, 18, 19, 20, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
+list_by_distance = [17, 0, 4, 12, 18, 1, 5, 8, 19, 2, 6, 13, 20, 14, 15, 20, 16, 21, 3, 7]
+list_by_density = [17, 18, 19, 20, 0, 1, 2, 14, 4, 5, 6, 15, 12, 8, 13, 16]
+list_by_density_with_clusters = [17, 18, 19, 20, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
 
 # Distance to number of patch dictionary (lower we build a condition number to number of patches dictionary from that)
 distance_to_nb_of_patches = {"close": 52, "med": 24, "far": 7, "superfar": 3, "cluster": 25}
@@ -59,7 +64,6 @@ for condition in nb_to_name.keys():
         nb_to_density[condition] = "0"
     else:
         nb_to_density[condition] = "all"
-
 
 nb_to_distance = {}
 for condition in nb_to_name.keys():
@@ -92,8 +96,9 @@ for condition in nb_to_name.keys():
 # Convert condition names into lists of condition numbers
 # eg {"close": [0, 4], "med": [1, 5, 8, 9, 10, 11], "far": [2, 6]}
 name_to_nb_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [],
+                   "0.5+1.25": [], "0.2+0.5": [],
                    "0.2": [], "0.5": [], "1.25": [],
-                   "0.5+1.25": [], "0.2+0.5": [], "0": []}
+                   "0": []}
 for condition in nb_to_name.keys():
     name_to_nb_list["all"].append(condition)  # the all should have everyone
     name_to_nb_list[nb_to_name[condition]] = [
@@ -103,7 +108,8 @@ for condition in nb_to_name.keys():
     # (this is to avoid all conditions being put in 0)
     distance_found = False
     for condition_pool in name_to_nb_list.keys():
-        if condition_pool in nb_to_name[condition] and (distance_found or nb_to_name[condition][0] == condition_pool[0]):
+        if condition_pool in nb_to_name[condition] and (
+                distance_found or nb_to_name[condition][0] == condition_pool[0]):
             name_to_nb_list[condition_pool].append(condition)
             if not distance_found:
                 distance_found = True
@@ -113,6 +119,7 @@ for condition in nb_to_name.keys():
 # Takes "[12, 13, 14, 15]" and returns "0"
 # Only works for lists that include all of the conditions
 nb_list_to_name = {str(v): k for k, v in name_to_nb_list.items()}
+nb_list_to_name = {str(sorted(v)): k for k, v in name_to_nb_list.items()}
 nb_list_to_name["[0, 4]"] = "close"
 nb_list_to_name["[1, 5]"] = "med"
 nb_list_to_name["[2, 6]"] = "far"
@@ -124,8 +131,11 @@ nb_list_to_name["[2, 6, 14]"] = "far"
 nb_list_to_name["[3, 7, 15]"] = "cluster"
 nb_list_to_name["[9, 10]"] = "mixed"
 nb_list_to_name["[0, 1, 2, 14]"] = "0.2"
+nb_list_to_name["[0, 1, 2, 14, 3]"] = "0.2"
 nb_list_to_name["[4, 5, 6, 15]"] = "0.5"
+nb_list_to_name["[4, 5, 6, 15, 7]"] = "0.5"
 nb_list_to_name["[8, 12, 13, 16]"] = "1.25"
+nb_list_to_name["[12, 8, 13, 16]"] = "1.25"
 
 # Same but to list of names (eg "close" => ["close 0", "close 0.2", "close 0.5"]
 name_to_name_list = {"all": [], "close": [], "med": [], "far": [], "superfar": [], "cluster": [], "0.5+1.25": [],
@@ -135,7 +145,6 @@ for name in name_to_name_list.keys():
     for i_cond in range(len(condition_list)):
         condition_list[i_cond] = nb_to_name[condition_list[i_cond]]  # convert each nb of nb_list to a name
     name_to_name_list[name] = condition_list
-
 
 # Centers of patches for each condition
 nb_to_xy = {}
@@ -182,7 +191,7 @@ def lighten_color(color, amount=0.5):
         c = color
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     r, g, b = colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
-    return '#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255))
+    return '#%02x%02x%02x' % (int(r * 255), int(g * 255), int(b * 255))
 
 
 name_to_color = {"close": "mediumslateblue", "med": "royalblue", "far": "deepskyblue", "superfar": "turquoise",
@@ -203,7 +212,10 @@ for condition in nb_to_name.keys():
         density1, density2 = density.split("+")
         # for mixed densities, density will be intermediate
         density = (float(density1) + float(density2)) / 2
-    name_to_color[nb_to_name[condition]] = lighten_color(mc.cnames[distance_color], amount=min(1.35, max(0.1, density)*2))
+    name_to_color[nb_to_name[condition]] = lighten_color(mc.cnames[distance_color],
+                                                         amount=min(1.35, max(0.1, density) * 2))
+
+
 #name_to_color["med 1.25"] = "black"
 #name_to_color["med 0.5+1.25"] = "grey"
 

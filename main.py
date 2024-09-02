@@ -181,7 +181,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 plots.plot_selected_data(results, "Average total time per patch for " + plot_name + " conditions",
                                          current_conditions, current_condition_names, "total_visit_time",
                                          divided_by="nb_of_visited_patches", mycolor=current_color, plot_model=False,
-                                         is_plot=is_plot, normalize_by_video_length=True)
+                                         is_plot=is_plot)
 
             # Visits plots
             if "visit_duration" in what_to_plot:
@@ -335,13 +335,27 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(trajectories, 12)
 
-    #plots.trajectories_1condition(trajectories, [18], is_plot_patches=True, plot_in_patch=False, plot_speed=True, save_fig=True, is_plot=False)
-    #plots.trajectories_1condition(trajectories, [2], is_plot_patches=True, plot_in_patch=True)
+    #plots.trajectories_1condition(trajectories, [0], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=False, is_plot=False, save_fig=True)
+    #plots.trajectories_1condition(trajectories, [1], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=False, is_plot=False, save_fig=True)
+    #plots.trajectories_1condition(trajectories, [2], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=False, is_plot=False, save_fig=True)
+    #plots.trajectories_1condition(trajectories, [14], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=False, is_plot=False, save_fig=True)
+    #plots.trajectories_1condition(trajectories, [],
+    #                              plate_list=["/media/admin/T7 Shield/Results_minipatches_retracked/20221012T125943_SmallPatches_C1-CAM8/20221012T125943_SmallPatches_C1-CAM8_control_close/traj.csv",
+    #                                          "/media/admin/T7 Shield/Results_minipatches_retracked/20221012T125943_SmallPatches_C1-CAM8/20221012T125943_SmallPatches_C1-CAM8_control_med/traj.csv",
+    #                                          "/media/admin/T7 Shield/Results_minipatches_retracked/20221012T125943_SmallPatches_C1-CAM8/20221012T125943_SmallPatches_C1-CAM8_control_far/traj.csv",
+    #                                          "/media/admin/T7 Shield/Results_minipatches_retracked/20221012T125943_SmallPatches_C1-CAM8/20221012T125943_SmallPatches_C1-CAM8_control_superfar/traj.csv"
+    #                                          ],
+    #                              is_plot_patches=True, plot_speed=True)
 
-    #plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
+    plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
     plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
     plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     plot_graphs(results, "visit_duration_vs_previous_transit", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    #plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
+    #plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    #plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    #plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20], [21]], variable_list=["transits"], only_first=False, plot_cumulative=True)
     #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)
