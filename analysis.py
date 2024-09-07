@@ -971,7 +971,7 @@ def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edi
     binned_y_values = [[] for _ in range(nb_of_bins)]
     original_y_len = len(y_copy)
     for i in range(len(y_copy)):
-        if print_progress and i % (original_y_len // 10) == 0:
+        if print_progress and i % (1 + original_y_len // 10) == 0:
             print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
         current_y = y_copy.pop()
         current_x = x_copy.pop()

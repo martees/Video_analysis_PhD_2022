@@ -360,11 +360,11 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
         np.save(folder_to_save + "xp_to_perfect_collapsed.npy", experimental_to_perfect.astype(int))
 
 
-def load_pixel_visits(traj, plate, regenerate=False, return_durations=True):
+def load_pixel_visits(list_of_time_stamps, plate, regenerate=False, return_durations=True):
     # If it's not already done, or has to be redone, compute the pixel visit durations
     pixelwise_visits_path = plate[:-len("traj.csv")] + "pixelwise_visits.npy"
     if not os.path.isfile(pixelwise_visits_path) or regenerate:
-        gr.generate_pixelwise_visits(traj, plate)
+        gr.generate_pixelwise_visits(list_of_time_stamps, plate)
     # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
     pixel_wise_visits = np.load(pixelwise_visits_path, allow_pickle=True)
     if return_durations:
@@ -447,9 +447,14 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
     for i_curve in range(len(curve_list)):
         print(int(time.time() - tic), "s: Curve ", i_curve, " / ", len(curve_list))
         plate_list, condition_each_plate = fd.return_folders_condition_list(full_plate_list, curve_list[i_curve],
-                                                                            return_conditions=True)
+                                                                           return_conditions=True)
         for i_plate, plate in enumerate(plate_list):
             print(">>> ", int(time.time() - tic), "s: plate ", i_plate, " / ", len(plate_list))
+
+            # Correct the times for plates that have only NaNs or jumps in the time
+            current_traj = traj[dt.f.folder == plate, :]
+            current_traj = gr.correct_time_stamps(current_traj.to_pandas(), True)
+            list_of_time_stamps = list(current_traj["time"])
 
             # Perfect index matrix path
             if not collapse_patches:
@@ -479,16 +484,13 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
             # Matrix with, in each cell, the corresponding "perfect" coordinates
             xp_to_perfect_indices = np.load(xp_to_perfect_path)
 
-            # Go on if the plate is the standard size
-            # if len(xp_to_perfect_indices) == frame_size:
-
             print(">>>>>> Loading pixelwise values...")
             if variable == "pixel_visits":
-                values_each_pixel = load_pixel_visits(traj, plate, regenerate=regenerate_pixel_values)
+                values_each_pixel = load_pixel_visits(list_of_time_stamps, plate, regenerate=regenerate_pixel_values)
             if variable == "short_pixel_visits":
-                values_each_pixel = load_short_pixel_visits(traj, plate, regenerate=regenerate_pixel_values)
+                values_each_pixel = load_short_pixel_visits(current_traj, plate, regenerate=regenerate_pixel_values)
             if variable == "speed":
-                values_each_pixel = load_avg_pixel_speed(traj, plate, regenerate_pixel_values)
+                values_each_pixel = load_avg_pixel_speed(current_traj, plate, regenerate_pixel_values)
 
             print(">>>>>> Putting the values in the perfect plate...")
             # For each pixel of the perfect plate, load the visits that correspond to them in the experimental plates
@@ -539,9 +541,8 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
         print("")
 
 
-def plot_existing_heatmap(condition_list, v_min=0, v_max=1):
-    #heatmap_path = "/media/admin/T7 Shield/Results_minipatches_retracked/perfect_heatmaps/pixel_visits_heatmap_cond_"+str(condition_list)+".npy"
-    heatmap_path = "/media/admin/T7 Shield/Results_minipatches_retracked/perfect_heatmaps/speed_heatmap_cond_"+str(condition_list)+".npy"
+def plot_existing_heatmap(condition_list, variable, v_min=0, v_max=1):
+    heatmap_path = "/media/admin/T7 Shield/Results_minipatches_retracked/perfect_heatmaps/"+variable+"_heatmap_cond_"+str(condition_list)+".npy"
     if not os.path.isfile(heatmap_path):
         print("This heatmap does not exist! è_é")
     else:
@@ -593,26 +594,25 @@ def plot_distance_map_and_patches(results_path, plate):
 
 if __name__ == "__main__":
     # 0
-    plot_existing_heatmap([17], v_max=0.000002)
-    plot_existing_heatmap([18], v_max=0.000002)
-    plot_existing_heatmap([19], v_max=0.000002)
-    plot_existing_heatmap([20], v_max=0.000002)
+    #plot_existing_heatmap([17], "pixel_visits", v_max=0.000002)
+    #plot_existing_heatmap([18], "pixel_visits", v_max=0.000002)
+    #plot_existing_heatmap([19], "pixel_visits", v_max=0.000002)
+    #plot_existing_heatmap([20], "pixel_visits", v_max=0.000002)
     # 0.2
-    #plot_existing_heatmap([0], v_max=0.000002)
-    #plot_existing_heatmap([1], v_max=0.000002)
-    #plot_existing_heatmap([2], v_max=0.000002)
-    #plot_existing_heatmap([14], v_max=0.000002)
-    #plot_existing_heatmap([3], v_max=0.000002)
+    #plot_existing_heatmap([0], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([1], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([2], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([14], "pixel_visits", v_max=0.00002)
     # 0.5
-    #plot_existing_heatmap([4], v_max=0.000002)
-    #plot_existing_heatmap([5], v_max=0.000002)
-    #plot_existing_heatmap([6], v_max=0.000002)
-    #plot_existing_heatmap([15], v_max=0.000002)
+    #plot_existing_heatmap([4], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([5], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([6], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([15], "pixel_visits", v_max=0.00002)
     # 1.25
-    #plot_existing_heatmap([12], v_max=0.000002)
-    #plot_existing_heatmap([8], v_max=0.000002)
-    #plot_existing_heatmap([13], v_max=0.000002)
-    #plot_existing_heatmap([16], v_max=0.000002)
+    #plot_existing_heatmap([12], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([8], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([13], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([16], "pixel_visits", v_max=0.00002)
 
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     path = gen.generate(test_pipeline=False)
@@ -641,42 +641,42 @@ if __name__ == "__main__":
     list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 20, 16, 21, 3, 7]
     list_by_density = [17, 18, 19, 20, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
 
-    #plot_heatmap(path, trajectories, full_list_of_folders, [[17]], variable="speed",
-    #           regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #            collapse_patches=False, show_plot=True)
-    #plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="speed",
-    #           regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-    #            collapse_patches=False, show_plot=False)
-    # plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14], [3]], variable="speed",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=False, show_plot=False)
-    # plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15], [7]], variable="speed",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=False, show_plot=False)
-    # plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="speed",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=False, show_plot=False)
-    # plot_heatmap(path, trajectories, full_list_of_folders, [[9], [10]], variable="speed",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=False, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="speed",
+               regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
+                collapse_patches=False, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14], [3]], variable="speed",
+                 regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                 collapse_patches=False, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15], [7]], variable="speed",
+                 regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                 collapse_patches=False, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="speed",
+                 regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                 collapse_patches=False, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[9], [10]], variable="speed",
+                 regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                 collapse_patches=False, show_plot=False)
 
 
     # Pixel visits
     #plot_heatmap(path, trajectories, full_list_of_folders, [[18], [19], [20], [21]], variable="pixel_visits",
-    #             regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=False, show_plot=True)
+    #            regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+    #            collapse_patches=False, show_plot=False)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14], [3]], variable="pixel_visits",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=True, show_plot=False)
-    #plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15], [7]], variable="pixel_visits",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=True, show_plot=False)
-    #plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="pixel_visits",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=True, show_plot=False)
-    #plot_heatmap(path, trajectories, full_list_of_folders, [[9], [10]], variable="pixel_visits",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=True, regenerate_perfect_map=True,
-    #             collapse_patches=True, show_plot=False)
+    #            regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+    #            collapse_patches=True, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[1], [2], [14], [3]], variable="pixel_visits",
+                regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                collapse_patches=True, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15], [7]], variable="pixel_visits",
+                regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                collapse_patches=True, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="pixel_visits",
+                regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                collapse_patches=True, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[9], [10]], variable="pixel_visits",
+                regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                collapse_patches=True, show_plot=False)
 
    #profiler.disable()
     #stats = pstats.Stats(profiler).sort_stats('cumtime')

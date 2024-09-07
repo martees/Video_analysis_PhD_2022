@@ -589,16 +589,17 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
             condition_name = condition_names[i_cond]
             condition_color = param.name_to_color[condition_name]
 
-            plt.scatter(full_variable_list[i_cond], full_visit_list[i_cond], color=condition_color, alpha=0.2)
-            plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
-                     label=condition_name)
-            plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
-            plt.title(plot_title)
-            label_y = "visit duration to " + patch_or_pixel
-            if only_first != False:
-                label_y = "first " + str(only_first) + " " + label_y
-            plt.ylabel(label_y)
-            plt.xlabel(variable)
+            if is_plot:
+                plt.scatter(full_variable_list[i_cond], full_visit_list[i_cond], color=condition_color, alpha=0.2)
+                plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
+                         label=condition_name)
+                plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
+                plt.title(plot_title)
+                label_y = "visit duration to " + patch_or_pixel
+                if only_first != False:
+                    label_y = "first " + str(only_first) + " " + label_y
+                plt.ylabel(label_y)
+                plt.xlabel(variable)
 
     if not split_conditions:
         # Merge the conditions sublists (go from [[values for condition x], [values for condition y]] to [all values])
@@ -610,25 +611,26 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
         variable_values_bins, average_visit_duration, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
             full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False, custom_bins=[1, 10, 100, 1000, 10000])
         # Exclude the ones that have 100 visits or fewer
-        variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if len(binned_current_visits[i]) > 100]
-        average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if len(binned_current_visits[i]) > 100]
-        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 100]
-        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 100]
+        variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if len(binned_current_visits[i]) > 40]
+        average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if len(binned_current_visits[i]) > 40]
+        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 40]
+        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 40]
 
         condition_name = param.nb_list_to_name[str(sorted(condition_list))]
         condition_color = param.name_to_color[condition_name]
 
-        plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
-                 label=condition_name)
-        plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
-        plt.title(plot_title)
-        label_y = "visit duration to " + patch_or_pixel
-        if only_first:
-            label_y = "first " + label_y
+        if is_plot:
+            plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
+                     label=condition_name)
+            plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
+            plt.title(plot_title)
+            label_y = "visit duration to " + patch_or_pixel
+            if only_first:
+                label_y = "first " + label_y
 
-        plt.ylabel(label_y)
-        plt.xlabel(variable)
-        plt.xscale("log")
+            plt.ylabel(label_y)
+            plt.xlabel(variable)
+            plt.xscale("log")
 
     if is_plot:
         plt.legend()

@@ -255,7 +255,7 @@ def load_list(results, column_name):
             return list(json.loads(results[column_name][0].replace("np.float64(", "").replace(")", "")))
         except KeyError:
             results = results.reset_index()
-            return list(json.loads(results[column_name][0]))
+            return list(json.loads(results[column_name][0].replace("np.float64(", "").replace(")", "")))
     else:
         print("Column ", column_name, " does not exist in results.")
 

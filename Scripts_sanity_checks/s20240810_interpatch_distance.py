@@ -9,7 +9,7 @@ import os
 import analysis as ana
 from Generating_data_tables import main as gen
 from Scripts_analysis import s20240605_global_presence_heatmaps as heatmap_script
-from Scripts_models import s20242606_transitionmatrix as transition_script
+from Scripts_models import s20240626_transitionmatrix as transition_script
 import find_data as fd
 from Parameters import parameters as param
 
