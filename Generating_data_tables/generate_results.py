@@ -192,6 +192,24 @@ def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_c
     return duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_duration_sum, adjusted_nb_of_visits
 
 
+def correct_time_stamps(data_one_folder, print_bug):
+    # Sometimes the time column instead of containing times just contains nans...
+    # In that case infer the times from the frame columns, on average 1 frame = 0.8s, exact number in parameters
+    if np.isnan(data_one_folder["time"].reset_index(drop=True).iloc[0]):
+        if print_bug:
+            # Print this only if that's the first time for this folder
+            print("This folder has NaN in its time column!")
+        data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
+    # Sometimes the time column is fucked and has very high values in the beginning??
+    # In that case also infer the time from the frame columns
+    if len(np.where(np.array(data_one_folder["time"])[:-1] - np.array(data_one_folder["time"])[1:] > 0)[0]) > 0:
+        if print_bug:
+            # Print this only if that's the first time for this folder
+            print("This folder has bad times in the beginning!")
+        data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
+    return data_one_folder
+
+
 def make_results_per_id_table(data):
     """
     Takes our data table and returns a series of analysis regarding patch visits, one line per "worm", which in fact
@@ -221,20 +239,7 @@ def make_results_per_id_table(data):
         if current_folder != old_folder:
             first_pos = [current_list_x[0], current_list_y[0]]
             print(current_folder)
-        # Sometimes the time column instead of containing times just contains nans...
-        # In that case infer the times from the frame columns, on average 1 frame = 0.8s, exact number in parameters
-        if np.isnan(current_data["time"].reset_index(drop=True).iloc[0]):
-            if current_folder != old_folder:
-                # Print this only if that's the first time for this folder
-                print("This folder has NaN in its time column!")
-            current_data["time"] = current_data["frame"] * param.one_frame_in_seconds
-        # Sometimes the time column is fucked and has very high values in the beginning??
-        # In that case also infer the time from the frame columns
-        if len(np.where(np.array(current_data["time"])[:-1] - np.array(current_data["time"])[1:] > 0)[0]) > 0:
-            if current_folder != old_folder:
-                # Print this only if that's the first time for this folder
-                print("This folder has bad times in the beginning!")
-            current_data["time"] = current_data["frame"] * param.one_frame_in_seconds
+        correct_time_stamps(current_data, print_bug = old_folder != current_folder)
         old_folder = current_folder
 
         # Getting to the metadata through the folder name in the data
@@ -682,7 +687,7 @@ def add_aggregate_visit_info_to_results(results, threshold_list):
     return results
 
 
-def generate_pixelwise_visits(trajectories, folder):
+def generate_pixelwise_visits(time_stamp_list, folder):
     """
     Function that takes a folder containing a time series of silhouettes, and returns a list of lists with the dimension
     of the plate in :folder:, and in each cell, a list with [start time, end time] of the successive visits to this pixel.
@@ -693,9 +698,6 @@ def generate_pixelwise_visits(trajectories, folder):
     # Get silhouette and intensity tables, and reindex pixels (from MATLAB linear indexing to (x,y) coordinates)
     pixels, intensities, frame_size = fd.load_silhouette(folder)
     pixels = fd.reindex_silhouette(pixels, frame_size)
-
-    # Get list of time stamps
-    time_stamp_list = trajectories[dt.f.folder == folder, "time"]
 
     # Create a table with a list containing, for each pixel in the image, a sublist with the [start, end] of the visits
     # to this pixel. In the following algorithm, when the last element of a sublist is -1, it means that the pixel
@@ -710,11 +712,11 @@ def generate_pixelwise_visits(trajectories, folder):
             current_pixel = [current_visited_pixels[0][i_pixel], current_visited_pixels[1][i_pixel]]
             # If visit just started, start it
             if visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] == [-1]:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [time_stamp_list[j_time, 0],
-                                                                                  time_stamp_list[j_time, 0]]
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [time_stamp_list[j_time],
+                                                                                  time_stamp_list[j_time]]
             # If visit is continuing, update end time
             else:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = time_stamp_list[j_time, 0]
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = time_stamp_list[j_time]
         # Then, close the visits of the previous time step that are not being continued
         if j_time > 0:
             previous_visited_pixels = pixels[j_time - 1]
