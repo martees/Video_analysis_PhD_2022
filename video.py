@@ -188,18 +188,19 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
     # Write as x label the speed of the worm
     top_ax.set_xlabel("Speed of the worm: "+str(speed_list[index]))
 
-    top_ax.set_title("Frame: " + str(fd.load_time(trajectories, folder, index)) + ", patch: " + str(curr_patch) + ", worm xy: " + str(curr_x) + ", " + str(curr_y))
+    top_ax.set_title("Time: " + str(fd.load_time(trajectories, folder, index)) + ", patch: " + str(curr_patch) + ", worm xy: " + str(curr_x) + ", " + str(curr_y))
 
     curr_fig = plt.gcf()
     curr_fig.canvas.draw()
 
 
 if __name__ == "__main__":
-    path = gr.generate(starting_from="", test_pipeline=False)
+    path = gr.generate(starting_from="", test_pipeline=False, shorten_traj=True)
     traj = pd.read_csv(path + "clean_trajectories.csv")
     plate = path + "20221013T201332_SmallPatches_C2-CAM1/traj.csv"
     current_traj = traj[traj["folder"] == plate].reset_index()
-    indices_of_bad_speed = np.where(current_traj["speeds"] > 100)[0]
-    print(indices_of_bad_speed)
+    #indices_of_bad_speed = np.where(current_traj["speeds"] > 100)[0]
+    #print(indices_of_bad_speed)
     #show_frames(path + '20221011T191645_SmallPatches_C3-CAM7/traj.csv', traj, 2627)
-    show_frames(path + '20221013T201332_SmallPatches_C2-CAM1/traj.csv', traj, indices_of_bad_speed[0])
+    show_frames(path + '/media/admin/T7 Shield/Results_minipatches_retracked_shortened/20221011T111254_SmallPatches_C3-CAM3/traj.csv', traj, 4608)
+

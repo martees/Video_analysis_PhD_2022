@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import warnings
 
-results = pd.read_csv(path + "/clean_results.csv")
+results = pd.read_csv(path + "clean_results.csv")
 
 # Systematically find mixed conditions and the corresponding pure densities using the fact that they have a "+" x)
 mixed_conditions_names = [list(param.name_to_nb.keys())[i] for i in range(len(param.name_to_nb)) if
