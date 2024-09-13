@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+import datatable as dt
 
+from Generating_data_tables import generate_results as gr
 from Parameters import parameters as param
 import find_data as fd
 import matplotlib.pyplot as plt
@@ -12,6 +14,7 @@ def spline_value(angular_position, spline_breaks, spline_coefs):
     """
     Matlab splines are curves divided in subsections, each subsection defined by a polynomial.
 
+    @param angular_position:
     @param spline_breaks: the limits between the different polynomials
     @param spline_coefs: the coefficients for each subsection
     """
@@ -285,27 +288,29 @@ def trajectory_speeds(traj):
     """
     # Slice the traj file depending on the folder, because we only want to compare one worm to itself
     # We use pd.unique because it doesn't sort outputs, otherwise the output won't be a column that we can add to traj
-    folder_list = pd.unique(traj["folder"])
+    folder_list = pd.unique(traj.to_pandas()["folder"])
     list_of_speeds = []
     # For each folder, array operation to compute speed
     # NOTE: distance and speed should be equal almost all the time, exceptions = points where the tracking is
     #       interrupted, because there can be multiple frames between to consecutive tracked positions
     for folder in folder_list:
-        current_traj = traj[traj["folder"] == folder].reset_index()
-        current_list_of_distances = current_traj["distances"]
+        current_traj = traj[dt.f.folder == folder, :]
+        current_list_of_distances = current_traj[:, dt.f.distances].to_list()[0]
+        # Correct the times for plates that have only NaNs or jumps in the time
+        list_of_times = np.array(fd.correct_time_stamps(current_traj.to_pandas(), True)["time"])
 
         # Generate shifted versions of our time stamps columns, either shifted upwards or downwards
-        array_times_r = np.array(current_traj["time"].iloc[1:])
-        array_times_l = np.array(current_traj["time"].iloc[:-1])
+        array_times_r = list_of_times[1:]
+        array_times_l = list_of_times[:-1]
 
         # Compute the amount of time elapsed between each two lines
         current_list_of_time_steps = array_times_r - array_times_l
-        # Add 1 in the beginning because the first point isn't relevant (not zero to avoid division issues)
-        current_list_of_time_steps = np.insert(current_list_of_time_steps, 0, 1)
+        # Add a typical frame time in the beginning because the first point isn't relevant (not zero to avoid division issues)
+        current_list_of_time_steps = np.insert(current_list_of_time_steps, 0, param.one_frame_in_seconds)
 
-        # Remove the zeros and replace them by 0.1
+        # Remove the zeros and replace them by 0.001
         current_list_of_time_steps = np.maximum(current_list_of_time_steps,
-                                                0.1 * np.ones(len(current_list_of_time_steps)))
+                                                0.001 * np.ones(len(current_list_of_time_steps)))
 
         # Compute speeds
         list_of_speeds += list(current_list_of_distances / current_list_of_time_steps)
