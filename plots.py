@@ -525,7 +525,7 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                          column_name, divided_by,
                                                                                          normalize_by_video_length,
-                                                                                   remove_last_patch=False)
+                                                                                         remove_last_patch=False)
 
     # if not split_conditions:
     #     condition_list = condition_list[0]  # reduce it to one element for all further loops to run only once
@@ -578,13 +578,17 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
             lines.append(line)
         legend_objects = plt.legend(lines, ["" for _ in range(len(lines))],
                                     handler_map={lines[i]: custom_legends.HandlerLineImage(
-                                        "icon_" + str(param.nb_to_distance[condition_list[i]]) + ".png") for i in
-                                                 range(len(lines))},
-                                    handlelength=2, labelspacing=0.0, fontsize=36, borderpad=0.15, loc=2,
-                                    handletextpad=0.2, borderaxespad=0.15)
+                                        "Parameters/icon_" + str(param.nb_to_distance[condition_list[i]]) + ".png") for i in
+                                        range(len(lines))},
+                                    handlelength=1.6, labelspacing=0.0, fontsize=50, borderpad=0.10, loc=2,
+                                    handletextpad=0.05, borderaxespad=0.15)
+        # borderpad is the spacing between the legend and the bottom line of the rectangle around the legend
+        # handletextpad is spacing between the legend and the right line of the rectangle around the legend
+        # borderaxespad is the spacing between the legend rectangle and the axes of the figure
+
         # Set the line width of each legend object
-        for legend_object in legend_objects.legendHandles:
-            legend_object.set_linewidth(2.0)
+        for legend_object in legend_objects.legend_handles:
+            legend_object.set_linewidth(10)
         plt.show()
 
 

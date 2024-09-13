@@ -310,7 +310,7 @@ if __name__ == "__main__":
     # NOTE: lists are stored as strings in the csv, so we retrieve the values with json loads function
 
     # Retrieve results from what generate_and_save has saved
-    trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    #trajectories = pd.read_csv(path + "clean_trajectories.csv")
     results = pd.read_csv(path + "clean_results.csv")
     print("Finished retrieving stuff")
 
@@ -357,7 +357,7 @@ if __name__ == "__main__":
     #plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     #plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
 
-    plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0", "cluster 0"]])
+    plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
     plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
     plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
