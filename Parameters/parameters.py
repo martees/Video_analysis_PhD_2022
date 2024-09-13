@@ -20,6 +20,9 @@ time_threshold = 1
 # Number of pixel threshold to consider that a silhouette is invalid (if it has more than the threshold, invalid)
 invalid_silhouette_threshold = 150
 
+# Time at which to cut video on the "shortened" path
+time_to_cut_videos = 16000
+
 # Ratio for conversion between seconds and frames
 # (for now measured on just one plate)
 one_frame_in_seconds = 0.82817
