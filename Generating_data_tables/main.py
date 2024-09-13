@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import csv
+import datatable as dt
 
 import find_data as fd
 from Parameters import parameters as param
@@ -62,7 +63,11 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders,
 
 def generate_smooth_trajectories(path):
     # Retrieve trajectories from the folder path and save them in one dataframe
-    trajectories = fd.trajcsv_to_dataframe(fd.path_finding_traj(path))
+    if "shortened" in path:
+        is_shortened = True
+    else:
+        is_shortened = False
+    trajectories = fd.trajcsv_to_dataframe(fd.path_finding_traj(path), shortened=is_shortened)
     print("Finished retrieving trajectories")
     # Smooth the trajectory
     trajectories = gt.smooth_trajectory(trajectories, 2)
@@ -120,9 +125,8 @@ def generate_clean_tables_and_speed(path):
     print("Computing speeds...")
     # For faster execution, we compute speeds here (and not at the same time as distances), when invalid
     # trajectories have been excluded
-    clean_trajectories = pd.read_csv(path + "clean_trajectories.csv", index_col=0)
-    clean_trajectories = pd.DataFrame(clean_trajectories)
-    clean_trajectories["speeds"] = gt.trajectory_speeds(clean_trajectories)
+    clean_trajectories = dt.fread(path + "clean_trajectories.csv")
+    clean_trajectories["speeds"] = dt.Frame(gt.trajectory_speeds(clean_trajectories))
     clean_trajectories.to_csv(path + "clean_trajectories.csv")
     return 0
 
@@ -137,7 +141,7 @@ def generate_aggregated_visits(path, threshold_list):
     return new_results  # return this because this function is also used dynamically
 
 
-def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False):
+def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False, shorten_traj=False):
     """
     Will generate the data tables starting more or less from scratch.
     Argument = from which level to regenerate stuff.
@@ -150,6 +154,8 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
         path = "/media/admin/T7 Shield/Results_minipatches_retracked/"
         if test_pipeline:
             path = "/media/admin/T7 Shield/Results_minipatches_retracked_test/"
+        if shorten_traj:
+            path = "/media/admin/T7 Shield/Results_minipatches_retracked_shortened/"
         if old_dataset:
             path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/"
             if test_pipeline:
