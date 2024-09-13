@@ -192,24 +192,6 @@ def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_c
     return duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_duration_sum, adjusted_nb_of_visits
 
 
-def correct_time_stamps(data_one_folder, print_bug):
-    # Sometimes the time column instead of containing times just contains nans...
-    # In that case infer the times from the frame columns, on average 1 frame = 0.8s, exact number in parameters
-    if np.isnan(data_one_folder["time"].reset_index(drop=True).iloc[0]):
-        if print_bug:
-            # Print this only if that's the first time for this folder
-            print("This folder has NaN in its time column!")
-        data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
-    # Sometimes the time column is fucked and has very high values in the beginning??
-    # In that case also infer the time from the frame columns
-    if len(np.where(np.array(data_one_folder["time"])[:-1] - np.array(data_one_folder["time"])[1:] > 0)[0]) > 0:
-        if print_bug:
-            # Print this only if that's the first time for this folder
-            print("This folder has bad times in the beginning!")
-        data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
-    return data_one_folder
-
-
 def make_results_per_id_table(data):
     """
     Takes our data table and returns a series of analysis regarding patch visits, one line per "worm", which in fact
@@ -239,7 +221,7 @@ def make_results_per_id_table(data):
         if current_folder != old_folder:
             first_pos = [current_list_x[0], current_list_y[0]]
             print(current_folder)
-        correct_time_stamps(current_data, print_bug = old_folder != current_folder)
+        fd.correct_time_stamps(current_data, print_bug=old_folder != current_folder)
         old_folder = current_folder
 
         # Getting to the metadata through the folder name in the data
@@ -358,7 +340,7 @@ def sort_visits_by_patch(chronological_list_of_visits, nb_of_patches):
     return bypatch_list_of_visits
 
 
-def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
+def avg_speed_analysis(which_patch_list, list_of_times, distance_list):
     """
     Parameters:
         - the patch where a worm is at each timestep
@@ -370,7 +352,7 @@ def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
     """
     # Concept: sum time inside and outside, distance inside and outside, and then DIVIDE (it's an ancient technique)
     which_patch_list = which_patch_list.reset_index()["patch_silhouette"]
-    list_of_frames = list_of_frames.reset_index()["time"]
+    list_of_times = list_of_times.reset_index()["time"]
     distance_list = distance_list.reset_index()["distances"]
     distance_inside_sum = 0
     time_inside_sum = 0
@@ -378,15 +360,21 @@ def avg_speed_analysis(which_patch_list, list_of_frames, distance_list):
     time_outside_sum = 0
     for i in range(1, len(which_patch_list)):
         if which_patch_list[i] == -1:
-            time_outside_sum += list_of_frames[i] - list_of_frames[i - 1]
+            time_outside_sum += list_of_times[i] - list_of_times[i - 1]
             distance_outside_sum += distance_list[i]
         else:
-            time_inside_sum += list_of_frames[i] - list_of_frames[i - 1]
+            time_inside_sum += list_of_times[i] - list_of_times[i - 1]
             distance_inside_sum += distance_list[i]
     if (distance_inside_sum == 0 and time_inside_sum != 0) or (distance_inside_sum != 0 and time_inside_sum == 0) or (
             distance_outside_sum == 0 and time_outside_sum != 0) or (
             distance_outside_sum != 0 and time_outside_sum == 0):
         print("There's an issue with the avg_speed_analysis function!")
+    # Now if the worm has spent zero time inside or outside, change the 0 to a nan, so that it's not considered in averages
+    # (this might happen often because this function is called on tracks, which are fractions of the trajectory)
+    if distance_inside_sum == 0 and time_inside_sum == 0:
+        distance_inside_sum = np.nan
+    if distance_outside_sum == 0 and time_outside_sum == 0:
+        distance_outside_sum = np.nan
     return distance_inside_sum / max(1, time_inside_sum), distance_outside_sum / max(1,
                                                                                      time_outside_sum)  # the max is to prevent division by zero
 
@@ -455,11 +443,13 @@ def fill_holes(data_per_id):
 
             # We look for the next visit start and end
             if is_last_visit and not is_last_nonempty_track:  # if this is the last visit of the track and not the last track
-                while not list_of_visits[i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
+                while not list_of_visits[
+                    i_next_track] and i_next_track < nb_of_tracks - 1:  # go to next non-empty track
                     i_next_track += 1
                     skipped_empty_tracks = True
                 if list_of_visits[i_next_track]:  # if a non-empty track was found in the end
-                    next_visit_start = list_of_visits[i_next_track][0][0]  # next visit is first visit of next non-empty track
+                    next_visit_start = list_of_visits[i_next_track][0][
+                        0]  # next visit is first visit of next non-empty track
                     next_visit_end = list_of_visits[i_next_track][0][1]
                     # Find next next visit (for updating transit durations in case of visit aggregation)
                     if len(list_of_visits[i_next_track]) >= 2:  # if there is a next next visit in the next track
@@ -594,13 +584,15 @@ def make_results_per_plate(data_per_id, trajectories):
         adjusted_raw_durations = new_mvt_patch_visits(aggregated_visit_timestamps, patch_list)
 
         # Computing average speed by doing a weighted average of the average speeds in each track
-        # (weight is relative total tracked time)
+        # (weight is relative total time inside or outside)
         # Doing it like this allows us to avoid the "holes in tracking" issues because they are excluded from the "id" slicing
-        average_speed_in = np.sum((current_data["average_speed_inside"] * current_data["total_tracked_time"]) / np.sum(
-            current_data["total_tracked_time"]))
-        average_speed_out = np.sum(
-            (current_data["average_speed_outside"] * current_data["total_tracked_time"]) / np.sum(
-                current_data["total_tracked_time"]))
+        average_speed_in = np.nansum((current_data["average_speed_inside"] * current_data["total_visit_time"]) /
+                                     np.nansum(current_data["total_visit_time"]))
+        # To get time out, do total tracked time minus time inside
+        average_speed_out = np.nansum(
+            (current_data["average_speed_outside"] * (
+                        current_data["total_tracked_time"] - current_data["total_visit_time"])) /
+            np.nansum((current_data["total_tracked_time"] - current_data["total_visit_time"])))
 
         # Fill up the table
         results_per_plate.loc[i_plate, "folder"] = current_folder
@@ -613,9 +605,9 @@ def make_results_per_plate(data_per_id, trajectories):
         results_per_plate.loc[i_plate, "avg_proportion_double_frames"] = (len(current_trajectory["frame"]) / len(
             np.unique(current_trajectory["frame"]))) - 1
         results_per_plate.loc[i_plate, "total_visit_time"] = np.sum(
-            [pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
+            [pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0] + 1, axis=1)])
         results_per_plate.loc[i_plate, "total_transit_time"] = np.sum(
-            [pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
+            [pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0] + 1, axis=1)])
         results_per_plate.loc[i_plate, "no_hole_visits"] = str(aggregated_visit_timestamps)
         results_per_plate.loc[i_plate, "aggregated_raw_transits"] = str(aggregated_transit_timestamps)
         results_per_plate.loc[i_plate, "nb_of_visits"] = len(aggregated_visit_timestamps)
@@ -699,6 +691,10 @@ def generate_pixelwise_visits(time_stamp_list, folder):
     pixels, intensities, frame_size = fd.load_silhouette(folder)
     pixels = fd.reindex_silhouette(pixels, frame_size)
 
+    # If the trajectories should be shortened to some time point, also shorten the silhouettes
+    if "shortened" in folder:
+        pixels = pixels[:fd.find_closest(time_stamp_list.to_list()[0], param.time_to_cut_videos)]
+
     # Create a table with a list containing, for each pixel in the image, a sublist with the [start, end] of the visits
     # to this pixel. In the following algorithm, when the last element of a sublist is -1, it means that the pixel
     # was not being visited at the previous time point.
@@ -712,11 +708,11 @@ def generate_pixelwise_visits(time_stamp_list, folder):
             current_pixel = [current_visited_pixels[0][i_pixel], current_visited_pixels[1][i_pixel]]
             # If visit just started, start it
             if visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] == [-1]:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [time_stamp_list[j_time],
-                                                                                  time_stamp_list[j_time]]
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [time_stamp_list[j_time, 0],
+                                                                                  time_stamp_list[j_time, 0]]
             # If visit is continuing, update end time
             else:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = time_stamp_list[j_time]
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = time_stamp_list[j_time, 0]
         # Then, close the visits of the previous time step that are not being continued
         if j_time > 0:
             previous_visited_pixels = pixels[j_time - 1]
@@ -727,7 +723,7 @@ def generate_pixelwise_visits(time_stamp_list, folder):
                                               np.array(current_visited_pixels[1]) == current_pixel[1]):
                     visit_times_each_pixel[current_pixel[1]][current_pixel[0]].append([-1])
 
-    # Remove the [-1] because they were only useful for the previous algorithm
+    # Remove the [-1] because they were only useful for the algorithm
     for j_line in range(len(visit_times_each_pixel)):
         for i_column in range(len(visit_times_each_pixel[j_line])):
             if visit_times_each_pixel[j_line][i_column][-1] == [-1]:
