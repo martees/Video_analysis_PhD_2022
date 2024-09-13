@@ -8,7 +8,7 @@ import json
 import re
 
 # My code
-from Parameters.parameters import *
+from Parameters import parameters as param
 
 
 def is_linux():  # returns true if you're using linux, otherwise false
@@ -34,12 +34,12 @@ def path_finding_traj(path_prefix, target_name="traj.csv", include_fake_control_
     if not is_linux():  # On windows the glob output uses \\ as separators so remove that
         listofpaths = [name.replace("\\",'/') for name in listofpaths]
 
-    if verbose:
+    if param.verbose:
         print("Finished path finding")
     return listofpaths
 
 
-def trajcsv_to_dataframe(paths_of_mat):
+def trajcsv_to_dataframe(paths_of_mat, shortened=False):
     """
     Takes a list of paths for traj.csv tables, and returns a pandas dataframe containing all their data concatenated
     The output dataframe has the same columns as trajectories.csv : one line per timestep for each worm. See readme.txt for detailed info
@@ -58,6 +58,11 @@ def trajcsv_to_dataframe(paths_of_mat):
             print("Problem in trajcsv_to_dataframe! id's will overlap")
         # We add the file number to the worm identifyers, for them to become unique accross all folders
         current_data["id_conservative"] = [id + 100000*i_file for id in current_data["id_conservative"]]
+
+        # We remove the datapoints that are after shorten time
+        if shortened:
+            current_data = correct_time_stamps(current_data, print_bug=False)
+            current_data = current_data[current_data["time"] <= param.time_to_cut_videos]
 
         if i_file == 0:
             dataframe = current_data
@@ -218,6 +223,25 @@ def reindex_silhouette(pixels, frame_size):
             y_list.append(pixels[frame][pixel][1])
         reformatted_pixels.append([x_list, y_list])
     return reformatted_pixels
+
+
+def correct_time_stamps(data_one_folder, print_bug):
+    # Sometimes the time column instead of containing times just contains nans...
+    # In that case infer the times from the frame columns, on average 1 frame = 0.8s, exact number in parameters
+    if np.isnan(data_one_folder["time"].reset_index(drop=True).iloc[0]):
+        if print_bug:
+            # Print this only if that's the first time for this folder
+            print("This folder has NaN in its time column!")
+        data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
+    # Sometimes the time column is fucked and has very high values in the beginning??
+    # In that case also infer the time from the frame columns
+    if len(np.where(np.array(data_one_folder["time"])[:-1] - np.array(data_one_folder["time"])[1:] > 0)[0]) > 0:
+        if print_bug:
+            # Print this only if that's the first time for this folder
+            print("This folder has bad times in the beginning!")
+        data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
+    return data_one_folder
+
 
 
 def return_folders_condition_list(full_folder_list, condition_list, return_conditions=False):
