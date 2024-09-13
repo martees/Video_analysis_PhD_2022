@@ -11,6 +11,7 @@ from Generating_data_tables import main as gen
 from Generating_data_tables import generate_trajectories as gt
 import find_data as fd
 from Parameters import parameters as param
+from Parameters import custom_legends
 
 
 def data_coverage(traj):
@@ -107,7 +108,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
             return x_list, y_list
 
 
-def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True,
+def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True,
                             plot_in_patch=False,
                             plot_continuity=False, plot_speed=False, plot_time=False, plate_list=None, is_plot=True,
                             save_fig=False, plot_lines=False):
@@ -139,7 +140,6 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         folder_list = fd.return_folders_condition_list(np.unique(traj["folder"]), condition_list)
 
     # If save_fig is True, check that there is a trajectory_plots folder in path, otherwise create it
-    path = gen.generate("", modeled_data=True)
     if save_fig:
         if not os.path.isdir(path + "trajectory_plots"):
             os.mkdir(path + "trajectory_plots")
@@ -184,11 +184,16 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
             ax.set_title(str(current_folder[-48:-9]))
             # Plot them patches
             if is_plot_patches:
+                # If the speeds are plotted, set the color of the patches to one that depends on the condition
+                if plot_speed:
+                    color = param.name_to_color[param.nb_to_distance[condition_list[0]]]
+                else:
+                    color = "black"
                 patch_densities = metadata["patch_densities"]
                 patch_centers = metadata["patch_centers"]
                 x_list, y_list = patches([current_folder], is_plot=False)
                 for i_patch in range(len(patch_centers)):
-                    ax.plot(x_list[i_patch], y_list[i_patch], color="black", zorder=0, linewidth=4)
+                    ax.plot(x_list[i_patch], y_list[i_patch], color=color, zorder=0, linewidth=4)
                     #ax.plot(x_list[i_patch], y_list[i_patch], color="black", alpha=0.5, zorder=10, linewidth=4)
                     # to show density, add this to previous call: , alpha=patch_densities[i_patch][0]
                     # ax.annotate(str(i_patch), xy=(patch_centers[i_patch][0] + 80, patch_centers[i_patch][1] + 80), color='white')
@@ -197,8 +202,9 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
         # Plot the trajectory with a colormap based on the speed of the worm
         if plot_speed:
             speed_list = current_traj.reset_index()["speeds"]
-            normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
-            plt.scatter(current_list_x, current_list_y, c=speed_list, cmap="hot", norm=normalize, s=1, zorder=1.3)
+            #normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
+            #plt.scatter(current_list_x, current_list_y, c=speed_list, cmap="hot", norm=normalize, s=1, zorder=1.3)
+            plt.scatter(current_list_x, current_list_y, c=speed_list, cmap="hot", s=1, zorder=1.3)
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                 plt.colorbar()
 
@@ -217,7 +223,8 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
 
         # Plot black dots when the worm is inside
         if plot_in_patch:
-            plt.scatter(current_list_x, current_list_y, color=param.name_to_color[param.nb_to_distance[condition_list[0]]], s=.5)
+            plt.scatter(current_list_x, current_list_y,
+                        color=param.name_to_color[param.nb_to_distance[condition_list[0]]], s=.5)
             if "patch_silhouette" in current_traj.columns:
                 indexes_in_patch = np.where(current_traj["patch_silhouette"] != -1)
             else:
@@ -240,9 +247,11 @@ def trajectories_1condition(traj, condition_list, n_max=4, is_plot_patches=False
 
         # Plot the trajectory, one color per worm
         else:
-            plt.scatter(current_list_x, current_list_y, color=param.name_to_color[param.nb_to_distance[condition_list[0]]], s=1.6)
+            plt.scatter(current_list_x, current_list_y,
+                        color=param.name_to_color[param.nb_to_distance[condition_list[0]]], s=1.6)
             if plot_lines:
-                plt.plot(current_list_x, current_list_y, color=param.name_to_color[param.nb_to_distance[condition_list[0]]], linewidth=1)
+                plt.plot(current_list_x, current_list_y,
+                         color=param.name_to_color[param.nb_to_distance[condition_list[0]]], linewidth=1)
 
         previous_folder = current_folder
 
@@ -515,7 +524,8 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     # Getting results
     list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                          column_name, divided_by,
-                                                                                         normalize_by_video_length)
+                                                                                         normalize_by_video_length,
+                                                                                   remove_last_patch=False)
 
     # if not split_conditions:
     #     condition_list = condition_list[0]  # reduce it to one element for all further loops to run only once
@@ -527,16 +537,19 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     plt.title(plot_title)
     fig = plt.gcf()
     ax = fig.gca()
-    fig.set_size_inches(6, 7)
+    fig.set_size_inches(6, 8.6)
     # plt.style.use('dark_background')
 
     # Plot condition averages as a bar plot
-    ax.bar(range(len(condition_list)), average_per_condition, color=mycolor)
+    condition_names = [param.nb_to_name[cond] for cond in condition_list]
+    condition_colors = [param.name_to_color[name] for name in condition_names]
+    ax.bar(range(len(condition_list)), average_per_condition, color=condition_colors, label=condition_names)
     ax.set_xticks(range(len(condition_list)))
     ax.set_xticklabels(condition_names, rotation=45)
     ax.set(xlabel="Condition")
+    ax.set_ylim(0, 16000)
 
-    if column_name == "total_visit_time" and divided_by=="nb_of_visited_patches":
+    if column_name == "total_visit_time" and divided_by == "nb_of_visited_patches":
         ax.set(ylabel="Total time in patch (seconds)")
     if column_name == "average_speed_inside":
         ax.set(ylabel="Average speed inside food patches (pixel/second)")
@@ -545,8 +558,9 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
 
     # Plot plate averages as scatter on top
     for i in range(len(condition_list)):
-        ax.scatter([range(len(condition_list))[i] for _ in range(len(list_of_avg_each_plate[i]))],
-                   list_of_avg_each_plate[i], color="red", zorder=2)
+        ax.scatter([range(len(condition_list))[i] + 0.001 * random.randint(-100, 100) for p in
+                    range(len(list_of_avg_each_plate[i]))],
+                   list_of_avg_each_plate[i], color="orange", zorder=2, alpha=0.6)
 
     # Plot error bars
     ax.errorbar(range(len(condition_list)), average_per_condition, errorbars, fmt='.k', capsize=5)
@@ -557,6 +571,20 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
         ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
 
     if is_plot:
+        # Plot empty lines to make the custom legend
+        lines = []
+        for i_cond, cond in enumerate(condition_list):
+            line, = ax.plot([], [], color=param.name_to_color[param.nb_to_name[cond]])
+            lines.append(line)
+        legend_objects = plt.legend(lines, ["" for _ in range(len(lines))],
+                                    handler_map={lines[i]: custom_legends.HandlerLineImage(
+                                        "icon_" + str(param.nb_to_distance[condition_list[i]]) + ".png") for i in
+                                                 range(len(lines))},
+                                    handlelength=2, labelspacing=0.0, fontsize=36, borderpad=0.15, loc=2,
+                                    handletextpad=0.2, borderaxespad=0.15)
+        # Set the line width of each legend object
+        for legend_object in legend_objects.legendHandles:
+            legend_object.set_linewidth(2.0)
         plt.show()
 
 
@@ -593,7 +621,8 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
                 plt.scatter(full_variable_list[i_cond], full_visit_list[i_cond], color=condition_color, alpha=0.2)
                 plt.plot(variable_values_bins, average_visit_duration, color=condition_color, linewidth=4,
                          label=condition_name)
-                plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k', capsize=5)
+                plt.errorbar(variable_values_bins, average_visit_duration, [errors_inf, errors_sup], fmt='.k',
+                             capsize=5)
                 plt.title(plot_title)
                 label_y = "visit duration to " + patch_or_pixel
                 if only_first != False:
@@ -609,10 +638,13 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
                               i_visit in range(len(full_variable_list[i_cond]))]
 
         variable_values_bins, average_visit_duration, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
-            full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False, custom_bins=[1, 10, 100, 1000, 10000])
+            full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False,
+            custom_bins=[1, 10, 100, 1000, 10000])
         # Exclude the ones that have 100 visits or fewer
-        variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if len(binned_current_visits[i]) > 40]
-        average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if len(binned_current_visits[i]) > 40]
+        variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if
+                                len(binned_current_visits[i]) > 40]
+        average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if
+                                  len(binned_current_visits[i]) > 40]
         errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 40]
         errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 40]
 
@@ -704,7 +736,8 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
             if i_variable == 0:
                 ax.set(ylabel="normalized " + scale_list[i_scale] + " occurrences")
             if i_scale == 0:
-                ax.set_title("first "*only_first + str(variable) + " values" + (end_time != False) * "until "+str(end_time))
+                ax.set_title(
+                    "first " * only_first + str(variable) + " values" + (end_time != False) * "until " + str(end_time))
             ax.set_yscale(scale_list[i_scale])
             # For every condition pool in condition_list
             for i_curve in range(len(curve_list)):
@@ -715,7 +748,8 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
                     values = ana.return_value_list(results, variable, conditions, convert_to_duration=False)
                     values = [sublist[i] for sublist in values for i in range(len(sublist))]
                 else:
-                    values = ana.return_value_list(results, variable, conditions, convert_to_duration=True, only_first=only_first, end_time=end_time)
+                    values = ana.return_value_list(results, variable, conditions, convert_to_duration=True,
+                                                   only_first=only_first, end_time=end_time)
                 avg_values.append(np.mean(values))
                 print("Average value for curve ", str(name), ": ", np.mean(values))
                 median_values.append(np.median(values))
@@ -725,8 +759,10 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
                         color=param.name_to_color[name], linewidth=3)
                 ax_lim_list.append(ax.get_ylim())
 
-        ax.vlines(avg_values, color=color_list, ymin=0, ymax=1, linestyles="dashed", transform=ax.get_xaxis_transform(), label="average")
-        ax.vlines(median_values, color=color_list, ymin=0, ymax=1, linestyles="dotted", transform=ax.get_xaxis_transform(), label="median")
+        ax.vlines(avg_values, color=color_list, ymin=0, ymax=1, linestyles="dashed", transform=ax.get_xaxis_transform(),
+                  label="average")
+        ax.vlines(median_values, color=color_list, ymin=0, ymax=1, linestyles="dotted",
+                  transform=ax.get_xaxis_transform(), label="median")
 
     if is_plot:
         plt.legend()
