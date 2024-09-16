@@ -10,7 +10,7 @@ import analysis as ana
 # For now, average total time spent outside per food patch, and average nb of visits per food patch, for each condition
 # Save it in a nice table
 
-results_path = gen.generate("")
+results_path = gen.generate("", shorten_traj=True)
 results = pd.read_csv(results_path + "clean_results.csv")
 full_folder_list = results["folder"]
 condition_names = param.name_to_nb_list.keys()
@@ -32,7 +32,7 @@ for i_condition, condition_name in enumerate(condition_names):
     for i_folder, folder in enumerate(folder_list):
         current_results = results[results["folder"] == folder]
         all_visits = fd.load_list(current_results, "no_hole_visits")
-        all_transits = fd.load_list(current_results, "no_hole_visits")
+        all_transits = fd.load_list(current_results, "aggregated_raw_transits")
         total_time_out = np.sum(ana.convert_to_durations(all_transits))
         nb_of_visits = len(all_visits)
         if nb_of_visits > 0:  # if there's any visit
