@@ -618,25 +618,25 @@ def plot_distance_map_and_patches(results_path, plate):
 
 if __name__ == "__main__":
     # 0
-    #plot_existing_heatmap([17], "pixel_visits", v_max=0.000002)
-    #plot_existing_heatmap([18], "pixel_visits", v_max=0.000002)
-    #plot_existing_heatmap([19], "pixel_visits", v_max=0.000002)
-    #plot_existing_heatmap([20], "pixel_visits", v_max=0.000002)
+    #plot_existing_heatmap([17], "speed", v_max=0.000002)
+    #plot_existing_heatmap([18], "speed", v_max=0.000002)
+    #plot_existing_heatmap([19], "speed", v_max=0.000002)
+    #plot_existing_heatmap([20], "speed", v_max=0.000002)
     # 0.2
-    #plot_existing_heatmap([0], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([0], "speed", v_max=0.000002)
     #plot_existing_heatmap([1], "speed", v_max=0.000002)
-    #plot_existing_heatmap([2], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([2], "speed", v_max=0.000002)
     #plot_existing_heatmap([14], "speed", v_max=0.000002)
     # 0.5
-    #plot_existing_heatmap([4], "pixel_visits", v_max=0.00002)
-    #plot_existing_heatmap([5], "pixel_visits", v_max=0.00002)
-    #plot_existing_heatmap([6], "pixel_visits", v_max=0.00002)
-    #plot_existing_heatmap([15], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([4], "speed", v_max=0.000002)
+    #plot_existing_heatmap([5], "speed", v_max=0.000002)
+    #plot_existing_heatmap([6], "speed", v_max=0.000002)
+    #plot_existing_heatmap([15], "speed", v_max=0.000002)
     # 1.25
-    #plot_existing_heatmap([12], "pixel_visits", v_max=0.00002)
-    #plot_existing_heatmap([8], "pixel_visits", v_max=0.00002)
-    #plot_existing_heatmap([13], "pixel_visits", v_max=0.00002)
-    #plot_existing_heatmap([16], "pixel_visits", v_max=0.00002)
+    #plot_existing_heatmap([12], "speed", v_max=0.000002)
+    #plot_existing_heatmap([8], "speed", v_max=0.000002)
+    #plot_existing_heatmap([13], "speed", v_max=0.000002)
+    #plot_existing_heatmap([16], "speed", v_max=0.000002)
 
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     path = gen.generate(starting_from="", shorten_traj=True)
@@ -677,32 +677,35 @@ if __name__ == "__main__":
     list_by_distance = [17, 0, 4, 12, 18, 1, 9, 5, 10, 8, 19, 2, 6, 13, 14, 15, 20, 16, 21, 3, 7]
     list_by_density = [17, 18, 19, 20, 21, 0, 1, 2, 14, 3, 4, 5, 6, 15, 7, 12, 8, 13, 16, 9, 10]
 
-    plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="speed",
-                 regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [3]], variable="speed",
+    # plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="speed",
+    #              regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #              collapse_patches=False, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[14]], variable="speed",
                  regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
                  collapse_patches=False, show_plot=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15], [7]], variable="speed",
-                 regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
-                 collapse_patches=False, show_plot=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="speed",
-                 regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
-                 collapse_patches=False, show_plot=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[9], [10]], variable="speed",
-                 regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
-                 collapse_patches=False, show_plot=False)
+    # plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [3]], variable="speed",
+    #              regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #              collapse_patches=False, show_plot=False)
+    # plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15], [7]], variable="speed",
+    #              regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #              collapse_patches=False, show_plot=False)
+    # plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="speed",
+    #              regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #              collapse_patches=False, show_plot=False)
+    # plot_heatmap(path, trajectories, full_list_of_folders, [[9], [10]], variable="speed",
+    #              regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #              collapse_patches=False, show_plot=False)
 
     # Pixel visits
-    plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="pixel_visits",
-                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14], [3]], variable="pixel_visits",
-                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[1], [2], [14], [3]], variable="pixel_visits",
-                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=False)
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="pixel_visits",
+    #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #             collapse_patches=False, show_plot=False)
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14], [3]], variable="pixel_visits",
+    #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #             collapse_patches=False, show_plot=False)
+    #plot_heatmap(path, trajectories, full_list_of_folders, [[1], [2], [14], [3]], variable="pixel_visits",
+    #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
+    #             collapse_patches=False, show_plot=False)
     plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15], [7]], variable="pixel_visits",
                  regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
                  collapse_patches=False, show_plot=False)
