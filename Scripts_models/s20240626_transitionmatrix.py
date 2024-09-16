@@ -5,16 +5,14 @@
 #       (so p_ii is the revisit probability), for condition 0
 # "transition_duration_0.npy":
 #       In each cell [i, j]: a list of transit durations, going from patch i to patch j.
-import copy
-
-from scipy import ndimage
-import pandas as pd
 import os
+import copy
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import time
 import random
-from itertools import repeat
+import matplotlib.patches as patches
+import matplotlib.patheffects as pe
 
 from Generating_data_tables import main as gen
 from Parameters import parameters as param
@@ -23,7 +21,11 @@ from Scripts_analysis import s20240605_global_presence_heatmaps as heatmap_scrip
 from Scripts_models import s202406_exchange_experimental_parameters as exchange_script
 
 
-def generate_transition_matrices(condition_list, plot_everything=False, plot_transition_matrix=False):
+def generate_transition_matrices(results_path, condition_list, plot_everything=False, plot_transition_matrix=False,
+                                 is_recompute=False):
+    if not os.path.isdir(results_path + "transition_matrices"):
+        os.mkdir(results_path + "transition_matrices")
+
     print("Generating transition matrices...")
     # First, load the visits, number of patches and patch positions for each condition in condition_list
     visit_list = [[] for _ in range(len(condition_list))]
@@ -35,48 +37,55 @@ def generate_transition_matrices(condition_list, plot_everything=False, plot_tra
         patch_positions[i_condition] = param.distance_to_xy[param.nb_to_distance[condition]]
         nb_of_patches_list[i_condition] = len(patch_positions[i_condition])
 
-    # Then, for each condition, create the matrices and save them
+    # Then, for each condition, load the matrices, or create them, save them and load them
     for i_condition, condition in enumerate(condition_list):
         print("Condition ", condition, "...")
-        nb_of_patches = nb_of_patches_list[i_condition]
-        current_visits = visit_list[i_condition]
-        transition_probability_matrix = np.zeros((nb_of_patches, nb_of_patches))
-        transition_times_matrix = [[[] for _ in range(nb_of_patches)] for _ in range(nb_of_patches)]
-        distance_matrix = [[[] for _ in range(nb_of_patches)] for _ in range(nb_of_patches)]
-        for i_patch in range(nb_of_patches):
-            # print(">>> Patch ", i_patch, " / ", nb_of_patches)
-            # Look for the outgoing transits, and then look at next visits to see which patch they went to
-            outgoing_transits_indices = np.where(current_visits[:, 2] == i_patch)
-            next_patch_indices = outgoing_transits_indices[0] + 1
-            next_patch_indices = next_patch_indices[next_patch_indices < len(current_visits)]
-            next_patches = current_visits[next_patch_indices, 2]
-            # Initialize list with in each cell i, the nb of travels going from patch i_patch to patch i
-            counts_each_patch = np.zeros(nb_of_patches)
-            for i_transit in range(len(next_patch_indices)):
-                next_patch = next_patches[i_transit]
-                next_patch_index = next_patch_indices[i_transit]
-                previous_visit = current_visits[next_patch_index - 1]
-                next_visit = current_visits[next_patch_index]
-                travel_time = next_visit[0] - previous_visit[1] + 1
-                #TODO check that I don't create fake transits??? if last visit in plate i is [100, 200], and
-                # first visit in plate i+1 is [300, 400], won't it create a transit [200, 300]??
-                # If travel time is negative, it means we're at the junction between two plates
-                # => only look at positive travel times
-                if travel_time >= 0:
-                    transition_times_matrix[i_patch][next_patch].append(travel_time)
-                    counts_each_patch[next_patch] += 1
-            # Count how many outgoing transits go to each of the patches
-            probability_each_patch = ana.array_division_ignoring_zeros(counts_each_patch, np.sum(counts_each_patch))
-            transition_probability_matrix[i_patch] = probability_each_patch
-            # Compute distance to all patches
-            curr_patches = patch_positions[i_condition]
-            distance_matrix[i_patch] = [np.sqrt((curr_patches[i_patch][0] - curr_patches[i][0]) ** 2 + (
-                    curr_patches[i_patch][1] - curr_patches[i][1]) ** 2) for i in range(nb_of_patches)]
+        if not os.path.isfile(
+                results_path + "transition_matrices/transition_probability_" + str(condition) + ".npy") or is_recompute:
+            nb_of_patches = nb_of_patches_list[i_condition]
+            current_visits = visit_list[i_condition]
+            transition_probability_matrix = np.zeros((nb_of_patches, nb_of_patches))
+            transition_times_matrix = [[[] for _ in range(nb_of_patches)] for _ in range(nb_of_patches)]
+            distance_matrix = [[[] for _ in range(nb_of_patches)] for _ in range(nb_of_patches)]
+            for i_patch in range(nb_of_patches):
+                # print(">>> Patch ", i_patch, " / ", nb_of_patches)
+                # Look for the outgoing transits, and then look at next visits to see which patch they went to
+                outgoing_transits_indices = np.where(current_visits[:, 2] == i_patch)
+                next_patch_indices = outgoing_transits_indices[0] + 1
+                next_patch_indices = next_patch_indices[next_patch_indices < len(current_visits)]
+                next_patches = current_visits[next_patch_indices, 2]
+                # Initialize list with in each cell i, the nb of travels going from patch i_patch to patch i
+                counts_each_patch = np.zeros(nb_of_patches)
+                for i_transit in range(len(next_patch_indices)):
+                    next_patch = next_patches[i_transit]
+                    next_patch_index = next_patch_indices[i_transit]
+                    previous_visit = current_visits[next_patch_index - 1]
+                    next_visit = current_visits[next_patch_index]
+                    travel_time = next_visit[0] - previous_visit[1] + 1
+                    #TODO check that I don't create fake transits??? if last visit in plate i is [100, 200], and
+                    # first visit in plate i+1 is [300, 400], won't it create a transit [200, 300]??
+                    # If travel time is negative, it means we're at the junction between two plates
+                    # => only look at positive travel times
+                    if travel_time >= 0:
+                        transition_times_matrix[i_patch][next_patch].append(travel_time)
+                        counts_each_patch[next_patch] += 1
+                # Count how many outgoing transits go to each of the patches
+                probability_each_patch = ana.array_division_ignoring_zeros(counts_each_patch, np.sum(counts_each_patch))
+                transition_probability_matrix[i_patch] = probability_each_patch
+                # Compute distance to all patches
+                curr_patches = patch_positions[i_condition]
+                distance_matrix[i_patch] = [np.sqrt((curr_patches[i_patch][0] - curr_patches[i][0]) ** 2 + (
+                        curr_patches[i_patch][1] - curr_patches[i][1]) ** 2) for i in range(nb_of_patches)]
 
-        #if not os.path.isdir(path_to_save + "transition_matrices"):
-        #    os.mkdir(path_to_save + "transition_matrices")
-        #np.save(path_to_save + "transition_matrices/transition_probability_" + str(condition) + ".npy", transition_probability_matrix)
-        #np.save(path_to_save + "transition_matrices/transition_probability_" + str(condition) + ".npy", transition_probability_matrix)
+            np.save(results_path + "transition_matrices/transition_probability_" + str(condition) + ".npy",
+                    transition_probability_matrix)
+            np.save(results_path + "transition_matrices/transition_times_" + str(condition) + ".npy",
+                    np.array(transition_times_matrix, dtype=object))
+        else:
+            transition_probability_matrix = np.load(
+                results_path + "transition_matrices/transition_probability_" + str(condition) + ".npy")
+            transition_times_matrix = np.load(
+                results_path + "transition_matrices/transition_times_" + str(condition) + ".npy", allow_pickle=True)
 
         if plot_everything:
             # Plottttt
@@ -92,7 +101,8 @@ def generate_transition_matrices(condition_list, plot_everything=False, plot_tra
             ax1.set_title("Transition probabilities")
             fig.colorbar(im, ax=ax1)
             # Transition time
-            im = ax2.imshow([list(map(np.nanmean, line)) for line in transition_times_matrix], vmax=500)
+            transition_matrix_avg = [list(map(np.nanmean, line)) for line in transition_times_matrix]
+            im = ax2.imshow(transition_matrix_avg, vmax=np.nanquantile(transition_matrix_avg, 0.9))
             ax2.set_title("Transition durations")
             #cax = fig.add_axes([ax1.get_position().x1 + 0.01, ax1.get_position().y0, 0.02, ax1.get_position().height])
             fig.colorbar(im, ax=ax2)
@@ -100,71 +110,145 @@ def generate_transition_matrices(condition_list, plot_everything=False, plot_tra
 
         if plot_transition_matrix:
             # Transition probability
-            plt.imshow(transition_probability_matrix, vmax=0.1)
-            plt.title("Transition probability " + param.nb_to_name[condition] + " , vmax=0.1")
+            # Find the maximal non-diagonal value to normalize edges with that
+            mask = np.ones(np.array(transition_probability_matrix).shape, dtype=bool)
+            np.fill_diagonal(mask, 0)
+            max_value = transition_probability_matrix[mask].max()
+            transition_probability_matrix = np.clip(np.rint(transition_probability_matrix / max_value * 100)/100, 0, 1)
+            # Plot
+            plt.imshow(transition_probability_matrix)
+            plt.title("Transition probability " + param.nb_to_name[condition])
             plt.colorbar()
+            # Custom ticks (patch numbers)
+            plt.xticks([0, 1, 2], label=["0", "1", "2"])
+            plt.yticks([0, 1, 2], label=["0", "1", "2"])
+            plt.tick_params(axis='both', labelsize=18, top=True, labeltop=True, bottom=False, labelbottom=False)
             plt.show()
 
-        return transition_probability_matrix, transition_times_matrix
+    return transition_probability_matrix, transition_times_matrix
 
 
-def plot_transition_matrix_graph(condition_list):
-    fig, axs = plt.subplots(1, len(condition_list))
+def draw_circular_arrow(x0, y0, radius=1, aspect=1, direction=270, closing_angle=-330,
+                        arrowhead_relative_size=0.2, arrowhead_open_angle=20, color="black", line_width=2, z_order=-10):
+    """
+    Stolen from:
+    https://stackoverflow.com/questions/37512502/how-to-make-arrow-that-loops-in-matplotlib
+    Circular arrow drawing. x0 and y0 are the anchor points.
+    direction gives the angle of the circle center relative to the anchor
+    in degrees. closingangle indicates how much of the circle is drawn
+    in degrees with positive being counterclockwise and negative being
+    clockwise. aspect is important to make the aspect of the arrow
+    fit the current figure.
+    """
 
+    xc = x0 + radius * np.cos(direction * np.pi / 180)
+    yc = y0 + aspect * radius * np.sin(direction * np.pi / 180)
+
+    head_correction_angle = 5
+
+    if closing_angle < 0:
+        step = -1
+    else:
+        step = 1
+    x = [xc + radius * np.cos((ang + 180 + direction) * np.pi / 180)
+         for ang in np.arange(0, closing_angle, step)]
+    y = [yc + aspect * radius * np.sin((ang + 180 + direction) * np.pi / 180)
+         for ang in np.arange(0, closing_angle, step)]
+
+    plt.plot(x, y, color=color, linewidth=line_width, zorder=z_order, path_effects=[pe.Stroke(linewidth=1.5*line_width, foreground="darkgrey"), pe.Normal()])
+
+    x_last = x[-1]
+    y_last = y[-1]
+
+    l = radius * arrowhead_relative_size
+
+    head_angle = (direction + closing_angle + (90 - head_correction_angle) *
+                  np.sign(closing_angle))
+
+    x = [x_last +
+         l * np.cos((head_angle + arrowhead_open_angle) * np.pi / 180),
+         x_last,
+         x_last +
+         l * np.cos((head_angle - arrowhead_open_angle) * np.pi / 180)]
+    y = [y_last +
+         aspect * l * np.sin((head_angle + arrowhead_open_angle) * np.pi / 180),
+         y_last,
+         y_last +
+         aspect * l * np.sin((head_angle - arrowhead_open_angle) * np.pi / 180)]
+
+    plt.plot(x, y, color=color, linewidth=line_width, zorder=z_order, path_effects=[pe.Stroke(linewidth=1.5*line_width, foreground="darkgrey"), pe.Normal()])
+
+
+def plot_transition_matrix_graph(results_path, full_plate_list, condition_list):
     # First, load the matrices for each condition in condition_list
     transition_probability_matrices = [[] for _ in range(len(condition_list))]
     transition_duration_matrices = [[] for _ in range(len(condition_list))]
     for i_condition, condition in enumerate(condition_list):
         transition_probability_matrices[i_condition], transition_duration_matrices[
-            i_condition] = generate_transition_matrices([condition])
+            i_condition] = generate_transition_matrices(results_path, [condition], is_recompute=False)
     # Then, load the patch positions for each distance
-    patch_positions = heatmap_script.idealized_patch_centers_mm(1847)
+    patch_positions = heatmap_script.idealized_patch_centers_mm(results_path, full_plate_list, 1847)
 
     colors = plt.cm.viridis(np.linspace(0, 1, 101))
     for i_condition, condition in enumerate(condition_list):
-        axs[i_condition].set_title(param.nb_to_name[condition])
+        plt.title(param.nb_to_name[condition])
         current_transition_matrix = transition_probability_matrices[i_condition]
         current_patch_positions = patch_positions[condition]
         # Find the maximal non-diagonal value to normalize edges with that
         mask = np.ones(np.array(current_transition_matrix).shape, dtype=bool)
         np.fill_diagonal(mask, 0)
         max_value = current_transition_matrix[mask].max()
+        patch_radius_for_plot = 100
         # Plot lines between the patches
         for i_patch in range(len(current_transition_matrix)):
             for j_patch in range(len(current_transition_matrix[i_patch])):
                 current_probability = current_transition_matrix[i_patch][j_patch]
-                if current_probability != 0 and i_patch != j_patch:
-                    axs[i_condition].axis('scaled')
+                #if current_probability != 0 and i_patch != j_patch:
+                if current_probability != 0:
                     x_origin = current_patch_positions[i_patch][0]
                     y_origin = current_patch_positions[i_patch][1]
                     x_target = current_patch_positions[j_patch][0]
                     y_target = current_patch_positions[j_patch][1]
-                    # If there is no arrow the other way around, just plot half of the arrow (on the target side)
-                    if current_transition_matrix[j_patch][i_patch] != 0:
-                        x_origin = (x_origin + x_target) / 2
-                        y_origin = (y_origin + y_target) / 2
-                    axs[i_condition].arrow(x_origin, y_origin, x_target - x_origin, y_target - y_origin,
-                                           color=colors[np.clip(int(current_probability / max_value * 100), 0, 100)],
-                                           zorder=-10, width=4, head_length=40, length_includes_head=True)
+                    # Adjust x and y to remove patch radius!!!
+                    origin_target_distance = ana.distance([x_origin, y_origin], [x_target, y_target])
+                    if i_patch != j_patch:
+                        adjusted_x_target = x_target - patch_radius_for_plot * (
+                                    (x_target - x_origin) / origin_target_distance)
+                        adjusted_y_target = y_target - patch_radius_for_plot * (
+                                    (y_target - y_origin) / origin_target_distance)
+                        arrow = patches.FancyArrowPatch((x_origin, y_origin), (adjusted_x_target, adjusted_y_target),
+                                                        connectionstyle=patches.ConnectionStyle("Arc3", rad=0.2),
+                                                        zorder=-10, linewidth=4,
+                                                        arrowstyle="->", mutation_scale=10.,
+                                                        color=colors[
+                                                            np.clip(int(current_probability / max_value * 100), 0,
+                                                                    100)],
+                                                        path_effects=[pe.Stroke(linewidth=4.6, foreground=colors[0]), pe.Normal()])
+                        plt.gca().add_patch(arrow)
 
-        #print(np.clip(np.array(current_transition_matrix*100).astype(int), 0, 100))
+                    else:
+                        draw_circular_arrow(x_origin, y_origin, radius=2*patch_radius_for_plot, direction=90,
+                                            color=colors[np.clip(int(current_probability / max_value * 100), 0, 100)],
+                                            line_width=4)
 
-        # Then, plot a circle around each of the centers + display patch number in the center
-        # Color of the circle depends on probability of revisit of the patch
-        for i_patch in range(len(current_patch_positions)):
-            x = current_patch_positions[i_patch][0]
-            y = current_patch_positions[i_patch][1]
-            p_revisit = current_transition_matrix[i_patch][i_patch]
-            circle = plt.Circle((x, y), radius=20, color=colors[np.clip(int(p_revisit * 100), 0, 100)])
-            circle_outline = plt.Circle((x, y), radius=20, color=colors[0], fill=False)
-            axs[i_condition].text(x, y, str(i_patch), horizontalalignment='center', verticalalignment='center',
-                                  color=colors[0])
-            axs[i_condition].add_artist(circle)
-            axs[i_condition].add_artist(circle_outline)
+            # Then, plot a circle around each of the centers + display patch number in the center
+            # Color of the circle depends on probability of revisit of the patch
+            for i_patch in range(len(current_patch_positions)):
+                x = current_patch_positions[i_patch][0]
+                y = current_patch_positions[i_patch][1]
+                p_revisit = current_transition_matrix[i_patch][i_patch]
+                circle = plt.Circle((x, y), radius=patch_radius_for_plot,
+                                    color=param.name_to_color[param.nb_to_density[condition]])
+                circle_outline = plt.Circle((x, y), radius=patch_radius_for_plot, color=param.name_to_color["0.5"], linewidth=3, fill=False)
+                plt.text(x, y, str(i_patch), horizontalalignment='center', verticalalignment='center',
+                         color=param.name_to_color["0.5"], fontsize=16)
+                plt.gca().add_artist(circle)
+                plt.gca().add_artist(circle_outline)
 
-        axs[i_condition].axis('scaled')
-
-    plt.show()
+        plt.xlim(0, 1847)
+        plt.ylim(0, 1847)
+        plt.gcf().set_size_inches(6, 6)
+        plt.show()
 
 
 def find_nearest_neighbors(results_path, folder_list, condition_list):
@@ -191,7 +275,8 @@ def find_nearest_neighbors(results_path, folder_list, condition_list):
             neighbors_sorted_by_distance = np.argsort(distance_to_others)
             counter = 1  # start at 1 cause 0 is the distance of patch to itself
             i_neighbor = neighbors_sorted_by_distance[counter]
-            while counter < nb_of_patches and distance_to_others[i_neighbor] <= distance_to_others[neighbors_sorted_by_distance[1]] * 1.3:
+            while counter < nb_of_patches and distance_to_others[i_neighbor] <= distance_to_others[
+                neighbors_sorted_by_distance[1]] * 1.3:
                 nearest_neighbors[condition][i_patch][i_neighbor] = 1
                 counter += 1
                 if counter < nb_of_patches:
@@ -231,7 +316,7 @@ def plot_nearest_neighbor_transition_probability(condition_list, results_path, f
     names = []
     for i_condition, condition in enumerate(condition_list):
         condition_name = param.nb_to_name[condition]
-        current_transition_matrix, _ = generate_transition_matrices([condition])
+        current_transition_matrix, _ = generate_transition_matrices(results_path, [condition])
         current_nearest_neighbors = nearest_neighbors[condition]
         nb_of_patches = len(current_nearest_neighbors)
         nearest_prob_each_patch = [0 for _ in range(nb_of_patches)]
@@ -465,14 +550,14 @@ def simulate_nb_of_visits(results_table, condition_list, nb_of_exp):
     plt.show()
 
 
-def parameter_exchange_matrix(results_table, condition_list, variable_to_exchange, what_to_plot, nb_of_exp, xp_length):
+def parameter_exchange_matrix(results_path, results_table, condition_list, variable_to_exchange, what_to_plot, nb_of_exp, xp_length):
     # First, load the parameters / distributions for each condition in condition_list
     transition_probability_matrices = [[] for _ in range(len(condition_list))]
     transition_duration_matrices = [[] for _ in range(len(condition_list))]
     xp_visit_duration = [[] for _ in range(len(condition_list))]
     for i_condition, condition in enumerate(condition_list):
         transition_probability_matrices[i_condition], transition_duration_matrices[
-            i_condition] = generate_transition_matrices([condition])
+            i_condition] = generate_transition_matrices(results_path, [condition])
         xp_visit_duration[i_condition] = ana.return_value_list(results_table, "visits", [condition],
                                                                convert_to_duration=True)
 
@@ -532,7 +617,7 @@ def parameter_exchange_matrix(results_table, condition_list, variable_to_exchang
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(test_pipeline=False, old_dataset=False)
+    path = gen.generate(test_pipeline=False, old_dataset=False, shorten_traj=True)
     results = pd.read_csv(path + "clean_results.csv")
     # trajectories = pd.read_csv(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
@@ -540,48 +625,30 @@ if __name__ == "__main__":
         full_list_of_folders.remove(
             "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
+    #plot_transition_matrix_graph(path, full_list_of_folders, [14])
+    #generate_transition_matrices(path, [14], plot_everything=False, plot_transition_matrix=True, is_recompute=False)
+
     #list_of_conditions = list(param.nb_to_name.keys())
     #show_patch_numbers(list_of_conditions)
     #simulate_total_visit_time(results, [0, 1, 2], 30)
     #simulate_nb_of_visits(results, [0, 1, 2], 30)
 
-    parameter_exchange_matrix(results, [0, 1, 2, 14], "visit_times", "avg_visit_duration", 1000, 30000)
-    parameter_exchange_matrix(results, [4, 5, 6, 15], "visit_times", "avg_visit_duration", 1000, 30000)
-    parameter_exchange_matrix(results, [12, 8, 13, 16], "visit_times", "avg_visit_duration", 1000, 30000)
+    parameter_exchange_matrix(path, results, [0, 1, 2, 14], "visit_times", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(path, results, [4, 5, 6, 15], "visit_times", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(path, results, [12, 8, 13, 16], "visit_times", "total_visit_time", 1000, 30000)
 
-    parameter_exchange_matrix(results, [0, 1, 2, 14], "visit_times", "total_visit_time", 1000, 30000)
-    parameter_exchange_matrix(results, [4, 5, 6, 15], "visit_times", "total_visit_time", 1000, 30000)
-    parameter_exchange_matrix(results, [12, 8, 13, 16], "visit_times", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(path, results, [0, 1, 2, 14], "revisit_probability", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(path, results, [4, 5, 6, 15], "revisit_probability", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(path, results, [12, 8, 13, 16], "revisit_probability", "total_visit_time", 1000, 30000)
 
-    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_visit_duration", 1000, 30000)
-    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_visit_duration", 1000, 30000)
-    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_visit_duration", 1000, 30000)
+    #parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_visit_duration", 1000, 30000)
+    #parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_visit_duration", 1000, 30000)
+    #parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_visit_duration", 1000, 30000)
 
-    parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "total_visit_time", 1000, 30000)
-    parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "total_visit_time", 1000, 30000)
-    parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "total_visit_time", 1000, 30000)
+    #parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "total_visit_time", 1000, 30000)
+    #parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "total_visit_time", 1000, 30000)
+    #parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "total_visit_time", 1000, 30000)
 
-    # parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
-    # parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
-    # parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_nb_of_visits_per_patch", 1000, 30000)
-    #
-    # parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
-    # parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
-    # parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "avg_nb_of_visits", 1000, 30000)
-    #
-    # parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "total_xp_time", 1000, 30000)
-    # parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "total_xp_time", 1000, 30000)
-    # parameter_exchange_matrix(results, [12, 13, 14], "revisit_probability", "total_xp_time", 1000, 30000)
-    #
-    # parameter_exchange_matrix(results, [0, 1, 2, 14], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
-    # parameter_exchange_matrix(results, [4, 5, 6, 15], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
-    # parameter_exchange_matrix(results, [12, 8, 13, 16], "revisit_probability", "nb_of_explored_patches", 1000, 30000)
+    #plot_nearest_neighbor_transition_probability(param.list_by_distance, path, full_list_of_folders)
 
-    #plot_nearest_neighbor_transition_probability(param.list_by_density)
 
-    #plot_transition_matrix_graph([0, 1, 2])
-    #plot_transition_matrix_graph([4, 5, 6])
-    #plot_transition_matrix_graph([12, 13, 14])
-    #plot_transition_matrix_graph([8, 9, 10])
-    #plot_transition_matrix_graph([10, 1])
-    #plot_transition_matrix_graph([15, 3, 7])
