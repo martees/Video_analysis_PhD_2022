@@ -7,7 +7,7 @@ from Generating_data_tables import main as gen
 import analysis as ana
 
 
-def bar_plot_first_visit_each_patch(results, condition_list):
+def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True):
     """
     Function that plots a histogram with the average length of first visit to each food patch in each condition in condition_list.
     """
@@ -35,29 +35,33 @@ def bar_plot_first_visit_each_patch(results, condition_list):
         errors = ana.bottestrop_ci(avg_value_each_condition_each_plate[i_condition], 1000)
         errors_inf_each_condition[i_condition], errors_sup_each_condition[i_condition] = [avg_value_each_condition[i_condition] - errors[0],
                                                                                           errors[1] - avg_value_each_condition[i_condition]]
-    # Plotty plot
-    fig = plt.gcf()
-    fig.set_size_inches(6, 10)
-    condition_names = [param.nb_to_name[cond] for cond in condition_list]
-    condition_colors = [param.name_to_color[name] for name in condition_names]
-    plt.title("First visit to each patch")
-    plt.ylabel("First visit to each patch (s)")
-    # Bar plot
-    plt.bar(range(len(condition_list)), avg_value_each_condition, color=condition_colors)
-    plt.xticks(range(len(condition_list)), condition_names, rotation=45)
-    plt.xlabel("Condition number")
-    # Plate averages as scatter on top
-    for i in range(len(condition_list)):
-        plt.scatter([range(len(condition_list))[i] for _ in range(len(avg_value_each_condition_each_plate[i]))],
-                    avg_value_each_condition_each_plate[i], color="orange", zorder=2, s=6)
-    # Error bars
-    plt.errorbar(range(len(condition_list)), avg_value_each_condition, [errors_inf_each_condition, errors_sup_each_condition], fmt='.k', capsize=5)
+    if is_plot:
+        # Plotty plot
+        fig = plt.gcf()
+        fig.set_size_inches(6, 10)
+        condition_names = [param.nb_to_name[cond] for cond in condition_list]
+        condition_colors = [param.name_to_color[name] for name in condition_names]
+        plt.title("First visit to each patch")
+        plt.ylabel("First visit to each patch (s)")
+        # Bar plot
+        plt.bar(range(len(condition_list)), avg_value_each_condition, color=condition_colors)
+        plt.xticks(range(len(condition_list)), condition_names, rotation=45)
+        plt.xlabel("Condition number")
+        # Plate averages as scatter on top
+        for i in range(len(condition_list)):
+            plt.scatter([range(len(condition_list))[i] for _ in range(len(avg_value_each_condition_each_plate[i]))],
+                        avg_value_each_condition_each_plate[i], color="orange", zorder=2, s=6)
+        # Error bars
+        plt.errorbar(range(len(condition_list)), avg_value_each_condition, [errors_inf_each_condition, errors_sup_each_condition], fmt='.k', capsize=5)
 
-    plt.show()
+        plt.show()
+    else:
+        return avg_value_each_condition_each_plate, avg_value_each_condition, [errors_inf_each_condition, errors_sup_each_condition]
 
 
-path = gen.generate("")
-clean_results = pd.read_csv(path + "clean_results.csv")
-bar_plot_first_visit_each_patch(clean_results, param.list_by_distance)
-bar_plot_first_visit_each_patch(clean_results, param.list_by_density)
+if __name__ == "__main__":
+    path = gen.generate("")
+    clean_results = pd.read_csv(path + "clean_results.csv")
+    bar_plot_first_visit_each_patch(clean_results, param.list_by_distance)
+    bar_plot_first_visit_each_patch(clean_results, param.list_by_density)
 
