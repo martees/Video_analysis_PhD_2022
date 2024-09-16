@@ -10,9 +10,12 @@ import random
 import Parameters.parameters
 import analysis as ana
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
 from itertools import groupby
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.offsetbox import (DrawingArea, OffsetImage, AnnotationBbox)
 
 from Generating_data_tables import main as gen
 from Parameters import parameters as param
@@ -35,7 +38,8 @@ def plot_parameter_distribution(condition_list, values_dictionary):
         #    patch.set_facecolor(color)
 
         for i_condition in range(len(condition_list)):
-            current_axis.hist(current_values[i_condition], color=condition_color[i_condition], linewidth=3, label=condition_names[i_condition], histtype="step", density=True, bins=bins)
+            current_axis.hist(current_values[i_condition], color=condition_color[i_condition], linewidth=3,
+                              label=condition_names[i_condition], histtype="step", density=True, bins=bins)
 
         # current_axis.set_xticks(range(1, len(current_values) + 1), condition_names)
         current_axis.set_title(current_parameter)
@@ -65,14 +69,43 @@ def plot_matrix(condition_list, value_matrix, parameter_to_exchange, nb_of_draws
         for j in range(len(condition_list)):
             ax.text(j, i, int(np.rint(value_matrix[i, j])), ha="center", va="center", color="w")
 
-    fig.set_size_inches(len(condition_list)*0.9, (7.5/(9*0.82)) * len(condition_list))  # don't mind me xD
+    fig.set_size_inches(len(condition_list) * 0.9, (7.5 / (9 * 0.82)) * len(condition_list))  # don't mind me xD
     plt.tight_layout(pad=2)
-    fig.suptitle(nb_of_draws)
-    ax.set_xlabel("Lends their "+parameter_to_exchange)
-    ax.set_ylabel("Steals their "+parameter_to_exchange)
+    fig.suptitle("Lends their " + parameter_to_exchange, fontsize=12)  # that's actually the x label (on top of figure)
+    ax.set_xlabel("OD="+param.nb_to_density[condition_list[0]], labelpad=10, fontsize=20)  # That's actually the title (under the figure)
+    ax.set_ylabel("Steals their " + parameter_to_exchange, labelpad=45, fontsize=12)
+    # Move the x ticks from bottom to top, and no labels (will be images)
+    plt.tick_params(axis='x', top=True, labeltop=False, bottom=False, labelbottom=False, labelsize=12)
+    plt.tick_params(axis='y', left=False, labelleft=False, labelsize=12)
+
+    # Set the x and y labels to the distance icons!
+    # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
+    for i in range(len(condition_list)):
+        # Image to use
+        arr_img = plt.imread("/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[condition_list[i]] + '.png')
+
+        # Image box to draw it!
+        imagebox = OffsetImage(arr_img, zoom=0.5)
+        imagebox.image.axes = ax
+
+        x_annotation_box = AnnotationBbox(imagebox, (i, 0),
+                                          xybox=(0, 180),  # that's the shift that the image will have compared to (i, 0)
+                                          xycoords=("data", "axes fraction"),
+                                          boxcoords="offset points",
+                                          box_alignment=(.5, 1),
+                                          bboxprops={"edgecolor": "none"})
+
+        y_annotation_box = AnnotationBbox(imagebox, (0, 0.85 - i/4),
+                                          xybox=(-30, 0),
+                                          xycoords=("data", "axes fraction"),
+                                          boxcoords="offset points",
+                                          box_alignment=(1, .5),
+                                          bboxprops={"edgecolor": "none"})
+
+        ax.add_artist(x_annotation_box)
+        ax.add_artist(y_annotation_box)
 
     plt.show()
-
 
 
 def matrix_of_total_time_in_patch(condition_list, parameter_to_exchange, nb_of_draws, plot_distribution=False):
