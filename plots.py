@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mplcolors
+import matplotlib.patheffects as pe
 import random
 import seaborn as sns
 import os
@@ -12,6 +13,7 @@ from Generating_data_tables import generate_trajectories as gt
 import find_data as fd
 from Parameters import parameters as param
 from Parameters import custom_legends
+from Scripts_analysis import s20240828_barplot_first_visit as first_visit_script
 
 
 def data_coverage(traj):
@@ -522,7 +524,10 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     eg : if column_name="total_visit_time" and divided_by="nb_of_visits", it will output the average visit time
     """
     # Getting results
-    list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
+    if column_name == "first_visit_duration":
+        list_of_avg_each_plate, average_per_condition, errorbars = first_visit_script.bar_plot_first_visit_each_patch(results, condition_list, is_plot=False)
+    else:
+        list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                          column_name, divided_by,
                                                                                          normalize_by_video_length,
                                                                                          remove_last_patch=False)
@@ -533,12 +538,44 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     #     average_per_condition = [average_per_condition[i] for i in range(len(average_per_condition))]
     #     errorbars = [errorbars[i] for i in range(len(errorbars))]
 
+    # if column_name == "total_visit_time" and divided_by == "nb_of_visits":
+    #     # Here because of outliers I need to break the axis
+    #     # Code is from https://matplotlib.org/2.0.2/examples/pylab_examples/broken_axis.html
+    #     # On ax there's the normal plot, but with y-limits that hide the outliers
+    #     # On ax_for_outliers there will be the outliers
+    #     figure, (ax_for_outliers, ax) = plt.subplots(2, 1, sharex=True)
+    #     figure.suptitle(plot_title)
+    #     ax.set_ylim(0, 3200)
+    #     ax_for_outliers.set_ylim(4400, 4600)
+    #     # hide the spines between ax and ax2
+    #     ax_for_outliers.spines['bottom'].set_visible(False)
+    #     ax.spines['top'].set_visible(False)
+    #     ax_for_outliers.spines['top'].set_visible(False)
+    #     ax_for_outliers.xaxis.tick_top()
+    #     ax.xaxis.tick_bottom()
+    #     ax_for_outliers.set(ylabel="Average time per visit (seconds)")
+    #else:
     # Plotttt
     plt.title(plot_title)
     fig = plt.gcf()
     ax = fig.gca()
     fig.set_size_inches(6, 8.6)
     # plt.style.use('dark_background')
+
+    if column_name == "total_visit_time" and divided_by == "nb_of_visited_patches":
+        ax.set(ylabel="Total time in patch (seconds)")
+        ax.set_ylim(0, 16000)
+    if column_name == "total_visit_time" and divided_by == "nb_of_visits":
+        ax.set(ylabel="Average time per visit (seconds)")
+        #ax.set_ylim(0, 4600)
+        ax.set_ylim(0, 3100)
+    if column_name == "first_visit_duration":
+        ax.set(ylabel="Duration of 1st visit to each patch (seconds)")
+        ax.set_ylim(0, 8000)
+    if column_name == "average_speed_inside":
+        ax.set(ylabel="Average speed inside food patches (pixel/second)")
+    if column_name == "average_speed_outside":
+        ax.set(ylabel="Average speed outside food patches (pixel/second)")
 
     # Plot condition averages as a bar plot
     condition_names = [param.nb_to_name[cond] for cond in condition_list]
@@ -547,14 +584,6 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     ax.set_xticks(range(len(condition_list)))
     ax.set_xticklabels(condition_names, rotation=45)
     ax.set(xlabel="Condition")
-    ax.set_ylim(0, 16000)
-
-    if column_name == "total_visit_time" and divided_by == "nb_of_visited_patches":
-        ax.set(ylabel="Total time in patch (seconds)")
-    if column_name == "average_speed_inside":
-        ax.set(ylabel="Average speed inside food patches (pixel/second)")
-    if column_name == "average_speed_outside":
-        ax.set(ylabel="Average speed outside food patches (pixel/second)")
 
     # Plot plate averages as scatter on top
     for i in range(len(condition_list)):
@@ -574,9 +603,10 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
         # Plot empty lines to make the custom legend
         lines = []
         for i_cond, cond in enumerate(condition_list):
-            line, = ax.plot([], [], color=param.name_to_color[param.nb_to_name[cond]])
+            line, = ax.plot([], [], color=param.name_to_color[param.nb_to_name[cond]], linewidth=13,
+                            path_effects=[pe.Stroke(offset=(-0.5, 0.5), linewidth=16, foreground=param.name_to_color[param.nb_to_distance[cond]]), pe.Normal()])
             lines.append(line)
-        legend_objects = plt.legend(lines, ["" for _ in range(len(lines))],
+        plt.legend(lines, ["" for _ in range(len(lines))],
                                     handler_map={lines[i]: custom_legends.HandlerLineImage(
                                         "Parameters/icon_" + str(param.nb_to_distance[condition_list[i]]) + ".png") for i in
                                         range(len(lines))},
@@ -586,14 +616,11 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
         # handletextpad is spacing between the legend and the right line of the rectangle around the legend
         # borderaxespad is the spacing between the legend rectangle and the axes of the figure
 
-        # Set the line width of each legend object
-        for legend_object in legend_objects.legend_handles:
-            legend_object.set_linewidth(10)
         plt.show()
 
 
 def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True,
-                    is_plot=True, patch_or_pixel="patch", only_first=False):
+                    is_plot=True, patch_or_pixel="patch", only_first=False, min_nb_data_points=10, custom_bins=None):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
     full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable,
                                                                           patch_or_pixel, only_first)
@@ -643,14 +670,14 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
 
         variable_values_bins, average_visit_duration, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
             full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False,
-            custom_bins=[1, 10, 100, 1000, 10000])
+            custom_bins=custom_bins)
         # Exclude the ones that have 100 visits or fewer
         variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if
-                                len(binned_current_visits[i]) > 40]
+                                len(binned_current_visits[i]) > min_nb_data_points]
         average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if
-                                  len(binned_current_visits[i]) > 40]
-        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > 40]
-        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > 40]
+                                  len(binned_current_visits[i]) > min_nb_data_points]
+        errors_inf = [errors_inf[i] for i in range(len(errors_inf)) if len(binned_current_visits[i]) > min_nb_data_points]
+        errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if len(binned_current_visits[i]) > min_nb_data_points]
 
         condition_name = param.nb_list_to_name[str(sorted(condition_list))]
         condition_color = param.name_to_color[condition_name]
