@@ -178,16 +178,25 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
             # Average total time spent in each patch
             if "total_visit_time" in what_to_plot:
-                plots.plot_selected_data(results, "Average total time per patch for " + plot_name + " conditions",
+                print("Pay attention, the title has the density of the first condition!")
+                plots.plot_selected_data(results, "Total time, OD="+param.nb_to_density[current_conditions[0]],
                                          current_conditions, current_condition_names, "total_visit_time",
                                          divided_by="nb_of_visited_patches", mycolor=current_color, plot_model=False,
                                          is_plot=is_plot)
 
             # Visits plots
             if "visit_duration" in what_to_plot:
-                plots.plot_selected_data(results, "Average duration of visits in " + plot_name + " conditions",
+                print("Pay attention, the title has the density of the first condition!")
+                plots.plot_selected_data(results, "Time per visit, OD="+param.nb_to_density[current_conditions[0]],
                                          current_conditions, current_condition_names, "total_visit_time",
                                          divided_by="nb_of_visits", mycolor=current_color, plot_model=False,
+                                         is_plot=is_plot)
+
+            if "first_visit_duration" in what_to_plot:
+                print("Pay attention, the title has the density of the first condition!")
+                plots.plot_selected_data(results, "First visit duration, OD="+param.nb_to_density[current_conditions[0]],
+                                         current_conditions, current_condition_names, "first_visit_duration",
+                                         divided_by="", mycolor=current_color, plot_model=False,
                                          is_plot=is_plot)
 
             if "visit_duration_mvt" in what_to_plot:
@@ -357,10 +366,10 @@ if __name__ == "__main__":
     #plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     #plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
 
-    plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20], [21]], variable_list=["transits"], only_first=False, plot_cumulative=True)
     #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)
