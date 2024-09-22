@@ -8,22 +8,22 @@ from Parameters import custom_legends
 from Generating_data_tables import main as gen
 import plots
 
-path = gen.generate("", test_pipeline=False, shorten_traj=True)
+path = gen.generate("", test_pipeline=False, shorten_traj=False)
 clean_results = pd.read_csv(path + "clean_results.csv")
 travel_time_bins = [1, 10, 100, 1000, 10000]
-#curve_list = [param.name_to_nb_list["close"], param.name_to_nb_list["med"], param.name_to_nb_list["far"],
-#              param.name_to_nb_list["superfar"]]
-curve_list = [param.name_to_nb_list["0"], param.name_to_nb_list["0.2"], param.name_to_nb_list["0.5"],
-              param.name_to_nb_list["1.25"]]
+# curve_list = [param.name_to_nb_list["close"], param.name_to_nb_list["med"], param.name_to_nb_list["far"],
+#               param.name_to_nb_list["superfar"]]
+# curve_list = [param.name_to_nb_list["0"], param.name_to_nb_list["0.2"], param.name_to_nb_list["0.5"],
+#               param.name_to_nb_list["1.25"]]
 
-#curve_list = [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
-#              [param.name_to_nb["superfar 0"]]]
-#curve_list = [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
-#              [param.name_to_nb["superfar 0.2"]]]
-#curve_list = [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
-#              [param.name_to_nb["superfar 0.5"]]]
-#curve_list = [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
-#              [param.name_to_nb["superfar 1.25"]]]
+curve_list = [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
+              [param.name_to_nb["superfar 0"]]]
+# curve_list = [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
+#               [param.name_to_nb["superfar 0.2"]]]
+# curve_list = [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
+#               [param.name_to_nb["superfar 0.5"]]]
+# curve_list = [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
+#               [param.name_to_nb["superfar 1.25"]]]
 
 only_first = 1
 
@@ -43,10 +43,15 @@ for i_curve, curve in enumerate(curve_list):
                                                                                                       patch_or_pixel="patch",
                                                                                                       only_first=only_first,
                                                                                                       custom_bins=travel_time_bins,
-                                                                                                      min_nb_data_points=20)
+                                                                                                      min_nb_data_points=40)
         # Classical error bars
-        plt.errorbar([x_bin * (1 + 0.1 * i_curve) for x_bin in variable_value_bins], average_visit_duration,
-                     [errors_inf, errors_sup], fmt='.k', capsize=5)
+        # plt.errorbar([x_bin * (1 + 0.1 * i_curve) for x_bin in variable_value_bins], average_visit_duration,
+        #              [errors_inf, errors_sup], fmt='.k', capsize=5)
+        # Show error bars as area around curve
+        plt.fill_between([x_bin * (1 + 0.1 * i_curve) for x_bin in variable_value_bins],
+                         np.array(average_visit_duration) - np.array(errors_inf),
+                         np.array(average_visit_duration) + np.array(errors_sup),
+                         alpha=0.2, facecolor=current_curve_color, antialiased=True)
     # If it's more than one condition, do it so that each condition in the curve has the same weight
     else:
         # Tables with one line per condition, one column per bin
@@ -111,13 +116,15 @@ for i_curve, curve in enumerate(curve_list):
              label=current_curve_name)
 
 
-
-if only_first != False:
+if only_first == 1:
+    plt.title("OD=" + param.nb_to_density[curve[0]], fontsize=20)
+    plt.ylabel("Average duration of first visit to a patch (seconds)", fontsize=12)
+elif only_first is not False:
     plt.title("Average of first " + str(only_first) + " visit length, OD=" + param.nb_to_density[curve[0]])
-    plt.ylabel("Average duration of first " + str(only_first) + " visits to a patch (sec)")
+    plt.ylabel("Average duration of first " + str(only_first) + " visits to a patch (sec)", fontsize=12)
 else:
     plt.title("Average of all visits as a function of the duration of the previous transit")
-    plt.ylabel("Average duration of all visits (sec)")
+    plt.ylabel("Average duration of all visits (seconds)", fontsize=12)
 
 # Fancy legend
 # Only works when all the conditions of one curve have the same distance! (because the fancy legend has distance icons)
@@ -125,23 +132,24 @@ if not np.any([len(np.unique([param.nb_to_distance[cond] for cond in curve])) !=
     # Plot empty lines to make the custom legend
     lines = []
     for curve in curve_list:
-        line, = plt.plot([], [], color=param.name_to_color[param.nb_list_to_name[str(curve)]], linewidth=10,
-                         path_effects=[pe.Stroke(offset=(-0.2, 0.2), linewidth=13,
+        line, = plt.plot([], [], color=param.name_to_color[param.nb_list_to_name[str(curve)]], linewidth=12,
+                         path_effects=[pe.Stroke(offset=(-0.2, 0.2), linewidth=15,
                                                  foreground=param.name_to_color[param.nb_to_distance[curve[0]]]),
                                        pe.Normal()])
         lines.append(line)
     plt.legend(lines, ["" for _ in range(len(lines))],
                handler_map={lines[i]: custom_legends.HandlerLineImage(
-                   "Parameters/icon_" + str(param.nb_to_distance[curve_list[i][0]]) + ".png") for i in
+                   "icon_" + str(param.nb_to_distance[curve_list[i][0]]) + ".png") for i in
                    range(len(lines))},
-               handlelength=1.6, labelspacing=0.0, fontsize=20, borderpad=0.10, loc=2,
-               handletextpad=0.15, borderaxespad=0.15)
+               handlelength=1.6, labelspacing=0.0, fontsize=36, borderpad=0.10, loc=2,
+               handletextpad=0.3, borderaxespad=0.3)
     # borderpad is the spacing between the legend and the bottom line of the rectangle around the legend
     # handletextpad is spacing between the legend and the right line of the rectangle around the legend
     # borderaxespad is the spacing between the legend rectangle and the axes of the figure
 else:
     plt.legend()
 
-plt.xlabel("Previous travel time")
+plt.gcf().set_size_inches(6, 7)
+plt.xlabel("Duration of the previous travel (seconds, log scale)", fontsize=12)
 plt.xscale("log")
 plt.show()
