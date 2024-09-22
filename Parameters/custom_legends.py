@@ -3,16 +3,17 @@ import matplotlib.lines
 from matplotlib.transforms import Bbox, TransformedBbox
 from matplotlib.legend_handler import HandlerBase
 from matplotlib.image import BboxImage
-
+import os
+import find_data as fd
 
 # Code from https://stackoverflow.com/questions/42155119/replace-matplotlib-legends-labels-with-image
 # Allows to create legends with images instead of text beside the lines
 class HandlerLineImage(HandlerBase):
 
-    def __init__(self, path, space=15, offset=10):
+    def __init__(self, image_name, space=15, offset=10):
         self.space = space
         self.offset = offset
-        self.image_data = plt.imread(path)
+        self.image_data = plt.imread(os.path.dirname(os.path.realpath(__file__)) + "/"*fd.is_linux() + "\\"*(not fd.is_linux()) + image_name)
         super(HandlerLineImage, self).__init__()
 
     def create_artists(self, legend, orig_handle,
