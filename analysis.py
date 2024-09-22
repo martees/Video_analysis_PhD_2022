@@ -89,7 +89,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 for visit in current_visits:
                     if visit[2] == last_visited_patch:
                         current_visits.remove(visit)
-                current_plate.loc["total_visit_time"] = np.sum([pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0] + 1, axis=1)])
+                current_plate.loc["total_visit_time"] = np.sum(
+                    [pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0] + 1, axis=1)])
 
             # When we want to divide column name by another one
             if divided_by != "":
@@ -104,7 +105,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / max(1, len(visited_patches_list))
                 elif np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
                     if remove_last_patch:
-                        print("Pay attention, you're dividing by a column where I haven't implemented the remove_last_patch feature")
+                        print(
+                            "Pay attention, you're dividing by a column where I haven't implemented the remove_last_patch feature")
                     if np.sum(current_plate[column_name]) < 0:
                         print("Negative ", column_name, " for plate: ", current_plate["folder"].iloc[0])
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])
@@ -392,9 +394,9 @@ def convert_to_durations(list_of_time_stamps):
     And will return the corresponding list of durations [d0,d1,...] (where d0 = t1 - t0 + 1)
     """
     # Equivalent imperative code:
-    #nb_of_events = len(list_of_time_stamps)
-    #list_of_durations = np.zeros(nb_of_events)
-    #for i_event in range(nb_of_events):
+    # nb_of_events = len(list_of_time_stamps)
+    # list_of_durations = np.zeros(nb_of_events)
+    # for i_event in range(nb_of_events):
     #    list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
     # Code using lambda function instead:
     if list_of_time_stamps:
@@ -459,7 +461,8 @@ def array_division_ignoring_zeros(a, b):
     return np.divide(a, b, out=np.zeros(a.shape, dtype=float), where=b != 0)
 
 
-def return_value_list(results, column_name, condition_list=None, convert_to_duration=True, only_first=False, end_time=False):
+def return_value_list(results, column_name, condition_list=None, convert_to_duration=True, only_first=False,
+                      end_time=False):
     """
     Will return a list of values of column_name in results, pooled for all conditions in condition_list.
     For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
@@ -506,7 +509,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             current_visits = fd.load_list(current_results, "no_hole_visits")
             if current_visits:
                 patch_sequence = np.array(current_visits)[:, 2]
-                #patch_sequence = [i[0] for i in groupby(np.array(current_visits)[:, 2])]
+                # patch_sequence = [i[0] for i in groupby(np.array(current_visits)[:, 2])]
                 if only_first and patch_sequence:
                     patch_sequence = patch_sequence[0]
                 if end_time and patch_sequence:
@@ -532,7 +535,8 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
                         first_value_each_patch.append(value)
                 current_values = first_value_each_patch
             if end_time and current_values:
-                current_values = [current_values[i] for i in range(len(current_values)) if current_values[i][0] <= end_time]
+                current_values = [current_values[i] for i in range(len(current_values)) if
+                                  current_values[i][0] <= end_time]
             if convert_to_duration:
                 list_of_values += convert_to_durations(current_values)
             else:
@@ -781,7 +785,7 @@ def leaving_events_time_stamps(list_of_visits_with_transit_info, in_patch_timeli
     return events_time_stamps
 
 
-def delays_before_leaving(result_table, condition_list):
+def delays_before_leaving(result_table, condition_list, min_visit_length=0):
     """
     Returns list of average times before next leaving event, for each time point of the "total time in patch" timeline,
     pooled for all patches of condition list
@@ -798,20 +802,24 @@ def delays_before_leaving(result_table, condition_list):
 
     for plate in full_folder_list:
         current_data = result_table[result_table["folder"] == plate]
+        # We load the "aggregated" visits: they have one sublist for each patch with the first and last time step spent
+        # there, then the patch number, then a list of the transits that were squished
         list_of_visits = fd.load_list(current_data, "aggregated_visits_thresh_100000")
         list_of_transits = fd.load_list(current_data, "aggregated_raw_transits")
-        for i_visit in range(len(list_of_visits)):
-            current_patch_info = list_of_visits[i_visit]
+        for i_patch in range(len(list_of_visits)):
+            current_patch_info = list_of_visits[i_patch]
             visit_start = current_patch_info[0]
             visit_end = current_patch_info[1]
             current_patch_transits = current_patch_info[-1]
             time_out_of_patch_counter = 0
             # Add delays that run from beginning of visit to first exit
-            current_delays = list(range(current_patch_transits[0][0] - visit_start, 0, -1))
-            delay_before_leaving_list += current_delays
-            corresponding_time_in_patch_list += list(range(current_patch_transits[0][0] - visit_start))
+            if current_patch_transits[0][0] - visit_start + 1 > min_visit_length:
+                current_delays = list(range(current_patch_transits[0][0] - visit_start, 0, -1))
+                delay_before_leaving_list += current_delays
+                corresponding_time_in_patch_list += list(range(current_patch_transits[0][0] - visit_start))
 
             # Add delays from end of each transit to beginning of next transit
+            # (because that's a visit)
             for i_transit in range(len(current_patch_transits) - 1):
                 this_transit_start = current_patch_transits[i_transit][0]
                 this_transit_end = current_patch_transits[i_transit][1]
@@ -819,23 +827,25 @@ def delays_before_leaving(result_table, condition_list):
                 time_before_next_transit = next_transit_start - this_transit_end
                 time_out_of_patch_counter += this_transit_end - this_transit_start  # update in-patch time counter
                 current_delays = list(range(time_before_next_transit, 0, -1))
-                delay_before_leaving_list += current_delays
-                corresponding_time_in_patch_list += list(
-                    range(this_transit_end - visit_start - time_out_of_patch_counter,
-                          next_transit_start - visit_start - time_out_of_patch_counter))
+                if len(current_delays) > min_visit_length:
+                    delay_before_leaving_list += current_delays
+                    corresponding_time_in_patch_list += list(
+                        range(this_transit_end - visit_start - time_out_of_patch_counter,
+                              next_transit_start - visit_start - time_out_of_patch_counter))
 
             # Add delays that run from end of last transit to end of visit, BUT ONLY if it's not the end of the video!
             # To do so, check if there is a transit that start after this visit end
             last_transit_start = np.max([list_of_transits[i][0] for i in range(len(list_of_transits))])
 
             if visit_end <= last_transit_start:
-                current_delays = list(range(visit_end - current_patch_transits[-1][1], 0, -1))
-                delay_before_leaving_list += current_delays
                 time_out_of_patch_counter += current_patch_transits[-1][1] - current_patch_transits[-1][
                     0]  # update in-patch time counter
-                corresponding_time_in_patch_list += list(
-                    range(current_patch_transits[-1][1] - visit_start - time_out_of_patch_counter,
-                          visit_end - visit_start - time_out_of_patch_counter))
+                current_delays = list(range(visit_end - current_patch_transits[-1][1], 0, -1))
+                if len(current_delays) > min_visit_length:
+                    delay_before_leaving_list += current_delays
+                    corresponding_time_in_patch_list += list(
+                        range(current_patch_transits[-1][1] - visit_start - time_out_of_patch_counter,
+                              visit_end - visit_start - time_out_of_patch_counter))
 
     return delay_before_leaving_list, corresponding_time_in_patch_list
 
@@ -850,7 +860,7 @@ def compute_leaving_probability(delay_list):
         delay_list)
 
 
-def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars=True):
+def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit_length=0, errorbars=True):
     """
     Takes result table and a condition.
     Will compute a list of delays as outputted by delays_before_leaving, or by running xy_to_bins on the output of
@@ -872,15 +882,17 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars
     for i_folder in range(len(folder_list)):
         folder = folder_list[i_folder]
         current_plate = results[results["folder"] == folder].reset_index()
-        leaving_delays, corresponding_time_in_patch = delays_before_leaving(current_plate, condition_list)
-        if corresponding_time_in_patch:  # if there are no visits, don't do that
+        leaving_delays, corresponding_time_in_patch = delays_before_leaving(current_plate, condition_list,
+                                                                            min_visit_length=min_visit_length)
+        if len(corresponding_time_in_patch) > 0:  # if there are no visits, don't do that
             binned_times_in_patch, avg_leaving_delays, y_err_list, full_list_of_delays = xy_to_bins(
                 corresponding_time_in_patch, leaving_delays, bin_size, print_progress=False)
             binned_delays_each_worm[i_folder] = full_list_of_delays
             times_in_patch_bins_each_worm[i_folder] = binned_times_in_patch
 
     # Compute the global stats for all the worms pooled together
-    global_leaving_delays, global_times_in_patch = delays_before_leaving(results, condition_list)
+    global_leaving_delays, global_times_in_patch = delays_before_leaving(results, condition_list,
+                                                                         min_visit_length=min_visit_length)
     global_time_in_patch_bins, global_avg_leaving_delays, _, full_list_of_delays = xy_to_bins(global_times_in_patch,
                                                                                               global_leaving_delays,
                                                                                               bin_size,
@@ -894,8 +906,7 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, errorbars
         for i_bin in range(len(current_times_in_patch)):
             # Current worm may have fewer bins than global pool, but if it's missing some it's the last ones
             # So we can just run through the beginning of the global bins and it should always coincide
-            if global_time_in_patch_bins[
-                i_bin] in current_times_in_patch:  # still, double check that this worm has this bin
+            if global_time_in_patch_bins[i_bin] in current_times_in_patch:  # still, double check that this worm has this bin
                 wormed_delays_each_bin[i_bin][i_folder] = current_delays[i_bin]
     # Compute the list of each worm's average leaving probabilities, in each bin
     wormed_avg_leaving_prob_each_bin = [[] for _ in range(len(global_time_in_patch_bins))]
@@ -948,7 +959,7 @@ def list_of_visited_patches(list_of_visits):
     return np.unique(list_of_patches)
 
 
-def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True):
+def xy_to_bins(x, y, bin_size, print_progress=False, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True):
     """
     Will take an x and a y iterable.
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
@@ -1018,9 +1029,9 @@ def xy_to_bins(x, y, bin_size, print_progress=True, custom_bins=None, do_not_edi
                 bootstrap_ci = bottestrop_ci(current_values, 100)
                 errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
                 errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
-
-    print("Finished xy_to_bins()")
+    if print_progress:
+        print("Finished xy_to_bins()")
 
     return bin_list, avg_list, [list(errors_inf), list(errors_sup)], binned_y_values
 
-#bins, avg, _, binned = xy_to_bins([0, 0, 1, 1, 2, 2, 2, 3, 4, 10, 100], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], bin_size=0, custom_bins=[0, 1])
+# bins, avg, _, binned = xy_to_bins([0, 0, 1, 1, 2, 2, 2, 3, 4, 10, 100], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], bin_size=0, custom_bins=[0, 1])
