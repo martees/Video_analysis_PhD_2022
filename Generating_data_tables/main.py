@@ -141,7 +141,7 @@ def generate_aggregated_visits(path, threshold_list):
     return new_results  # return this because this function is also used dynamically
 
 
-def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False, shorten_traj=False):
+def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False, shorten_traj=False, force_linux=False):
     """
     Will generate the data tables starting more or less from scratch.
     Argument = from which level to regenerate stuff.
@@ -150,7 +150,7 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
     """
 
     # Data path
-    if fd.is_linux():  # Linux path
+    if fd.is_linux() or force_linux:  # Linux path
         path = "/media/admin/T7 Shield/Results_minipatches_retracked/"
         if test_pipeline:
             path = "/media/admin/T7 Shield/Results_minipatches_retracked_test/"
@@ -165,7 +165,13 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
             elif modeled_data:
                 path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
     else:  # Windows path
-        path = "C:/Users/Asmar/Desktop/Thèse/2022_summer_videos/Results_minipatches_20221108_clean_fp_less/"
+        path = "E:/Results_minipatches_retracked/"
+        if test_pipeline:
+            path = "E:/Results_minipatches_retracked_test/"
+        if modeled_data:
+            path = "E:/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
+        if shorten_traj:
+            path = "E:/Results_minipatches_retracked_shortened/"
 
     if starting_from == "controls":
         gc.generate_controls(path)
