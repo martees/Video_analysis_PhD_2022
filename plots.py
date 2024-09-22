@@ -608,7 +608,7 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
             lines.append(line)
         plt.legend(lines, ["" for _ in range(len(lines))],
                                     handler_map={lines[i]: custom_legends.HandlerLineImage(
-                                        "Parameters/icon_" + str(param.nb_to_distance[condition_list[i]]) + ".png") for i in
+                                        "icon_"+str(param.nb_to_distance[condition_list[i]]) + ".png") for i in
                                         range(len(lines))},
                                     handlelength=1.6, labelspacing=0.0, fontsize=50, borderpad=0.10, loc=2,
                                     handletextpad=0.05, borderaxespad=0.15)
@@ -842,7 +842,7 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, worm
     plt.yscale("log")
 
     if not split_conditions:
-        binned_times_in_patch, binned_leaving_probability, errorbars, nb_of_worms = ana.leaving_probability(results,
+        binned_times_in_patch, binned_leaving_probability, error_bars, nb_of_worms = ana.leaving_probability(results,
                                                                                                             condition_list,
                                                                                                             bin_size,
                                                                                                             worm_limit,
@@ -851,8 +851,8 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, worm
         binned_times_in_patch = np.array(binned_times_in_patch) + max(9, condition_list[
             0]) * bin_size / 20  # weird equation is to spread points a bit
         plt.plot(binned_times_in_patch, binned_leaving_probability, color=color, label=label, linewidth=2)
-        if errorbars:
-            plt.errorbar(binned_times_in_patch, binned_leaving_probability, errorbars, fmt='.k', capsize=5)
+        if error_bars:
+            plt.errorbar(binned_times_in_patch, binned_leaving_probability, error_bars, fmt='.k', capsize=5)
 
         # Plot number of worms that are in each bin
         if is_nb_of_worms:
@@ -863,22 +863,23 @@ def plot_leaving_probability(results, plot_title, condition_list, bin_size, worm
     if split_conditions:
         for i_condition in range(len(condition_list)):
             current_condition = condition_list[i_condition]
-            binned_times_in_patch, binned_leaving_probability, errorbars = ana.leaving_probability(results,
+            binned_times_in_patch, binned_leaving_probability, error_bars, nb_of_worms = ana.leaving_probability(results,
                                                                                                    [current_condition],
                                                                                                    bin_size,
-                                                                                                   errorbars=False)
-            plt.plot(binned_times_in_patch, binned_leaving_probability, errorbars,
-                     color=param.name_to_color[param.nb_to_name[i_condition]],
-                     label=param.nb_to_name[current_condition])
-
-        plt.legend()
+                                                                                                   worm_limit,
+                                                                                                   min_visit_length=2,
+                                                                                                   errorbars=True)
+            # Shift them a bit to not overlap (weird equation is to spread points a bit)
+            binned_times_in_patch = np.array(binned_times_in_patch) + max(9, condition_list[0]) * bin_size / 20
+            if len(binned_times_in_patch) > 1:
+                plt.plot(binned_times_in_patch, binned_leaving_probability,
+                         color=param.name_to_color[param.nb_to_density[current_condition]],
+                         label="OD="+param.nb_to_density[current_condition], linewidth=3)
+            plt.errorbar(binned_times_in_patch, binned_leaving_probability, error_bars, fmt='.k', capsize=5)
 
     if is_plot:
         plt.legend()
         plt.show()
-
-        # Plot an exponential on top
-        # plt.plot()
 
 
 def plot_test(results):
