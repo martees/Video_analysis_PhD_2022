@@ -18,4 +18,16 @@ def linux_to_windows():
     results.to_csv(windows_path + "clean_results.csv")
 
 
-linux_to_windows()
+# CODE TO RUN WHEN ON LINUX WITH RESULTS PRODUCED IN WINDOWS
+def windows_to_linux():
+    linux_path = gen.generate("", shorten_traj=True)
+    windows_path = gen.generate("", shorten_traj=True, force_windows=True)
+    results = pd.read_csv(linux_path + "clean_results.csv")
+    for i_folder in range(len(results["folder"])):
+        current_folder = results["folder"][i_folder]
+        if str(current_folder) != "nan":
+            results.loc[i_folder, "folder"] = linux_path + current_folder[len(windows_path):]
+    results.to_csv(linux_path + "clean_results.csv")
+
+
+windows_to_linux()
