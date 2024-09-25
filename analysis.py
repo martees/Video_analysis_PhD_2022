@@ -872,9 +872,6 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit
     folder_list = fd.return_folders_condition_list(folder_list, condition_list)
 
     # Compute the results for each worm
-    # Initialize those in case there's no folder in folder_list
-    binned_times_in_patch = 0
-    full_list_of_delays = 0
     # List where we'll store binned delays_before_leaving, one sublist per worm
     binned_delays_each_worm = [[] for _ in range(len(folder_list))]
     times_in_patch_bins_each_worm = [[] for _ in range(len(folder_list))]  # not all worms will have same bins
@@ -890,13 +887,13 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit
             binned_delays_each_worm[i_folder] = full_list_of_delays
             times_in_patch_bins_each_worm[i_folder] = binned_times_in_patch
 
-    # Compute the global stats for all the worms pooled together
+    # Compute the global stats for all the worms pooled together (just to get the global bins! suboptimal but eh)
     global_leaving_delays, global_times_in_patch = delays_before_leaving(results, condition_list,
                                                                          min_visit_length=min_visit_length)
-    global_time_in_patch_bins, global_avg_leaving_delays, _, full_list_of_delays = xy_to_bins(global_times_in_patch,
-                                                                                              global_leaving_delays,
-                                                                                              bin_size,
-                                                                                              print_progress=True)
+    global_time_in_patch_bins, _, _, full_list_of_delays = xy_to_bins(global_times_in_patch,
+                                                                      global_leaving_delays,
+                                                                      bin_size,
+                                                                      print_progress=True)
 
     # Reformat binned_delays_each_worm to have one sublist per bin, and in each bin sublist one sublist per worm
     wormed_delays_each_bin = [[[] for _ in range(len(folder_list))] for _ in range(len(global_time_in_patch_bins))]
@@ -921,6 +918,7 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit
 
     # Initialize lists
     probability_list = []
+    bins_with_enough_values = []
     nb_of_worms_each_bin = []
     errors_inf = []
     errors_sup = []
@@ -934,17 +932,15 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit
             print("Computing stats on leaving probabilities... ", int(100 * i_bin / len(full_list_of_delays)), "% done")
         if nb_of_worms > worm_limit:
             nb_of_worms_each_bin.append(nb_of_worms)
+            bins_with_enough_values.append(global_time_in_patch_bins[i_bin])
             current_bin_avg_probabilities = wormed_avg_leaving_prob_each_bin[i_bin]
             probability_list.append(np.mean(current_bin_avg_probabilities))
             if errorbars:
                 bootstrap_ci = bottestrop_ci(wormed_avg_leaving_prob_each_bin[i_bin], 50, operation="mean")
                 errors_inf.append(probability_list[i_bin] - bootstrap_ci[0])
                 errors_sup.append(bootstrap_ci[1] - probability_list[i_bin])
-        else:
-            global_time_in_patch_bins = global_time_in_patch_bins[:i_bin]  # cut it to remove the excluded bins
-            break
 
-    return global_time_in_patch_bins, probability_list, [errors_inf, errors_sup], nb_of_worms_each_bin
+    return bins_with_enough_values, probability_list, [errors_inf, errors_sup], nb_of_worms_each_bin
 
 
 def list_of_visited_patches(list_of_visits):
@@ -965,6 +961,7 @@ def xy_to_bins(x, y, bin_size, print_progress=False, custom_bins=None, do_not_ed
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
     With errorbars if bootstrap is set to True.
     """
+
     if do_not_edit_xy:
         x_copy = copy.deepcopy(x)
         y_copy = copy.deepcopy(y)
@@ -997,8 +994,8 @@ def xy_to_bins(x, y, bin_size, print_progress=False, custom_bins=None, do_not_ed
             print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
         current_y = y_copy.pop()
         current_x = x_copy.pop()
-        # Looks for first index at which x can be inserted in the bin list
-        # So np.searchsorted([0, 1, 2], 1) = 1
+        # Looks for first index at which x can be inserted in the bin list while keeping it sorted
+        # So np.searchsorted([0, 1, 2], 1) = 1 // np.searchsorted([0, 1, 2], -1) = 0
         i_bin = np.searchsorted(bin_list, current_x)
         binned_y_values[i_bin].append(current_y)
 
