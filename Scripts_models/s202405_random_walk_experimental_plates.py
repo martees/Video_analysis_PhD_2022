@@ -18,7 +18,9 @@ import plots
 import video
 import ReferencePoints
 import main
-from Parameters import parameters
+from Parameters import parameters as param
+from matplotlib.offsetbox import (OffsetImage, AnnotationBbox)
+import matplotlib as mpl
 
 
 def add_mask_to_patch_map(folder, patch_map):
@@ -40,12 +42,17 @@ def add_mask_to_patch_map(folder, patch_map):
 
     # Only make a trajectory when there are indeed 4 reference points
     if len(source_reference_points.xy_holes) == 4:
-        [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = source_reference_points.xy_holes
+        # Reorder points according to y then x, to get lower left corner then lower right then upper left then upper right
+        xy_holes = source_reference_points.xy_holes
+        xy_holes = sorted(xy_holes, key=lambda x: x[1])
+        xy_holes = sorted(xy_holes[0:2], key=lambda x: x[0]) + sorted(xy_holes[2:4], key=lambda x: x[0])
 
+        # Extract the coordinates
+        [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = xy_holes
         # Compute an approximate plate center (average of all the coordinates)
         plate_center = [np.mean([x0, x1, x2, x3]), np.mean([y0, y1, y2, y3])]
         # Compute an approximate plate radius (average of the two diagonals of the reference square)
-        plate_diameter = np.mean([np.sqrt((x0 - x2) ** 2 + (y0 - y2) ** 2), np.sqrt((x1 - x3) ** 2 + (y1 - y3) ** 2)])
+        plate_diameter = np.mean([np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2), np.sqrt((x0 - x3) ** 2 + (y0 - y3) ** 2)])
         plate_radius = plate_diameter / 2
 
         # In order to build the mask, we use the method described in in_patch_all pixels: we make a list of points that
@@ -106,7 +113,8 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, silhouettes):
         # Load matrix with patch information for every pixel of  the arena
         if not os.path.isfile(original_folder_path[:-len(original_folder_path.split("/")[-1])] + "in_patch_matrix.csv"):
             gt.in_patch_all_pixels(original_folder_path)
-        patch_map = pd.read_csv(original_folder_path[:-len(original_folder_path.split("/")[-1])] + "in_patch_matrix.csv")
+        patch_map = pd.read_csv(
+            original_folder_path[:-len(original_folder_path.split("/")[-1])] + "in_patch_matrix.csv")
 
         # Update this matrix by adding -2 in points that are outside the plate
         patch_map = add_mask_to_patch_map(model_folder, patch_map)
@@ -163,8 +171,6 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, silhouettes):
             x_list[time] = current_x
             y_list[time] = current_y
 
-        # Shift the silhouettes to match with the new centroids
-
         trajectory = pd.DataFrame()
         trajectory["id_conservative"] = [0 for _ in range(duration)]
         trajectory["frame"] = list(range(duration))
@@ -180,7 +186,6 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, silhouettes):
     else:
         trajectory = pd.DataFrame(columns=["id_conservative", "frame", "time", "x", "y"])
 
-    # return trajectory, shifted_silhouettes
     return trajectory
 
 
@@ -209,16 +214,16 @@ def generate_model_folders(data_folder_list, modeled_data_path, speed_inside, sp
         if not os.path.isdir(model_folder_path):
             os.mkdir(model_folder_path)
         # Copy pasta some metadata from the original folder
-        list_of_metadata_stuff = ["/holes.mat", "/foodpatches.mat", "/foodpatches_new.mat"]
+        list_of_metadata_stuff = ["holes.mat", "foodpatches.mat", "foodpatches_new.mat", "foodpatches_reviewed.mat"]
         for file in list_of_metadata_stuff:
-            if not os.path.isfile(model_folder_path + file):
-                shutil.copy(folder[:-len(folder.split("/")[-1])] + file, model_folder_path + file)
+            current_path = folder[:-len(folder.split("/")[-1])] + file
+            if os.path.isfile(current_path) and not os.path.isfile(model_folder_path + "/" + file):
+                shutil.copy(current_path, model_folder_path + "/" + file)
         # Add to the folders a .npy containing their origin (that's just for the generate_rw_trajectory function,
         # and XXXXX function, which will use it to build the "folder" column of the trajectories.csv dataframe,
         # so that we don't have to copy all the heavy metadata from the original folder)
         original_folder = [folder, speed_inside, speed_outside]
         np.save(model_folder_path + "/original_folder.npy", original_folder)
-        # If the trajectory was named traj_parent, rename it into
 
     # Then take all the directories contained in the modeled data path (os.walk returns a list with dirpath, dirnames, filenames)
     model_folder_list = next(os.walk(modeled_data_path))[1]
@@ -226,27 +231,128 @@ def generate_model_folders(data_folder_list, modeled_data_path, speed_inside, sp
     # And replace them by new, modeled traj.csv, and adapt the silhouettes accordingly
     for i_folder, folder in enumerate(model_folder_list):
         if i_folder % 10 == 0:
-            print("Modeling trajectory + silhouettes for folder ", i_folder, " / ", len(data_folder_list))
+            print("Modeling trajectory for folder ", i_folder, " / ", len(data_folder_list))
         if "trajectory_plots" not in folder:  # don't take the folder which just contains trajectory exports
             # Find length of silhouettes to find out how many tracked time points the original video had
             current_silhouettes, _, _ = fd.load_silhouette(folder)
-            #model_trajectory, shifted_silhouettes = generate_rw_trajectory(speed_inside, speed_outside, folder, current_silhouettes)
             model_trajectory = generate_rw_trajectory(speed_inside, speed_outside, folder, current_silhouettes)
             model_trajectory.to_csv(folder)
-            # shifted_silhouettes.to_csv(folder)
 
     return 0
 
 
+def plot_model_vs_data(model_results, xp_results, condition_names, what_to_plot):
+    """
+    Function that plots the bars from the experiments + bars from the model.
+    @param model_results: as loaded from clean_results.csv, in a model data folder
+    @param xp_results: as loaded from clean_results.csv, in an experimental data folder
+    @param condition_names: list of strings corresponding to the conditions, eg ["close 0", "close 0.2"]
+    @param what_to_plot: variable to plot, like "total_time_per_patch"
+    @return:
+    """
+    condition_list = [param.name_to_nb[cond] for cond in condition_names]
+    condition_colors = [param.name_to_color[name] for name in condition_names]
+
+    if what_to_plot == "total_time_per_patch":
+        model_bars, model_points, model_errors = plots.plot_selected_data(model_results, "", condition_list,
+                                                                          condition_names,
+                                                                          "total_visit_time",
+                                                                          divided_by="nb_of_visited_patches",
+                                                                          mycolor="black",
+                                                                          plot_model=False,
+                                                                          is_plot=False)
+        data_bars, data_points, data_errors = plots.plot_selected_data(xp_results, "", condition_list, condition_names,
+                                                                       "total_visit_time",
+                                                                       divided_by="nb_of_visited_patches",
+                                                                       mycolor="black",
+                                                                       plot_model=False,
+                                                                       is_plot=False)
+        plt.cla()
+        plt.ylabel("Total time per patch (seconds)")
+
+    if what_to_plot == "visit_time":
+        model_bars, model_points, model_errors = plots.plot_selected_data(model_results, "", condition_list,
+                                                                          condition_names,
+                                                                          "total_visit_time",
+                                                                          divided_by="nb_of_visits", mycolor="black",
+                                                                          plot_model=False,
+                                                                          is_plot=False)
+        data_bars, data_points, data_errors = plots.plot_selected_data(xp_results, "", condition_list, condition_names,
+                                                                       "total_visit_time",
+                                                                       divided_by="nb_of_visits", mycolor="black",
+                                                                       plot_model=False,
+                                                                       is_plot=False)
+        plt.cla()
+        plt.ylabel("Average time per visit (seconds)")
+
+    # Plot condition averages as a bar plot, alternating data and model, with an empty space between conditions
+    bar_index = 0
+    plt.title("Data vs. model")
+    plt.xlabel("Condition")
+    mpl.rcParams['hatch.linewidth'] = 4
+    ax = plt.gcf().gca()
+    ax.set_xticks([])
+    for i_cond, current_condition in enumerate(condition_list):
+        current_name = condition_names[i_cond]
+        current_color = param.name_to_color[current_name]
+
+        # Bars
+        plt.bar(bar_index, data_bars[i_cond], color=current_color)
+        plt.bar(bar_index + 1, model_bars[i_cond], color="white", edgecolor=current_color, hatch="//", linewidth=4)
+
+        # Scattered data points (average of each plate)
+        plt.scatter([bar_index + 0.001 * random.randint(-100, 100) for _ in range(len(data_points[i_cond]))],
+                    data_points[i_cond], color="orange", zorder=2, alpha=0.6)
+        plt.scatter([bar_index + 1 + 0.001 * random.randint(-100, 100) for _ in range(len(model_points[i_cond]))],
+                    model_points[i_cond], color="grey", zorder=2, alpha=0.6)
+
+        # Error bars
+        plt.errorbar(bar_index, data_bars[i_cond], [[data_errors[0][i_cond]], [data_errors[1][i_cond]]], fmt='.k',
+                     capsize=5)
+        plt.errorbar(bar_index + 1, model_bars[i_cond], [[model_errors[0][i_cond]], [model_errors[1][i_cond]]],
+                     fmt='.k', capsize=5)
+
+        # Custom x tick images with icon for the distance
+        # Image to use
+        arr_img = plt.imread(
+            "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
+                current_condition] + '.png')
+
+        # Image box to draw it!
+        imagebox = OffsetImage(arr_img, zoom=0.5)
+        imagebox.image.axes = ax
+
+        x_annotation_box = AnnotationBbox(imagebox, (bar_index + 0.5, 0),
+                                          xybox=(0, -8),
+                                          # that's the shift that the image will have compared to (i, 0)
+                                          xycoords=("data", "axes fraction"),
+                                          boxcoords="offset points",
+                                          box_alignment=(.5, 1),
+                                          bboxprops={"edgecolor": "none"})
+
+        ax.add_artist(x_annotation_box)
+
+        # Neeeext
+        bar_index += 3.5
+
+    # Create fake bars for the legend!
+    plt.bar([0], [0], color="grey", edgecolor="grey", label="Experimental data")
+    plt.bar([0], [0], color="white", edgecolor="grey", hatch="//", linewidth=4, label="Random walk model")
+    plt.legend()
+
+    plt.show()
+
+
 # Booleans to control which part of the code reruns
-regenerate_model = False
-regenerate_results = False
+regenerate_model = True
+regenerate_results = True
 is_test = False
+is_shorten = True
 visualize_trajectories = False
 
 # Load data and model path
-data_path = gen.generate("", test_pipeline=is_test)
-model_path = gen.generate("", test_pipeline=is_test, modeled_data=True)
+data_path = gen.generate("", shorten_traj=is_shorten, test_pipeline=is_test)
+model_path = gen.generate("", shorten_traj=is_shorten, test_pipeline=is_test, modeled_data=True)
 
 # Generate model trajectories
 if regenerate_model:
@@ -255,9 +361,11 @@ if regenerate_model:
     list_of_experimental_folders += fd.path_finding_traj(data_path, target_name="traj_parent.csv")
     # Create modelled data
     # Average speed inside and outside in our experimental plates: 1.4 and 3.5
-    generate_model_folders(list_of_experimental_folders, model_path, 2, 26)
+    generate_model_folders(list_of_experimental_folders, model_path, 1, 100)
     # Regenerate smoothed trajectories.csv table
-    gen.generate("only_beginning", test_pipeline=is_test, modeled_data=True)
+    gen.generate("only_beginning", shorten_traj=is_shorten, test_pipeline=is_test, modeled_data=True)
+elif regenerate_results:
+    gen.generate("only_beginning", shorten_traj=is_shorten, test_pipeline=is_test, modeled_data=True)
 
 # gen.generate("controls", test_pipeline=is_test, modeled_data=False)
 
@@ -268,38 +376,30 @@ if visualize_trajectories:
     # Look at the data ones
     #plots.trajectories_1condition(trajectories_data, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], plot_lines=True, plot_in_patch=True)
     # Look at the model ones
-    plots.trajectories_1condition(trajectories_model, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], plot_lines=True, plot_in_patch=True)
+    plots.trajectories_1condition(model_path, trajectories_model, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                                  plot_lines=True, plot_in_patch=True)
 
 # Then, generate result tables through experimental data analysis pipeline
 if regenerate_results:
     # Generate same datasets as for experimental data
-    gen.generate("results_per_id", test_pipeline=is_test, modeled_data=True)
-
+    gen.generate("results_per_id", shorten_traj=is_shorten, test_pipeline=is_test, modeled_data=True)
 
 # Load clean results and trajectories
-trajectories_data = pd.read_csv(data_path + "clean_trajectories.csv")
+#trajectories_data = pd.read_csv(data_path + "clean_trajectories.csv")
 trajectories_model = pd.read_csv(model_path + "clean_trajectories.csv")
 results_data = pd.read_csv(data_path + "clean_results.csv")
 results_model = pd.read_csv(model_path + "clean_results.csv")
+print("Finished retrieving tables!")
 
-plots.trajectories_1condition(trajectories_data, [0], is_plot_patches=True, is_plot=True, show_composite=False)
-plots.trajectories_1condition(trajectories_data, [1], plot_lines=False, is_plot_patches=True, is_plot=True, show_composite=False)
-plots.trajectories_1condition(trajectories_data, [2], plot_lines=False, is_plot_patches=True, is_plot=True, show_composite=False)
+#plots.trajectories_1condition(model_path, trajectories_model, [0], plot_lines=True, is_plot_patches=True, is_plot=False, save_fig=True, show_composite=False)
+#plots.trajectories_1condition(model_path, trajectories_model, [1], plot_lines=True, is_plot_patches=True, is_plot=False, save_fig=True, show_composite=False)
+#plots.trajectories_1condition(model_path, trajectories_model, [2], plot_lines=True, is_plot_patches=True, is_plot=False, save_fig=True, show_composite=False)
+#plots.trajectories_1condition(model_path, trajectories_model, [14], plot_lines=True, is_plot_patches=True, is_plot=False, save_fig=True, show_composite=False)
 
-# Plot results for the model
-main.plot_graphs(results_model, "visit_duration", [["close 0", "med 0", "far 0"]])
-main.plot_graphs(results_model, "visit_duration", [["close 0.2", "med 0.2", "far 0.2"]])
-main.plot_graphs(results_model, "visit_duration", [["close 0.5", "med 0.5", "far 0.5"]])
-
-# Plot results for the model
-main.plot_graphs(results_model, "total_visit_time", [["close 0", "med 0", "far 0"]])
-main.plot_graphs(results_model, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2"]])
-main.plot_graphs(results_model, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5"]])
-
-# Plot results for the model
-main.plot_graphs(results_model, "proportion_of_visited_patches", [["close 0", "med 0", "far 0"]])
-main.plot_graphs(results_model, "proportion_of_visited_patches", [["close 0.2", "med 0.2", "far 0.2"]])
-main.plot_graphs(results_model, "proportion_of_visited_patches", [["close 0.5", "med 0.5", "far 0.5"]])
+plot_model_vs_data(results_model, results_data, ["close 0", "med 0", "far 0", "superfar 0"], "total_time_per_patch")
+plot_model_vs_data(results_model, results_data, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], "total_time_per_patch")
+plot_model_vs_data(results_model, results_data, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], "total_time_per_patch")
+plot_model_vs_data(results_model, results_data, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], "total_time_per_patch")
 
 # Plot results for the corresponding experimental data
 #main.plot_graphs(results_data, "proportion_of_visited_patches", [["close 0", "med 0", "far 0"]])
@@ -316,4 +416,3 @@ main.plot_graphs(results_model, "proportion_of_visited_patches", [["close 0.5", 
 #                               plot_in_patch=True, is_plot=False, save_fig=True, is_plot_patches=True)
 
 #TODO handle when the model folder does not exist yet
-
