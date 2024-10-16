@@ -18,7 +18,8 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders,
             results_per_plate.drop([i_folder], inplace=True)
 
     # Remove plates which don't have enough video time, or have more than ~10-30 double frames (=> could be two worms)
-    cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
+    #cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
+    cleaned_results = results_per_plate[results_per_plate["total_tracked_time"] >= 10000]
     cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
 
     print("Finished cleaning results. Cleaning trajectories...")
@@ -78,8 +79,10 @@ def generate_trajectories(path):
     trajectories = pd.read_csv(path + "trajectories.csv")
     # Add a column with the patch where the worm is (-1 is outside)
     print("Computing where the worm is...")
-    #trajectories["patch_centroid"], overlapping_patches = gt.in_patch_list(trajectories, using="centroid")
-    trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouette")
+    if "model" in path:
+        trajectories["patch_centroid"], overlapping_patches = gt.in_patch_list(trajectories, using="centroid")
+    else:
+        trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouette")
     overlapping_patches.to_csv(path + "overlapping_patches.csv")
     print("Finished computing in which patch the worm is at each time step")
     print("Computing distances...")
@@ -141,7 +144,7 @@ def generate_aggregated_visits(path, threshold_list):
     return new_results  # return this because this function is also used dynamically
 
 
-def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False, shorten_traj=False, force_linux=False):
+def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False, shorten_traj=False, force_linux=False, force_windows=False):
     """
     Will generate the data tables starting more or less from scratch.
     Argument = from which level to regenerate stuff.
@@ -150,12 +153,18 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
     """
 
     # Data path
-    if fd.is_linux() or force_linux:  # Linux path
+    if (fd.is_linux() or force_linux) and not force_windows:  # Linux path
         path = "/media/admin/T7 Shield/Results_minipatches_retracked/"
         if test_pipeline:
             path = "/media/admin/T7 Shield/Results_minipatches_retracked_test/"
+            if modeled_data:
+                path = "/media/admin/T7 Shield/Results_minipatches_retracked_test_model_rw/"
         if shorten_traj:
             path = "/media/admin/T7 Shield/Results_minipatches_retracked_shortened/"
+            if modeled_data:
+                path = "/media/admin/T7 Shield/Results_minipatches_retracked_shortened_model_rw/"
+                if test_pipeline:
+                    path = "/media/admin/T7 Shield/Results_minipatches_retracked_test_shortened_model_rw/"
         if old_dataset:
             path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/"
             if test_pipeline:
@@ -172,6 +181,10 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
             path = "E:/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
         if shorten_traj:
             path = "E:/Results_minipatches_retracked_shortened/"
+
+    if modeled_data:
+        print("Warning! To use modeled data, you must first generate it. "
+              "In order to do so, go to the script 'Scripts_model/..._random_walk_experimental_plates.py'!")
 
     if starting_from == "controls":
         gc.generate_controls(path)
