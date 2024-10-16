@@ -222,6 +222,13 @@ for condition in nb_to_name.keys():
 #name_to_color["med 1.25"] = "black"
 #name_to_color["med 0.5+1.25"] = "grey"
 
+name_to_rgb = {}
+for name, color in name_to_color.items():
+    if type(name) == str:
+        name_to_rgb[name] = mc.to_rgb(color)
+    else:
+        name_to_rgb[name] = color
+
 
 def test_colors():
     y = 1
@@ -238,3 +245,6 @@ def test_colors():
 
 if __name__ == "__main__":
     test_colors()
+    import pandas as pd
+    name_to_rgb = pd.DataFrame(name_to_rgb)
+    name_to_rgb.to_csv("colors_mvt.csv")
