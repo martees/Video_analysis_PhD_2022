@@ -46,15 +46,10 @@ def generate_pixelwise_speeds(traj, folder):
     # Get the frame size
     _, _, frame_size = fd.load_silhouette(folder)
     # Initialize the table: one list per pixel
-    speeds_each_pixel = [[[[]] for _ in range(frame_size[0])] for _ in range(frame_size[1])]
+    speeds_each_pixel = [[[] for _ in range(frame_size[0])] for _ in range(frame_size[1])]
     for i_line in range(len(speeds_each_pixel)):
         for i_col in range(len(speeds_each_pixel[i_line])):
             current_pixel_visits = pixelwise_visit_timestamps[i_line][i_col]
-            #if len(current_pixel_visits) > 0:
-            #    print("hhhh")
-            #if i_line == 307 and i_col == 1144:
-            #    print("ccc")
-            # Convert them to indices in the trajectory (for now visits are in seconds, but second 26 might be traj[1])
             if len(current_pixel_visits) > 0:
                 current_pixel_visits = [[np.where(traj[:, dt.f.time].to_numpy() == visit[i])[0][0]
                                          for i in range(len(visit))]
@@ -519,7 +514,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
                     current_values = values_each_pixel[i][j]
                     if not np.isnan(current_values):
                         perfect_i, perfect_j = xp_to_perfect_indices[i][j]
-                        heatmap_each_curve[i_curve][perfect_i][perfect_j] += values_each_pixel[i][j]
+                        heatmap_each_curve[i_curve][perfect_i][perfect_j] += current_values
                         counts_each_curve[i_curve][perfect_i][perfect_j] += 1
 
         # Divide the values by the number of pixels that went there
@@ -539,7 +534,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
                                               ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0],
                                               color="orange")
 
-        heatmap_each_curve[i_curve] /= np.sum(heatmap_each_curve[i_curve])
+        #heatmap_each_curve[i_curve] /= np.sum(heatmap_each_curve[i_curve])
 
         # Save iiitttt
         heatmap_path = results_path + "perfect_heatmaps/" + variable + "_heatmap_cond_" + str(
@@ -680,9 +675,9 @@ if __name__ == "__main__":
     # plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20], [21]], variable="speed",
     #              regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
     #              collapse_patches=False, show_plot=False)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[14]], variable="speed",
-                 regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
-                 collapse_patches=False, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[1]], variable="speed",
+                 regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
+                 collapse_patches=False, show_plot=True)
     # plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [3]], variable="speed",
     #              regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
     #              collapse_patches=False, show_plot=False)
@@ -701,9 +696,6 @@ if __name__ == "__main__":
     #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
     #             collapse_patches=False, show_plot=False)
     #plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14], [3]], variable="pixel_visits",
-    #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-    #             collapse_patches=False, show_plot=False)
-    #plot_heatmap(path, trajectories, full_list_of_folders, [[1], [2], [14], [3]], variable="pixel_visits",
     #             regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
     #             collapse_patches=False, show_plot=False)
     plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15], [7]], variable="pixel_visits",
