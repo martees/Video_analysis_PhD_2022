@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 import random
 import matplotlib.patches as patches
 import matplotlib.patheffects as pe
+from matplotlib.offsetbox import (OffsetImage, AnnotationBbox)
 
+import plots
 from Generating_data_tables import main as gen
 from Parameters import parameters as param
 import analysis as ana
@@ -406,16 +408,33 @@ def central_patches(distance):
 
 
 def simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list, nb_of_exp,
-                        xp_length=5000):
+                        xp_length=5000, conserve_visit_order=False):
     """
     Will output a list with, for each experiment, a list of visits in the format [start time, end time, patch index].
+    - conserve_visit_order: if set to True, then xp_visit_list should have one sublist per rank of visits to the food
+                            patch (so a first sublist with first visits to food patches, a second with 2nds, etc.)
+                            Then the simulation will take that into account, picking visits with the right rank.
     """
     initial_positions = central_patches(param.nb_to_distance[condition])
     visit_list = [[] for _ in range(nb_of_exp)]
     for i_exp in range(nb_of_exp):
         i_time = 0
         current_patch = random.choice(initial_positions)
-        visit_end = i_time + random.choice(xp_visit_list)
+        if conserve_visit_order:
+            nb_of_visits_each_patch = [0 for _ in range(len(transition_probability))]
+            nb_of_visits_each_patch[current_patch] += 1
+            # Check that xp_visit_list has the right format (it should have one sublist per visit rank, as returned by
+            # the return_value_list() function in analysis.py, with the parameter conserve_visit_order set to True)
+            if type(xp_visit_list[0]) is int:
+                print("Problem in the simulate_visit_list() function! Mismatch between visit list "
+                      "format and value of conserve_visit_order! The output will be only with first visits, probably"
+                      "not what you want!!!")
+            # Choose among the visits that correspond to the number of visits already made to the patch
+            # (so first visit if nb_of_visits is 1, etc.)
+            visits_current_rank = xp_visit_list[min(nb_of_visits_each_patch[current_patch], len(xp_visit_list) - 1)]
+            visit_end = random.choice(visits_current_rank)
+        else:
+            visit_end = random.choice(xp_visit_list)
         visit_list[i_exp].append([i_time, visit_end, current_patch])
         i_time = visit_end
         while i_time < xp_length:
@@ -427,8 +446,16 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
             # Add a transit between the two
             visit_start = i_time + random.choice(transition_durations[previous_patch][current_patch])
             if visit_start < xp_length:
-                # Randomly choose a visit duration
-                visit_end = visit_start + random.choice(xp_visit_list)
+                if conserve_visit_order:
+                    # If the visit does happen, add a visit to the patch
+                    nb_of_visits_each_patch[current_patch] += 1
+                    # And choose among the visits that correspond to the number of visits already made to the patch
+                    # (so first visit if nb_of_visits is 1, etc.)
+                    visits_current_rank = xp_visit_list[min(nb_of_visits_each_patch[current_patch], len(xp_visit_list) - 1)]
+                    visit_end = visit_start + random.choice(visits_current_rank)
+                else:
+                    # If visit order does not matter, randomly choose a visit duration
+                    visit_end = visit_start + random.choice(xp_visit_list)
                 # Add it to the list and update timer
                 visit_list[i_exp].append([visit_start, visit_end, current_patch])
                 i_time = visit_end
@@ -572,7 +599,7 @@ def simulate_nb_of_visits(results_table, condition_list, nb_of_exp):
 
 
 def parameter_exchange_matrix(results_path, results_table, condition_list, variable_to_exchange, what_to_plot,
-                              nb_of_exp, xp_length):
+                              nb_of_exp, xp_length, plot_matrix=True):
     # First, load the parameters / distributions for each condition in condition_list
     transition_probability_matrices = [[] for _ in range(len(condition_list))]
     transition_duration_matrices = [[] for _ in range(len(condition_list))]
@@ -581,9 +608,9 @@ def parameter_exchange_matrix(results_path, results_table, condition_list, varia
         transition_probability_matrices[i_condition], transition_duration_matrices[
             i_condition] = generate_transition_matrices(results_path, [condition])
         xp_visit_duration[i_condition] = ana.return_value_list(results_table, "visits", [condition],
-                                                               convert_to_duration=True)
+                                                               convert_to_duration=True, conserve_visit_order=True)
 
-    total_time_in_patch_matrix = np.zeros((len(condition_list), len(condition_list)))
+    value_matrix = np.zeros((len(condition_list), len(condition_list)))
     for i_line in range(len(condition_list)):
         for i_col in range(len(condition_list)):
             where_to_take_each_parameter_from = {"transit_prob": i_line, "transit_times": i_line, "visit_times": i_line,
@@ -610,36 +637,128 @@ def parameter_exchange_matrix(results_path, results_table, condition_list, varia
             transition_durations = transition_duration_matrices[where_to_take_each_parameter_from["transit_times"]]
             visit_durations = xp_visit_duration[where_to_take_each_parameter_from["visit_times"]]
             list_of_visits = simulate_visit_list(condition_list[i_line], transition_probability, transition_durations,
-                                                 visit_durations, nb_of_exp, xp_length=xp_length)
+                                                 visit_durations, nb_of_exp, xp_length=xp_length, conserve_visit_order=True)
             if what_to_plot == "total_visit_time":
                 # Total visit time / nb of visited patches
-                total_time_in_patch_matrix[i_line][i_col] = np.mean(
+                value_matrix[i_line][i_col] = np.mean(
                     [np.sum(ana.convert_to_durations(visits)) / len(np.unique(np.array(visits)[:, 2])) for visits in
                      list_of_visits])
             if what_to_plot == "avg_visit_duration":
                 # Average visit length
-                total_time_in_patch_matrix[i_line][i_col] = np.mean(
+                value_matrix[i_line][i_col] = np.mean(
                     [np.mean(ana.convert_to_durations(visits)) for visits in list_of_visits])
             if what_to_plot == "avg_nb_of_visits_per_patch":
                 # Average number of visits
-                total_time_in_patch_matrix[i_line][i_col] = np.mean(
+                value_matrix[i_line][i_col] = np.mean(
                     [len(visits) / len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
             if what_to_plot == "avg_nb_of_visits":
                 # Average number of visits
-                total_time_in_patch_matrix[i_line][i_col] = np.mean([len(visits) for visits in list_of_visits])
+                value_matrix[i_line][i_col] = np.mean([len(visits) for visits in list_of_visits])
             if what_to_plot == "total_xp_time":
                 # Average total experimental time
-                total_time_in_patch_matrix[i_line][i_col] = np.mean([visits[-1][1] for visits in list_of_visits])
+                value_matrix[i_line][i_col] = np.mean([visits[-1][1] for visits in list_of_visits])
             if what_to_plot == "nb_of_explored_patches":
-                total_time_in_patch_matrix[i_line][i_col] = np.mean(
+                value_matrix[i_line][i_col] = np.mean(
                     [len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
 
-    exchange_script.plot_matrix(condition_list, total_time_in_patch_matrix, variable_to_exchange, what_to_plot)
+    if plot_matrix:
+        exchange_script.plot_matrix(condition_list, value_matrix, variable_to_exchange, what_to_plot)
+
+    else:
+        return value_matrix
+
+
+def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_exp, xp_length):
+    """
+    Function that will plot three total time curves.
+    The first one will be the effect of distance in our substitution model, with the experimental parameters that match
+    those computed in our actual conditions.
+    The second one will be the effect of REVISIT PROBABILITY only (so baseline_condition, but with the revisit probability
+    from other distances).
+    The third one will be the effect of VISIT TIME only (so baseline_condition, but with the visit times from other
+    distances).
+    All of those will be computed with a constant food OD, the same as baseline_condition.
+
+    @param results_path:
+    @param results_table:
+    @param baseline_condition: a string corresponding to a condition (eg "close 0")
+    @param nb_of_exp:
+    @param xp_length:
+    @return:
+    """
+    baseline_condition_nb = param.name_to_nb[baseline_condition]
+    baseline_density = param.nb_to_density[baseline_condition_nb]
+    condition_names_this_density = ["close "+baseline_density, "med "+baseline_density, "far "+baseline_density, "superfar "+baseline_density]
+    condition_list_this_density = [param.name_to_nb[cond] for cond in condition_names_this_density]
+
+    # Compute the experimental values of total time in patch
+    average_per_condition, list_of_avg_each_plate, errorbars = plots.plot_selected_data(results_table, "",
+                                                                                        condition_list_this_density,
+                                                                                        condition_names_this_density,
+                                                                                        "total_visit_time",
+                                                                                        divided_by="nb_of_visited_patches",
+                                                                                        is_plot=False)
+    plt.clf()  # Clear the plot because the previous function plots stuff even though it does not show them
+
+    # Plot the experimental data
+    plt.gcf().set_size_inches(7, 9)
+    plt.scatter(range(len(average_per_condition)), average_per_condition, marker="x", color="orange", s=100, linewidth=3, label="Experimental values", zorder=10)
+    plt.errorbar(range(len(average_per_condition)), average_per_condition, errorbars, color="orange", capsize=5, linewidth=0, elinewidth=3, markeredgewidth=3, zorder=10)
+
+    # Compute the matrices for the simulated data
+    visit_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density, "visit_times", "total_visit_time", nb_of_exp, xp_length, False)
+    probability_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density, "revisit_probability", "total_visit_time", nb_of_exp, xp_length, False)
+
+    # Plot simulated data
+    plt.ylabel("Total time per patch (seconds)", fontsize=18)
+    plt.title("Effect of distance vs. behavior for " + baseline_condition)
+    plt.plot([visit_exchange_matrix[i][i] for i in range(len(visit_exchange_matrix))], color="black", linewidth=4,
+             label="Simulation: all parameters change with distance")
+    plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[i][i] for i in range(len(visit_exchange_matrix))], color="black", s=67)
+
+    # In order to plot the effect of changing parameters with baseline as an actual baseline, need to find
+    # at what index it sits in the matrices
+    baseline_index = np.where(np.array(condition_names_this_density) == baseline_condition)[0][0]
+    plt.plot([probability_exchange_matrix[baseline_index][i] for i in range(len(probability_exchange_matrix))], color="cornflowerblue", linewidth=4,
+             label="Simulation: only revisit probability changes with distance")
+    plt.scatter(range(len(probability_exchange_matrix)), [probability_exchange_matrix[baseline_index][i] for i in range(len(probability_exchange_matrix))], color="cornflowerblue", s=67)
+    plt.plot([visit_exchange_matrix[baseline_index][i] for i in range(len(visit_exchange_matrix))], color="goldenrod", linewidth=4,
+             label="Simulation: only visit time changes with distance")
+    plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[baseline_index][i] for i in range(len(visit_exchange_matrix))], color="goldenrod", s=67)
+    plt.legend()
+    plt.ylim(100, 2800)
+
+    # Set the x labels to the distance icons!
+    # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
+    for i in range(len(condition_list_this_density)):
+        ax = plt.gcf().gca()
+        ax.set_xticks([])
+
+        # Image to use
+        arr_img = plt.imread(
+            "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
+                condition_list_this_density[i]] + '.png')
+
+        # Image box to draw it!
+        imagebox = OffsetImage(arr_img, zoom=0.5)
+        imagebox.image.axes = ax
+
+        x_annotation_box = AnnotationBbox(imagebox, (i, 0),
+                                          xybox=(0, -8),
+                                          # that's the shift that the image will have compared to (i, 0)
+                                          xycoords=("data", "axes fraction"),
+                                          boxcoords="offset points",
+                                          box_alignment=(.5, 1),
+                                          bboxprops={"edgecolor": "none"})
+
+        ax.add_artist(x_annotation_box)
+
+    plt.show()
 
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(test_pipeline=False, old_dataset=False, shorten_traj=True)
+    path = gen.generate(test_pipeline=False, shorten_traj=True)
     results = pd.read_csv(path + "clean_results.csv")
     # trajectories = pd.read_csv(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
@@ -648,7 +767,8 @@ if __name__ == "__main__":
             "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
-    generate_transition_matrices(path, [14], plot_everything=True, plot_transition_matrix=False, is_recompute=False)
+    #generate_transition_matrices(path, [14], plot_everything=True, plot_transition_matrix=False, is_recompute=False)
+    behavior_vs_geometry(path, results, "close 0.2", 1000, 16000)
 
     # list_of_conditions = list(param.nb_to_name.keys())
     # show_patch_numbers(list_of_conditions)

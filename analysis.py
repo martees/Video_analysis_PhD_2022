@@ -52,7 +52,7 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
 
 
 def results_per_condition(result_table, list_of_conditions, column_name, divided_by="",
-                          normalize_by_video_length=False, remove_last_patch=False):
+                          normalize_by_video_length=False, remove_last_patch=False, only_first_visited_patch=False):
     """
     Function that takes our result table, a list of conditions, and a column name (as a string)
     Returns the list of values of that column pooled by condition, a list of the average value for each condition, and a
@@ -79,6 +79,7 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
 
         # Compute average for each plate of the current condition, save it in a list
         list_of_values = np.zeros(len(list_of_plates))
+        list_of_values[:] = np.nan
 
         for i_plate in range(len(list_of_plates)):
             # Take only one plate
@@ -88,6 +89,13 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 last_visited_patch = current_visits[-1][2]
                 for visit in current_visits:
                     if visit[2] == last_visited_patch:
+                        current_visits.remove(visit)
+                current_plate.loc["total_visit_time"] = np.sum(
+                    [pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0] + 1, axis=1)])
+            if only_first_visited_patch and "visit" in column_name and len(current_visits) > 0:
+                first_visited_patch = current_visits[0][2]
+                for visit in current_visits:
+                    if visit[2] != first_visited_patch:
                         current_visits.remove(visit)
                 current_plate.loc["total_visit_time"] = np.sum(
                     [pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0] + 1, axis=1)])
@@ -102,9 +110,13 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 elif divided_by == "nb_of_visited_patches":
                     current_plate = current_plate.reset_index()
                     visited_patches_list = list_of_visited_patches(current_visits)
-                    list_of_values[i_plate] = np.sum(current_plate[column_name]) / max(1, len(visited_patches_list))
+                    if len(visited_patches_list) > 0:
+                        list_of_values[i_plate] = np.sum(current_plate[column_name]) / len(visited_patches_list)
+                elif divided_by == "nb_of_visits":
+                    if len(current_visits) > 0:
+                        list_of_values[i_plate] = np.sum(current_plate[column_name]) / len(current_visits)
                 elif np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
-                    if remove_last_patch:
+                    if remove_last_patch or first_visited_patch:
                         print(
                             "Pay attention, you're dividing by a column where I haven't implemented the remove_last_patch feature")
                     if np.sum(current_plate[column_name]) < 0:
@@ -120,7 +132,7 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     # Exclude the 0's which are the cases were the worm didn't go to a patch / out of a patch for a full plate
                     list_speed_current_plate = [nonzero for nonzero in current_plate[column_name] if nonzero != 0]
                     if list_speed_current_plate:  # If any non-zero speed was recorded for that plate
-                        list_of_values[i_plate] = np.average(list_speed_current_plate)
+                        list_of_values[i_plate] = np.nanmean(list_speed_current_plate)
                 elif column_name == "proportion_of_visited_patches" or column_name == "nb_of_visited_patches":  # Special case: divide by total nb of patches in plate
                     current_plate = current_plate.reset_index()
                     visited_patches_list = list_of_visited_patches(fd.load_list(current_plate, "no_hole_visits"))
@@ -462,16 +474,19 @@ def array_division_ignoring_zeros(a, b):
 
 
 def return_value_list(results, column_name, condition_list=None, convert_to_duration=True, only_first=False,
-                      end_time=False):
+                      end_time=False, conserve_visit_order=False):
     """
     Will return a list of values of column_name in results, pooled for all conditions in condition_list.
     For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
-    to_same_patch: if False, will only plot transits that go from one patch to another
-    to_different_patch: if False, will only plot transits that leave and come back to the same patch
-    convert_to_duration: by default, it will convert visits and transits to durations, but if set False it will return
+    @param :to_same_patch: if False, will only plot transits that go from one patch to another
+    @param :to_different_patch: if False, will only plot transits that leave and come back to the same patch
+    @param :convert_to_duration: by default, it will convert visits and transits to durations, but if set False it will return
                          the list of visit / transit time stamps (same format as in results)
-    only_first: if set to True, will only return the first value of column_name for each folder in results
-    end_time: if False, just take all values. if = 3000, will only return values that start before 3000.
+    @param :only_first: if set to True, will only return the first value of column_name for each folder in results
+    @param :end_time: if False, just take all values. if = 3000, will only return values that start before 3000.
+    @param :conserve_visit_order: if True, visits will be returned in sublists, i-th sublist containing only i-th visits
+                                  to a patch.
+
     """
     # If no condition_list was given, just take all folders from results
     if condition_list is None:
@@ -521,6 +536,9 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             column_name = "no_hole_visits"
         if column_name == "transits":
             column_name = "aggregated_raw_transits"
+        if conserve_visit_order:
+            # In case visit order should be conserved, return a list with in each sublist the i-th visits to a patch
+            list_of_values = [[]]
 
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
@@ -534,14 +552,25 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
                         list_of_found_patches.append(value[2])
                         first_value_each_patch.append(value)
                 current_values = first_value_each_patch
+            if conserve_visit_order and current_values:
+                nb_of_visits_each_patch = np.zeros(52)  # there are never more than 52 patches
+                for value in current_values:
+                    current_patch = value[2]
+                    nb_of_visits_each_patch[current_patch] += 1
+                    # If there isn't a sublist for i-th visits, then just add it
+                    if len(list_of_values) <= nb_of_visits_each_patch[current_patch]:
+                        list_of_values.append([])
+                    if not convert_to_duration:
+                        list_of_values[int(nb_of_visits_each_patch[current_patch])].append(value)
+                    else:
+                        list_of_values[int(nb_of_visits_each_patch[current_patch])].append(convert_to_durations([value])[0])
             if end_time and current_values:
                 current_values = [current_values[i] for i in range(len(current_values)) if
                                   current_values[i][0] <= end_time]
-            if convert_to_duration:
+            if convert_to_duration and not conserve_visit_order:
                 list_of_values += convert_to_durations(current_values)
-            else:
+            elif not conserve_visit_order:
                 list_of_values += current_values
-
     return list_of_values
 
 
@@ -860,7 +889,7 @@ def compute_leaving_probability(delay_list):
         delay_list)
 
 
-def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit_length=0, errorbars=True):
+def leaving_probability(results, condition_list, custom_bins, worm_limit, min_visit_length=0, errorbars=True, first_bin=0):
     """
     Takes result table and a condition.
     Will compute a list of delays as outputted by delays_before_leaving, or by running xy_to_bins on the output of
@@ -883,7 +912,7 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit
                                                                             min_visit_length=min_visit_length)
         if len(corresponding_time_in_patch) > 0:  # if there are no visits, don't do that
             binned_times_in_patch, avg_leaving_delays, y_err_list, full_list_of_delays = xy_to_bins(
-                corresponding_time_in_patch, leaving_delays, bin_size, print_progress=False)
+                corresponding_time_in_patch, leaving_delays, custom_bins=custom_bins, print_progress=False)
             binned_delays_each_worm[i_folder] = full_list_of_delays
             times_in_patch_bins_each_worm[i_folder] = binned_times_in_patch
 
@@ -892,7 +921,7 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit
                                                                          min_visit_length=min_visit_length)
     global_time_in_patch_bins, _, _, full_list_of_delays = xy_to_bins(global_times_in_patch,
                                                                       global_leaving_delays,
-                                                                      bin_size,
+                                                                      custom_bins=custom_bins,
                                                                       print_progress=True)
 
     # Reformat binned_delays_each_worm to have one sublist per bin, and in each bin sublist one sublist per worm
@@ -955,7 +984,7 @@ def list_of_visited_patches(list_of_visits):
     return np.unique(list_of_patches)
 
 
-def xy_to_bins(x, y, bin_size, print_progress=False, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True):
+def xy_to_bins(x, y, bin_size=10, print_progress=False, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True):
     """
     Will take an x and a y iterable.
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
@@ -968,11 +997,13 @@ def xy_to_bins(x, y, bin_size, print_progress=False, custom_bins=None, do_not_ed
     else:
         x_copy = x
         y_copy = y
+    # For later
+    minimal_x_value = np.nanmin(x)
 
     # Create or load bin list, with left limit of each bin
     if custom_bins is None:
         bin_list = []
-        current_bin = np.min(x_copy)
+        current_bin = bin_size  # Start bins at bin_size, because they are the right limit of the bins
         while current_bin < np.max(x_copy):
             bin_list.append(current_bin)
             current_bin += bin_size
@@ -1011,7 +1042,7 @@ def xy_to_bins(x, y, bin_size, print_progress=False, custom_bins=None, do_not_ed
         bin_list = bin_list[i_low:i_high + 1]
         nb_of_bins = len(bin_list)
 
-    # Compute averages and bootstrap errorbars
+    # Compute averages and bootstrap errorbars + shift the bins!!! (from right edge to middle
     avg_list = np.zeros(nb_of_bins)
     errors_inf = np.zeros(nb_of_bins)
     errors_sup = np.zeros(nb_of_bins)
@@ -1026,6 +1057,11 @@ def xy_to_bins(x, y, bin_size, print_progress=False, custom_bins=None, do_not_ed
                 bootstrap_ci = bottestrop_ci(current_values, 100)
                 errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
                 errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
+        # First bin should be halfway between minimal value and its value
+        if i_bin == 0:
+            bin_list[i_bin] = (bin_list[i_bin] - minimal_x_value) / 2
+        else:
+            bin_list[i_bin] = (bin_list[i_bin] - bin_list[i_bin - 1]) / 2
     if print_progress:
         print("Finished xy_to_bins()")
 
