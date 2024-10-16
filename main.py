@@ -158,7 +158,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
             if "leaving_probability" in what_to_plot:
                 plots.plot_leaving_probability(results,
                                                "Probability of leaving as a function of in_patch time (" + plot_name + ")",
-                                               current_conditions, bin_size=1000, worm_limit=10, color=current_color,
+                                               current_conditions, custom_bins=[0, 100, 200, 400, 600, 800, 1000, 1400, 2000, 4000, 6000, 8000, 12000], worm_limit=10, color=current_color,
                                                label=curve_name,
                                                split_conditions=True, is_plot=is_plot)
 
@@ -301,7 +301,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
 if __name__ == "__main__":
     #   Saves the results in a path that is returned (only needed at the beginning!)
-    path = gr.generate(starting_from="", shorten_traj=True)
+    path = gr.generate(starting_from="", modeled_data=False, shorten_traj=True)
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     # NOTE: lists are stored as strings in the csv, so we retrieve the values with json loads function
 
     # Retrieve results from what generate_and_save has saved
-    # trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    #trajectories = pd.read_csv(path + "clean_trajectories.csv")
     results = pd.read_csv(path + "clean_results.csv")
     print("Finished retrieving stuff")
 
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     # plots.trajectories_1condition(path, trajectories, [2], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [3], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [4], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    # plots.trajectories_1condition(path, trajectories, [5], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    #plots.trajectories_1condition(path, trajectories, [5], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [6], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [7], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [8], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
@@ -367,10 +367,15 @@ if __name__ == "__main__":
     # plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
 
-    # plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "leaving_probability", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "leaving_probability", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     # plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20], [21]], variable_list=["transits"], only_first=False, plot_cumulative=True)
     # plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)
@@ -397,9 +402,10 @@ if __name__ == "__main__":
     # plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.5", "med 0.5", "far 0.5"]])
 
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
-    #                                              ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
+    #                                               ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
     # plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
-    plot_graphs(results, "leaving_probability", [["med 0", "med 0.2", "med 0.5", "med 1.25"]])
+    #plot_graphs(results, "leaving_probability", [["med 0.2"]])
+    #plot_graphs(results, "leaving_probability", [["med 0", "med 0.2", "med 0.5", "med 1.25"]])
     # plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
     # plot_graphs(results, "leaving_probability", [["cluster 0"], ["cluster 0.2"], ["cluster 0.5"]])
 

@@ -69,7 +69,7 @@ def plot_speed_distribution(full_folder_list, trajectories, condition_list, firs
     plt.show()
 
 
-path = gen.generate("")
+path = gen.generate("", shorten_traj=True)
 results = pd.read_csv(path + "clean_results.csv")
 traj = dt.fread(path + "clean_trajectories.csv")
 full_list_of_folders = list(results["folder"])

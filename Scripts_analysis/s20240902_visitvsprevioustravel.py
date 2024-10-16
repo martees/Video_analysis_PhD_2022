@@ -18,12 +18,12 @@ travel_time_bins = [1, 10, 100, 1000, 10000]
 
 curve_list = [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
               [param.name_to_nb["superfar 0"]]]
-# curve_list = [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
-#               [param.name_to_nb["superfar 0.2"]]]
-# curve_list = [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
-#               [param.name_to_nb["superfar 0.5"]]]
-# curve_list = [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
-#               [param.name_to_nb["superfar 1.25"]]]
+#curve_list = [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
+#              [param.name_to_nb["superfar 0.2"]]]
+#curve_list = [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
+#              [param.name_to_nb["superfar 0.5"]]]
+#curve_list = [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
+#              [param.name_to_nb["superfar 1.25"]]]
 
 only_first = 1
 
@@ -43,7 +43,7 @@ for i_curve, curve in enumerate(curve_list):
                                                                                                       patch_or_pixel="patch",
                                                                                                       only_first=only_first,
                                                                                                       custom_bins=travel_time_bins,
-                                                                                                      min_nb_data_points=40)
+                                                                                                      min_nb_data_points=20)
         # Classical error bars
         # plt.errorbar([x_bin * (1 + 0.1 * i_curve) for x_bin in variable_value_bins], average_visit_duration,
         #              [errors_inf, errors_sup], fmt='.k', capsize=5)
@@ -152,4 +152,5 @@ else:
 plt.gcf().set_size_inches(6, 7)
 plt.xlabel("Duration of the previous travel (seconds, log scale)", fontsize=12)
 plt.xscale("log")
+plt.ylim(0, 3000)
 plt.show()
