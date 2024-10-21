@@ -550,8 +550,8 @@ def make_results_per_plate(data_per_id, trajectories):
     Function that takes our results_per_id table as an input, and will output a table with info for each plate:
         - folder
         - condition
-        - length of the video (last - first time step)
-        - number of tracked time steps
+        - length of the video (last - first TIME stamp) => could be shorter than nb of frames since 1 frame = 0.8 sec
+        - number of tracked time steps (computed as number of frames)
         - number of holes in the tracking
         - proportion of the frame numbers that have double tracking (if high, probably two worms)
         - an invalid tracking event column, whose content is described below

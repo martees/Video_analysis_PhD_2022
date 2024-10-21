@@ -150,28 +150,28 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
             condition_name = "control"
         condition_color = param.name_to_color[param.nb_to_density[curve[0]]]
         plt.plot(bin_list, avg_each_bin, color=condition_color, label=condition_name, linewidth=3)
-        plt.errorbar(bin_list, avg_each_bin, [errors_inf, errors_sup], fmt='.k', capsize=5)
+        plt.errorbar(bin_list, avg_each_bin, [errors_inf, errors_sup], color=condition_color, capsize=5)
 
     print("Total time: ", int((time.time() - tic) // 60), "min")
 
     if variable == "Total":
-        plt.title("Total time in pixel as a function of distance to the edge of the patch in " + condition_name)
-        plt.ylabel("Total visit time to pixel")
+        plt.title("Total time in pixel as a function of distance to the edge of the patch in " + condition_name, fontsize=20)
+        plt.ylabel("Total visit time to pixel", fontsize=12)
     if variable == "Speed":
-        plt.title("Average centroid speed while in pixel as a function of distance to the edge of the patch in " + condition_name)
-        plt.ylabel("Average centroid speed while in pixel")
-    plt.xlabel("Distance to closest patch boundary ( <0 = inside)")
+        plt.title("Average centroid speed while in pixel as a function of distance to the edge of the patch in " + condition_name, fontsize=20)
+        plt.ylabel("Average centroid speed while in pixel", fontsize=12)
+    plt.xlabel("Distance to closest patch boundary ( <0 = inside)", fontsize=12)
     plt.legend()
     plt.show()
 
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(shorten_traj=True)
+    path = gen.generate(starting_from="clean", shorten_traj=True)
     results = pd.read_csv(path + "clean_results.csv")
     trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
     list_of_distance_bins = [-40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60]
     plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
                                     ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-                                    variable="Speed")
+                                    variable="Total")

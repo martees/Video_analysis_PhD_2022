@@ -75,15 +75,8 @@ ax1.boxplot([distances_each_condition_left, distances_each_condition_top, distan
 ax1.set_xticks([1, 2, 3, 4], ["Left", "Top", "Right", "Bottom"])
 ax1.set_title("Reference point distance for each edge")
 
-plt.show()
-
-# Heatmap of the points
-ax0.imshow(heatmap_points, cmap="hot", vmax=0.01)
-ax0.set_title("Heatmap of the reference points, vmax=0.01")
-
-# Boxplot with one box for top edge, left edge, etc.
-ax1.boxplot([distances_each_condition_left, distances_each_condition_top, distances_each_condition_right, distances_each_condition_bottom])
-ax1.set_xticks([1, 2, 3, 4], ["Left", "Top", "Right", "Bottom"])
-ax1.set_title("Reference point distance for each edge")
+all_distances = distances_each_condition_top + distances_each_condition_bottom + distances_each_condition_left + distances_each_condition_right
+print("You can copy this number in Parameters/parameters.py, for the variable one_pixel_in_mm: ", np.mean(all_distances))
 
 plt.show()
+

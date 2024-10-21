@@ -38,6 +38,7 @@ def plot_inter_frame_histogram():
             list_of_interframe_times += list(np.ravel(time_per_frame))
 
     plt.hist(list_of_interframe_times, bins=1000, log=True)
+    print("You can copy this number in Parameters/parameters.py, for the variable one_frame_in_seconds: ", np.mean(list_of_interframe_times))
     plt.show()
 
 

@@ -375,8 +375,9 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
 def load_pixel_visits(list_of_time_stamps, plate, regenerate=False, return_durations=True):
     # If it's not already done, or has to be redone, compute the pixel visit durations
     pixelwise_visits_path = plate[:-len("traj.csv")] + "pixelwise_visits.npy"
-    if not os.path.isfile(pixelwise_visits_path) or regenerate:
+    if (not os.path.isfile(pixelwise_visits_path) or regenerate) and len(list_of_time_stamps > 0):
         gr.generate_pixelwise_visits(list_of_time_stamps, plate)
+
     # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
     pixel_wise_visits = np.load(pixelwise_visits_path, allow_pickle=True)
     if return_durations:

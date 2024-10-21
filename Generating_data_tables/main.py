@@ -18,8 +18,8 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders,
             results_per_plate.drop([i_folder], inplace=True)
 
     # Remove plates which don't have enough video time, or have more than ~10-30 double frames (=> could be two worms)
-    #cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
-    cleaned_results = results_per_plate[results_per_plate["total_tracked_time"] >= 10000]
+    cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
+    #cleaned_results = results_per_plate[results_per_plate["total_tracked_time"] >= 10000]
     cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
 
     print("Finished cleaning results. Cleaning trajectories...")
