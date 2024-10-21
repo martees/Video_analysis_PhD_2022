@@ -15,6 +15,24 @@ from Generating_data_tables import generate_results as gr
 from Generating_data_tables import generate_trajectories as gt
 
 
+def log_regression(x, y, new_x):
+    """
+    This function computes a polynomial such that log(y) = polynomial(log(x)).
+    It will return the image of new_x by this polynomial.
+    """
+    logx = np.log10(x)
+    logy = np.log10(y)
+    coefficients = np.polyfit(logx, logy, deg=1)
+    poly = np.poly1d(coefficients)
+    poly_function = lambda i: 10**(poly(np.log10(i)))
+    return poly_function(new_x)
+
+
+def linear_regression(x, y, new_x):
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+    return slope * new_x + intercept
+
+
 def r2(x, y):
     """
     R squared for linear regression between x and y vectors
@@ -906,7 +924,8 @@ def leaving_probability(results, condition_list, bin_size, worm_limit, min_visit
         for i_bin in range(len(current_times_in_patch)):
             # Current worm may have fewer bins than global pool, but if it's missing some it's the last ones
             # So we can just run through the beginning of the global bins and it should always coincide
-            if global_time_in_patch_bins[i_bin] in current_times_in_patch:  # still, double check that this worm has this bin
+            if global_time_in_patch_bins[
+                i_bin] in current_times_in_patch:  # still, double check that this worm has this bin
                 wormed_delays_each_bin[i_bin][i_folder] = current_delays[i_bin]
     # Compute the list of each worm's average leaving probabilities, in each bin
     wormed_avg_leaving_prob_each_bin = [[] for _ in range(len(global_time_in_patch_bins))]
