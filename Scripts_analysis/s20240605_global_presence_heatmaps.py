@@ -271,7 +271,6 @@ def idealized_patch_centers_mm(results_path, full_plate_list, output_frame_size)
     for i_condition, condition in enumerate(all_conditions_list):
         small_ref_points = ReferencePoints.ReferencePoints([[-20, 20], [20, 20], [20, -20], [-20, -20]])
         big_ref_points = ReferencePoints.ReferencePoints([bottom_left, bottom_right, top_left, top_right])
-        #small_ref_points = big_ref_points
         robot_xy = np.array(robot_xy_each_cond[param.nb_to_distance[condition]])
         robot_xy[:, 0] = - robot_xy[:, 0]
         patch_centers_each_cond[condition] = big_ref_points.mm_to_pixel(small_ref_points.pixel_to_mm(robot_xy))
@@ -304,7 +303,6 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
     """
     nb_of_lines = len(polar_map)
     nb_of_col = len(polar_map[0])
-    #experimental_to_perfect = [[[] for _ in range(nb_of_col)] for _ in range(nb_of_lines)]
 
     # That's the computation for each cell in the polar map:
     # i_patch, distance_boundary, angular_coord = polar_map[i_line, i_col]

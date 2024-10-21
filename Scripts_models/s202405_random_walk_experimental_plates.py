@@ -40,7 +40,7 @@ def add_mask_to_patch_map(folder, patch_map):
     source_xy_holes = source_folder_metadata["holes"][0]
     source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
 
-    # Only make a trajectory when there are indeed 4 reference points
+    # Only make a mask when there are indeed 4 reference points
     if len(source_reference_points.xy_holes) == 4:
         # Reorder points according to y then x, to get lower left corner then lower right then upper left then upper right
         xy_holes = source_reference_points.xy_holes
@@ -131,7 +131,7 @@ def generate_rw_trajectory(speed_in, speed_out, model_folder, silhouettes):
         current_heading_angle = np.random.rand() * 2 * np.pi  # choose a random starting angle
         for time in range(1, duration):
             current_patch = patch_map[str(int(np.clip(current_x, 0, len(patch_map["0"]) - 1)))][
-                int(np.clip(current_y, 0, len(patch_map) - 1))]
+                                      int(np.clip(current_y, 0, len(patch_map) - 1))]
 
             # Persistent turning walker
             # previous_heading_angle = current_heading_angle
