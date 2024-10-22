@@ -14,6 +14,7 @@ results_path = gen.generate("", shorten_traj=True)
 results = pd.read_csv(results_path + "clean_results.csv")
 full_folder_list = results["folder"]
 condition_names = param.name_to_nb_list.keys()
+# condition_names = ["far 0.2", "superfar 0.2"]
 
 # Tables to put average total time out per patch + bootstrapped errorbars
 time_out_per_patch_avg_each_cond = np.zeros(len(condition_names))
@@ -26,10 +27,12 @@ nb_of_visits_per_patch_error_sup_each_cond = np.zeros(len(condition_names))
 
 # Fill 'em up
 for i_condition, condition_name in enumerate(condition_names):
+    print("Condition ", condition_name)
     times_out_this_cond = []
     nb_of_visits_this_cond = []
     folder_list = fd.return_folders_condition_list(full_folder_list, param.name_to_nb_list[condition_name])
     for i_folder, folder in enumerate(folder_list):
+        #print(">>> Folder ", folder)
         current_results = results[results["folder"] == folder]
         all_visits = fd.load_list(current_results, "no_hole_visits")
         all_transits = fd.load_list(current_results, "aggregated_raw_transits")
@@ -40,6 +43,7 @@ for i_condition, condition_name in enumerate(condition_names):
             # Fill the tablezzz
             times_out_this_cond.append(total_time_out/nb_of_visited_patches)
             nb_of_visits_this_cond.append(nb_of_visits/nb_of_visited_patches)
+            #print("Total time out: ", total_time_out, ", Nb of visited patches: ", nb_of_visited_patches, ", Effective time out: ", total_time_out / nb_of_visited_patches)
         else:
             times_out_this_cond.append(total_time_out)  # don't divide by 0
             nb_of_visits_this_cond.append(nb_of_visits)  # should be 0
