@@ -68,7 +68,7 @@ def plot_timeline_with_holes(results_path, full_folder_list, traj, curve_names, 
         plt.clf()
 
 
-def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_list, curve_names, is_plot):
+def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_list, curve_names, is_plot, plot_only_uncensored=False):
     """
     A function that will plot a matrix with one line per folder in full_folder_list, and one column per frame
     in the videos, until the time point "time_to_cut_videos" defined in parameters.py.
@@ -97,13 +97,18 @@ def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_lis
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        current_timeline = np.zeros((200*len(folder_list), param.time_to_cut_videos))
+        #current_timeline = np.zeros((200*len(folder_list), param.time_to_cut_videos))
+        current_timeline = np.zeros((200*len(folder_list), 30000))
         current_timeline[:] = np.nan
         for i_folder, folder in enumerate(folder_list):
             print(folder)
             current_results = result_datatable[dt.f.folder == folder, :]
-            visit_list = fd.load_list(current_results.to_pandas(), "no_hole_visits")
-            transit_list = fd.load_list(current_results.to_pandas(), "aggregated_raw_transits")
+            if plot_only_uncensored:
+                visit_list = fd.load_list(current_results.to_pandas(), "uncensored_visits")
+                transit_list = fd.load_list(current_results.to_pandas(), "uncensored_transits")
+            else:
+                visit_list = fd.load_list(current_results.to_pandas(), "no_hole_visits")
+                transit_list = fd.load_list(current_results.to_pandas(), "aggregated_raw_transits")
             i = 0
             while i < len(visit_list) or i < len(transit_list):
                 if i < len(visit_list):
@@ -148,7 +153,7 @@ def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_lis
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(shorten_traj=True)
+    path = gen.generate(starting_from="controls", shorten_traj=True, test_pipeline=False)
     results = dt.fread(path + "clean_results.csv")
     trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = results[:, "folder"].to_list()[0]
