@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+from Generating_data_tables import main as gen
 import find_data as fd
 import analysis as ana
 from Parameters import parameters as param
@@ -74,4 +75,14 @@ def plot_visit_duration_vs_time_in_patch(results, curve_list, bin_list):
         plt.errorbar(bin_with_values, average_visit_length_each_bin,
                      [error_inf_visit_length_each_bin, error_sup_visit_length_each_bin],
                      color=param.name_to_color[curve], capsize=5)
+
+    plt.yscale("log")
+    plt.ylabel("Average visit duration (log)", fontsize=12)
+    plt.xlabel("Duration of previous visits", fontsize=12)
     plt.show()
+
+
+results_path = gen.generate("", shorten_traj=True)
+clean_results = pd.read_csv(results_path + "clean_results.csv")
+plot_visit_duration_vs_time_in_patch(clean_results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], [10, 100, 200, 1000, 10000])
+
