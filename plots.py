@@ -236,16 +236,32 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
             plt.text(100, 100, "total_visit_time=" + str(len(indexes_in_patch[0])), color='white')
 
         # Plot markers where the tracks start, interrupt and restart
+        # Good hole: green markers
+        # Bad hole: blue markers
+        # Start of a hole: cross
+        # End of a hole: star
+        # Black star: start of the tracking
         # THIS IS BROKEN: to fix it, look for tracking holes by looking for frames where worm id switches
         if plot_continuity:
-            # Tracking stops
-            plt.scatter(current_list_x.iloc[-1], current_list_y.iloc[-1], marker='X', color="red")
-            # Tracking restarts
-            if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="black", s=100)
+            list_of_track_id = np.array(current_traj["id_conservative"])
+            track_id_changes = list_of_track_id[1:] - list_of_track_id[:-1]
+            track_id_changes_index = np.where(track_id_changes != 0)[0]
+            for i_hole in range(len(track_id_changes_index)):
+                current_hole_start_index = track_id_changes_index[i_hole]
+                current_hole_end_index = track_id_changes_index[i_hole] + 1
+                current_hole_start = current_traj.reset_index(drop=True).loc[current_hole_start_index]
+                current_hole_end = current_traj.reset_index(drop=True).loc[current_hole_end_index]
+                # If good hole, plot start and end as a GREEN cross / star
+                if current_hole_start["patch_silhouette"] == current_hole_end["patch_silhouette"]:
+                    plt.scatter(current_hole_start["x"], current_hole_start["y"], marker='X', color="green", s=100)
+                    plt.scatter(current_hole_end["x"], current_hole_end["y"], marker='*', color="green", s=200)
+                # If bad hole, plot start and end as a BLUE cross / star
+                if current_hole_start["patch_silhouette"] != current_hole_end["patch_silhouette"]:
+                    plt.scatter(current_hole_start["x"], current_hole_start["y"], marker='X', color="blue", s=100)
+                    plt.scatter(current_hole_end["x"], current_hole_end["y"], marker='*', color="blue", s=200)
             # First tracked point
-            else:
-                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="green")
+            if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
+                plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="black", s=200)
 
         # Plot the trajectory, one color per worm
         else:
