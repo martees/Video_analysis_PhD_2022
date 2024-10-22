@@ -97,29 +97,17 @@ def steal_metadata_from_another_plate(path, parent_folder, distance):
 
     # Find the folders of the experiments with the same distance between the patches, without controls because they are crappy
     all_folders = fd.path_finding_traj(path, include_fake_control_folders=False)
-    same_distance_folders = fd.return_folders_condition_list(all_folders, parameters.name_to_nb_list[distance])
-    the_chosen_one = random.choice(same_distance_folders)
+    folder_each_distance = {"close": path + "20221011T112304_SmallPatches_C4-CAM5/traj.csv",
+                            "med": path + "20221011T191616_SmallPatches_C1-CAM5/traj.csv",
+                            "far": path + "20221012T202949_SmallPatches_C4-CAM4/traj.csv",
+                            "superfar": path + "20221115T194409_SmallPatches_C5-CAM6/traj.csv",
+                            "cluster": path + "20221013T115441_SmallPatches_C6-CAM1/traj.csv"
+                            }
+    the_chosen_one = folder_each_distance[distance]
     # Load patch information for source folder
     source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
     source_xy_holes = source_folder_metadata["holes"][0]
     source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
-    # Load in_patch_map to check if patches are overlapping
-    patch_map, are_patches_overlapping = gt.in_patch_all_pixels(the_chosen_one)
-    # As long as it's not a valid set of points, keep looking
-    while are_patches_overlapping or len(source_reference_points.errors["list_of_errors"]) > 0 and len(same_distance_folders) > 1:
-        print("Folder with bad holes: ", the_chosen_one, ", has overlapping patches: ", are_patches_overlapping)
-        # Remove the previous folder
-        same_distance_folders.remove(the_chosen_one)
-        # Pick a new random one
-        the_chosen_one = random.choice(same_distance_folders)
-        # Load patch information for source folder
-        source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
-        source_xy_holes = source_folder_metadata["holes"][0]
-        source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
-        # Load in_patch_map to check if patches are overlapping
-        patch_map, are_patches_overlapping = gt.in_patch_all_pixels(the_chosen_one)
-
-    print("the chosen one = ", the_chosen_one)
 
     # Load holes info from parent folder of the current sub-folder
     parent_folder_metadata = fd.folder_to_metadata(parent_folder)
