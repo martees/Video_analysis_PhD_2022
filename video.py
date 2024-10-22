@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib.widgets import Slider
 from matplotlib.backend_bases import MouseButton
 import pandas as pd
+import datatable as dt
 
 # My code
 from Parameters import parameters as param
@@ -61,7 +62,7 @@ def show_frames(folder, trajectories, first_frame):
     pixels = fd.reindex_silhouette(pixels, frame_size)
 
     # Load centers of mass from the tracking
-    centers_of_mass = trajectories[trajectories["folder"] == folder].reset_index()
+    centers_of_mass = trajectories[dt.f.folder == folder, :]
 
     # Plot the background
     composite = plt.imread(fd.load_file_path(folder, "composite.tif"))
@@ -82,10 +83,9 @@ def show_frames(folder, trajectories, first_frame):
 
     # Get patch info
     #patch_list = gt.in_patch_list(centers_of_mass, using="silhouette")
-    patch_list = centers_of_mass["patch_silhouette"]
+    patch_list = centers_of_mass[:, "patch_silhouette"].to_list()[0]
     # Get speeds
-    centers_of_mass["distances"] = gt.trajectory_distances(centers_of_mass)
-    speed_list = gt.trajectory_speeds(centers_of_mass)
+    speed_list = centers_of_mass[:, "speeds"].to_list()[0]
 
     # Make a copy of full image limits, for zoom out purposes
     global img_xmin, img_xmax, img_ymin, img_ymax
@@ -96,7 +96,7 @@ def show_frames(folder, trajectories, first_frame):
 
     # Define frame index counter (will be incremented/decremented depending on what user does)
     global curr_index
-    curr_index = fd.load_index(trajectories, folder, first_frame)
+    curr_index = fd.load_index(trajectories.to_pandas(), folder, first_frame)
 
     # Initialize the plot objects
     global worm_plot  # worm silhouette
@@ -162,16 +162,15 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
     global top_ax
     global xmin, xmax, ymin, ymax
 
-    print(len(pixels[index][0]))
     if len(pixels[index][0]) > param.invalid_silhouette_threshold:
         worm_plot[0].set_color("red")
     else:
         worm_plot[0].set_color("gray")
     worm_plot[0].set_data([pixels[index][0]], [pixels[index][1]])
-    center_of_mass_plot.set_offsets([centers_of_mass["x"][index], centers_of_mass["y"][index]])
+    center_of_mass_plot.set_offsets([centers_of_mass[index, "x"], centers_of_mass[index, "y"]])
 
-    curr_x = centers_of_mass["x"][index]
-    curr_y = centers_of_mass["y"][index]
+    curr_x = centers_of_mass[index, "x"]
+    curr_y = centers_of_mass[index, "y"]
     curr_patch = patch_list[index]
     top_ax.scatter(curr_x, curr_y, s=4)
 
@@ -188,7 +187,7 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
     # Write as x label the speed of the worm
     top_ax.set_xlabel("Speed of the worm: "+str(speed_list[index]))
 
-    top_ax.set_title("Time: " + str(fd.load_time(trajectories, folder, index)) + ", patch: " + str(curr_patch) + ", worm xy: " + str(curr_x) + ", " + str(curr_y))
+    top_ax.set_title("Time: " + str(fd.load_time(trajectories.to_pandas(), folder, index)) + ", patch: " + str(curr_patch) + ", worm xy: " + str(curr_x) + ", " + str(curr_y))
 
     curr_fig = plt.gcf()
     curr_fig.canvas.draw()
@@ -196,11 +195,10 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
 
 if __name__ == "__main__":
     path = gr.generate(starting_from="", test_pipeline=False, shorten_traj=True)
-    traj = pd.read_csv(path + "clean_trajectories.csv")
+    traj = dt.fread(path + "clean_trajectories.csv")
     plate = path + "20221013T201332_SmallPatches_C2-CAM1/traj.csv"
-    current_traj = traj[traj["folder"] == plate].reset_index()
     #indices_of_bad_speed = np.where(current_traj["speeds"] > 100)[0]
     #print(indices_of_bad_speed)
     #show_frames(path + '20221011T191645_SmallPatches_C3-CAM7/traj.csv', traj, 2627)
-    show_frames(path + '/media/admin/T7 Shield/Results_minipatches_retracked_shortened/20221011T111254_SmallPatches_C3-CAM3/traj.csv', traj, 4608)
+    show_frames(path + '20221117T105407_SmallPatches_C4-CAM5/traj.csv', traj, 2704)
 
