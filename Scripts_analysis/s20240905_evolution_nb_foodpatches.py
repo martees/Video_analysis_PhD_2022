@@ -21,20 +21,21 @@ trajectories = dt.fread(path + "clean_trajectories.csv")
 
 # Parameters
 curve_list = ["close", "med", "far", "superfar"]
-#curve_list = ["0", "0.2", "0.5", "1.25"]
-#curve_list = ["close 0", "med 0", "far 0", "superfar 0"]
-#curve_list = ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]
-#curve_list = ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]
-#curve_list = ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
-#curve_list = ["close 0", "close 0.2", "close 0.5", "close 1.25"]
-#curve_list = ["med 0", "med 0.2", "med 0.5", "med 1.25"]
-#curve_list = ["far 0", "far 0.2", "far 0.5", "far 1.25"]
-#curve_list = ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"]
+# curve_list = ["0", "0.2", "0.5", "1.25"]
+# curve_list = ["close 0", "med 0", "far 0", "superfar 0"]
+# curve_list = ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]
+# curve_list = ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]
+# curve_list = ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
+# curve_list = ["close 0", "close 0.2", "close 0.5", "close 1.25"]
+# curve_list = ["med 0", "med 0.2", "med 0.5", "med 1.25"]
+# curve_list = ["far 0", "far 0.2", "far 0.5", "far 1.25"]
+# curve_list = ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"]
 time_bins = [0, 4000, 8000, 12000, 16000, 24000, 32000, 38000, 44000]
 min_length = 1  # minimal transit length to get considered
 min_nb_data_points = 10  # minimal number of transits for a point to get plotted
+plot_diff = True  # set this to true to plot the y difference between points instead of the points
 
-#Init
+# Init
 tic = time.time()
 nb_of_bins = len(time_bins)
 for i_curve in range(len(curve_list)):
@@ -93,13 +94,22 @@ for i_curve in range(len(curve_list)):
 
     x_list = np.array(time_bins) + i_curve * 100
 
-    plt.plot(x_list, avg_each_bin, color=param.name_to_color[curve_name], label=curve_name, linewidth=3)
-    plt.errorbar(x_list, avg_each_bin, [errors_inf, errors_sup], fmt='.k', capsize=5)
+    if plot_diff:
+        plt.plot(x_list, avg_each_bin[1:] - avg_each_bin[:-1], color=param.name_to_color[curve_name], label=curve_name, linewidth=3)
+        plt.errorbar(x_list, avg_each_bin[1:] - avg_each_bin[:-1], [errors_inf, errors_sup], fmt=param.name_to_color[curve_name], capsize=5)
+    else:
+        plt.plot(x_list, avg_each_bin, color=param.name_to_color[curve_name], label=curve_name, linewidth=3)
+        plt.errorbar(x_list, avg_each_bin, [errors_inf, errors_sup], fmt=param.name_to_color[curve_name], capsize=5)
 
-plt.title("Average nb of discovered food patch at different times in the videos")
+if plot_diff:
+    plt.title("New discovered food patch at different times in the videos", fontsize=20)
+    plt.ylabel("Number of new discovered food patches", fontsize=12)
+else:
+    plt.title("Average nb of discovered food patch at different times in the videos", fontsize=20)
+    plt.ylabel("Total number of discovered food patches", fontsize=12)
+
 plt.xticks(time_bins, [str(b) for b in time_bins], rotation=50)
-plt.ylabel("Number of discovered food patches")
-plt.xlabel("Time in video")
+plt.xlabel("Time in video", fontsize=12)
 plt.legend()
 plt.show()
 
