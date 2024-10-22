@@ -185,14 +185,23 @@ def dynamic_speed(speed_inside, speed_outside, half_speed_life, time_since_patch
     The function increases in 1/t, and should go from speed_inside (in t=0) to speed_outside (in t=infinite).
     It reaches speed_inside + speed_outside/2 at half_speed_life
     """
-    temporal_parameter = (half_speed_life * (speed_inside + speed_outside/2)) / (1 + speed_inside/speed_outside + 1/2)
-    return speed_inside + speed_outside - temporal_parameter / (time_since_patch_exit - temporal_parameter/speed_outside)
+    return speed_outside - (speed_outside-speed_inside)/(1 + time_since_patch_exit * ((1 - 2 * (speed_inside/speed_outside))/half_speed_life))
 
 
-def dynamic_speed_walk(sim_length, speed_inside, speed_outside, half_speed_life, environment_matrix):
+def dynamic_speed_table(speed_inside, speed_outside, half_speed_life, t_max):
     """
-        Function that takes three model parameters (speed inside/outside food patches and an increase parameter for
-        speed outside food patches), an environment (with -2 outside the environment, -1 outside the food patches,
+    Returns a list with the values of dynamic_speed() as a function of time, from 1 to t_max.
+    """
+    speed_values = [0 for _ in range(t_max)]
+    for i in range(len(speed_values)):
+        speed_values[i] = dynamic_speed(speed_inside, speed_outside, half_speed_life, i)
+    return speed_values
+
+
+def dynamic_speed_walk(sim_length, speed_inside, speed_outside, speed_table, environment_matrix):
+    """
+        Function that takes three model parameters (speed inside/outside food patches and the dynamic of speed as time
+        since exit increases), an environment (with -2 outside the environment, -1 outside the food patches,
         and integers >=0 for the food patches).
         Will run a random walk with a step-length inside food patches (speed_inside), and a speed that progressively
         increases from speed_inside to speed_outside once the agent leaves a patch. It takes half_speed_life for the
@@ -240,7 +249,7 @@ def dynamic_speed_walk(sim_length, speed_inside, speed_outside, half_speed_life,
                 x_list[i_time] = x_list[i_time - 1] + speed_outside * np.cos(current_heading)
                 y_list[i_time] = y_list[i_time - 1] + speed_outside * np.sin(current_heading)
             else:
-                current_speed = dynamic_speed(speed_inside, speed_outside, half_speed_life, time_since_patch_exit)
+                current_speed = speed_table[time_since_patch_exit]
                 x_list[i_time] = x_list[i_time - 1] + current_speed * np.cos(current_heading)
                 y_list[i_time] = y_list[i_time - 1] + current_speed * np.sin(current_heading)
             time_since_patch_exit += 1  # this keeps incrementing as long as no patch has been encountered
@@ -259,7 +268,7 @@ def dynamic_speed_walk(sim_length, speed_inside, speed_outside, half_speed_life,
                     x_list[i_time] = x_list[i_time - 1] + speed_outside * np.cos(current_heading)
                     y_list[i_time] = y_list[i_time - 1] + speed_outside * np.sin(current_heading)
                 else:
-                    current_speed = dynamic_speed(speed_inside, speed_outside, half_speed_life, time_since_patch_exit)
+                    current_speed = speed_table[time_since_patch_exit]
                     x_list[i_time] = x_list[i_time - 1] + current_speed * np.cos(current_heading)
                     y_list[i_time] = y_list[i_time - 1] + current_speed * np.sin(current_heading)
                 current_patch = return_patch(environment_matrix, previous_x, previous_y)
@@ -272,7 +281,7 @@ def dynamic_speed_walk(sim_length, speed_inside, speed_outside, half_speed_life,
                     x_list[i_time] = x_list[i_time - 1] + speed_outside * np.cos(current_heading)
                     y_list[i_time] = y_list[i_time - 1] + speed_outside * np.sin(current_heading)
                 else:
-                    current_speed = dynamic_speed(speed_inside, speed_outside, half_speed_life, time_since_patch_exit)
+                    current_speed = speed_table[time_since_patch_exit]
                     x_list[i_time] = x_list[i_time - 1] + current_speed * np.cos(current_heading)
                     y_list[i_time] = y_list[i_time - 1] + current_speed * np.sin(current_heading)
                 current_patch = return_patch(environment_matrix, previous_x, previous_y)
@@ -285,7 +294,7 @@ def dynamic_speed_walk(sim_length, speed_inside, speed_outside, half_speed_life,
                     x_list[i_time] = x_list[i_time - 1] + speed_outside * np.cos(current_heading)
                     y_list[i_time] = y_list[i_time - 1] + speed_outside * np.sin(current_heading)
                 else:
-                    current_speed = dynamic_speed(speed_inside, speed_outside, half_speed_life, time_since_patch_exit)
+                    current_speed = speed_table[time_since_patch_exit]
                     x_list[i_time] = x_list[i_time - 1] + current_speed * np.cos(current_heading)
                     y_list[i_time] = y_list[i_time - 1] + current_speed * np.sin(current_heading)
                 current_patch = return_patch(environment_matrix, previous_x, previous_y)
@@ -295,9 +304,9 @@ def dynamic_speed_walk(sim_length, speed_inside, speed_outside, half_speed_life,
             x_list[i_time] = previous_x
             y_list[i_time] = previous_y
 
-    plt.imshow(environment_matrix, cmap="plasma")
-    plt.plot(x_list, y_list, color="white")
-    plt.show()
+    # plt.imshow(environment_matrix, cmap="plasma")
+    # plt.plot(x_list, y_list, color="white")
+    # plt.show()
 
     return time_list, x_list, y_list, total_time_inside, total_time_outside, len(np.unique(list_of_visited_patches)), len(list_of_visited_patches)
 
@@ -324,13 +333,14 @@ def values_one_type_of_walk(map_each_distance, nb_of_walkers, type_of_walk, sim_
 
     if type_of_walk == "dynamic_speed":
         speed_inside, speed_outside, half_speed_life = parameters
+        speed_table = dynamic_speed_table(speed_inside, speed_outside, half_speed_life, sim_length)
         for i_map, current_map in enumerate(map_each_distance):
             print("Generating dynamic speed walks for distance", list(param.distance_to_xy.keys())[i_map], "...")
             for i_walk in range(nb_of_walkers):
                 if i_walk % (nb_of_walkers // 4) == 0:
                     print(">>> Walker ", i_walk, " / ", nb_of_walkers, "...")
                 # Run simulation
-                _, _, _, time_in, time_out, nb_visited, nb_visits = dynamic_speed_walk(sim_length, speed_inside, speed_outside, half_speed_life, current_map)
+                _, _, _, time_in, time_out, nb_visited, nb_visits = dynamic_speed_walk(sim_length, speed_inside, speed_outside, speed_table, current_map)
                 # Compute the relevant variables
                 if nb_visited > 0:
                     time_outside_per_patch.append(time_out / nb_visited)
@@ -495,16 +505,18 @@ def effect_of_walk_type(length, speed_in, speed_out, half_life_speed):
 
     # Plot simulations
     envt_matrices = generate_environment_matrices("", [])
+
+    # Walk that speeds up when leaving the patch
+    time_out, nb_of_visits = values_one_type_of_walk(envt_matrices, 10, "dynamic_speed", length, [speed_in, speed_out, half_life_speed])
+    plt.scatter(nb_of_visits, time_out, color="yellow", label="Dynamic walk, speed in =" + str(speed_in) + ", speed out = " + str(speed_out) + ", half life = " + str(half_life_speed))
+    x_extent_points = np.linspace(min(nb_of_visits), max(nb_of_visits), 10)
+    plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="turquoise", linewidth=2)
+
     # Classical random walk
     time_out, nb_of_visits = values_one_type_of_walk(envt_matrices, 10, "random", length, [speed_in, speed_out])
     plt.scatter(nb_of_visits, time_out, color="white", label="Random walk, speed in ="+str(speed_in)+", speed out = "+str(speed_out))
     x_extent_points = np.linspace(min(nb_of_visits), max(nb_of_visits), 10)
     plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="chartreuse", linewidth=2)
-    # Speed outside = 10
-    time_out, nb_of_visits = values_one_type_of_walk(envt_matrices, 10, "dynamic_speed", length, [speed_in, speed_out, half_life_speed])
-    plt.scatter(nb_of_visits, time_out, color="yellow",  label="Dynamic walk, speed in ="+str(speed_in)+", speed out = "+str(speed_out)+", half life = "+str(half_life_speed))
-    x_extent_points = np.linspace(min(nb_of_visits), max(nb_of_visits), 10)
-    plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="turquoise", linewidth=2)
 
     plt.legend()
 
@@ -512,7 +524,7 @@ def effect_of_walk_type(length, speed_in, speed_out, half_life_speed):
 
 
 # effect_of_length(1.6, 30)
-#effect_of_speed_out(500000, 1.6)
-#effect_of_speed_in(500000, 16)
-effect_of_walk_type(500000, 1.6, 30, 1000)
+# effect_of_speed_out(500000, 1.6)
+# effect_of_speed_in(500000, 16)
+effect_of_walk_type(50000, 1.6, 30, 1000)
 
