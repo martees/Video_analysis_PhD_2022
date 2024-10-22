@@ -54,8 +54,7 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
     patch_where_it_is = -1  # initializing variable to -1 so that if the worm starts inside it's counted as a new visit
     for time in event_indexes:
         patch_where_it_was = patch_where_it_is  # memorize the patch where it was
-        patch_where_it_is = which_patch_array[
-            min(len(which_patch_array) - 1, time + 1)]  # update patch, max to not exceed size
+        patch_where_it_is = which_patch_array[min(len(which_patch_array) - 1, time + 1)]  # update patch, max to not exceed size
         current_time = int(np.rint(list_of_time_stamps["time"][time]))
         # Worm just exited a patch
         if patch_where_it_is == -1:  # worm currently out
@@ -66,9 +65,16 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
         if patch_where_it_is != -1:  # worm currently inside
             if patch_where_it_was == -1:  # it's a new visit (first patch or was outside before)
                 if len(list_of_visit_times) < patch_where_it_is:
-                    print('In single_traj_analysis(), the patch index called was higher than the number of patches.')
+                    print('WARNING: In single_traj_analysis(), the patch index called was higher than the number of patches.')
                 else:
                     list_of_visit_times[patch_where_it_is][-1][0] = current_time  # begin visit in current patch sublist
+            # If the worm used to be in a different food patch, and transited without going through the outside
+            # print a warning! this is not supposed to happen.
+            else:
+                print("WARNING: There's a worm teleporting from patch to patch!!!")
+                list_of_visit_times[patch_where_it_was][-1][1] = current_time  # end the previous visit
+                list_of_visit_times[patch_where_it_was].append([0, 0])  # add new visit to the previous patch
+                list_of_visit_times[patch_where_it_is][-1][0] = current_time  # begin visit in current patch sublist
 
     # Close the last visit
     if which_patch_array[-1] != -1:  # if the worm is inside, last visit hasn't been closed (no exit event)
@@ -229,9 +235,9 @@ def make_results_per_id_table(data):
         current_metadata = fd.folder_to_metadata(current_folder)
 
         if "model" in current_folder:  # for modeled data, use centroid info because i did not model fake silhouettes
-            which_patch_list = current_data["patch_centroid"]
+            which_patch_list = current_data.reset_index(drop=True)["patch_centroid"]
         else:
-            which_patch_list = current_data["patch_silhouette"]
+            which_patch_list = current_data.reset_index(drop=True)["patch_silhouette"]
 
         # Computing the list of visits
         patch_list = current_metadata["patch_centers"]
@@ -264,10 +270,13 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "first_recorded_position"] = str(
             first_pos)  # first position for the whole plate (used to check trajectories)
         results_table.loc[i_track, "first_frame"] = current_data["time"][0]
-        results_table.loc[i_track, "first_tracked_position_patch"] = which_patch_list[0]  # patch where the worm is when tracking starts (-1 = outside): one value per id
+        results_table.loc[i_track, "first_tracked_position_patch"] = which_patch_list[
+            0]  # patch where the worm is when tracking starts (-1 = outside): one value per id
         results_table.loc[i_track, "last_frame"] = current_data["time"].iloc[-1]
-        results_table.loc[i_track, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[-1]])  # last position for the current worm (used to check tracking)
-        results_table.loc[i_track, "last_tracked_position_patch"] = which_patch_list.iloc[-1]  # patch where the worm is when tracking stops (-1 = outside)
+        results_table.loc[i_track, "last_tracked_position"] = str([current_list_x.iloc[-1], current_list_y.iloc[
+            -1]])  # last position for the current worm (used to check tracking)
+        results_table.loc[i_track, "last_tracked_position_patch"] = which_patch_list.iloc[
+            -1]  # patch where the worm is when tracking stops (-1 = outside)
         results_table.loc[i_track, "furthest_patch_position"] = str(furthest_patch_position)
         results_table.loc[i_track, "adjusted_raw_visits"] = str(adjusted_raw_visits)
         results_table.loc[i_track, "adjusted_total_visit_time"] = adjusted_duration_sum
@@ -386,8 +395,8 @@ def fill_holes(data_per_id):
     Function that takes a list of visit time stamps for a plate [[[v0,v1, p0],[v2,v3, p1],...],[[v10,v11, p2],...],...],
     with one sublist of time stamps for each track of the same plate, third element being the patch of the visit
     Returns a new list in the format [[v0,v1, p0],[v2,v3, p1],...] where the last visit of a track and the first of the next
-    were fused into one in the case where the tracking started and stopped in the same patch,
-    and another new list in the same format with the same concept but for transit times
+    were fused into one in the case where the tracking started and stopped in the same patch (or both outside),
+    and another new list in the same format with the same concept but for transit time stamps.
     """
 
     # Sort the tracks for them to be in the order in which they were tracked otherwise it's a mess
@@ -399,7 +408,7 @@ def fill_holes(data_per_id):
 
     # Convert first/last frames to int
     first_times = [int(np.rint(data_per_id["first_frame"][i])) for i in range(len(data_per_id["first_frame"]))]
-    last_times = [int(np.rint(data_per_id["first_frame"][i])) for i in range(len(data_per_id["last_frame"]))]
+    last_times = [int(np.rint(data_per_id["last_frame"][i])) for i in range(len(data_per_id["last_frame"]))]
 
     # The original dataset: each track sublist = [[t,t],[t,t],...],[[t,t],...],...] with one sublist per patch
     # We want to remove all empty visits: it means the worm was outside before and after the end of the visit, so it
@@ -422,7 +431,6 @@ def fill_holes(data_per_id):
     init_visit_at_one = False
 
     while i_track < nb_of_tracks:  # for each track
-        # print("==== i_track = ", i_track, " / ", nb_of_tracks)
         nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
         i_visit = 0
         skipped_empty_tracks = False  # True if empty tracks have been skipped
@@ -546,6 +554,48 @@ def fill_holes(data_per_id):
     return corrected_list_of_visits, corrected_list_of_transits
 
 
+def remove_censored_events(data_per_id, list_of_visits, list_of_transits):
+    """
+    Function that takes data from the results_per_id table for one given folder, and then
+    two lists of events [[t0,t1, i],[t0,t1, i],...], with t0 start of event, t1 end of event, and i = index of the event
+    (so patch number if it's a visit, and -1 if it's a transit).
+    Returns:
+        - two new lists in the same format, but removing transits and visits that were interrupted by a tracking hole.
+        - one new list of visits in the same format, but removing all visits to a patch containing any censored visit.
+    """
+    # Sort the tracks for them to be in the order in which they were tracked otherwise it's a mess
+    data_per_id = data_per_id.sort_values(by=['first_frame']).reset_index()
+
+    # Convert first/last frames to int
+    first_times = [int(np.rint(data_per_id["first_frame"][i])) for i in range(len(data_per_id["first_frame"]))]
+    last_times = [int(np.rint(data_per_id["last_frame"][i])) for i in range(len(data_per_id["last_frame"]))]
+    # REMOVE first frame of the video from first times!!!
+    first_times = first_times[1:]
+
+    # List of visits that are not cut short by a tracking hole
+    uncensored_visits = []
+    patches_with_censored_visits = []
+    for visit in list_of_visits:
+        # If visit was cut short in the beginning or in the end by a hole in the tracking
+        if visit[0] in first_times or visit[1] in last_times:
+            patches_with_censored_visits.append(visit[2])
+        else:
+            uncensored_visits.append(visit)
+    # List of visits that are in patches containing no censored visit
+    visits_to_uncensored_patches = []
+    patches_with_censored_visits = np.unique(patches_with_censored_visits)
+    for visit in uncensored_visits:
+        if visit[2] not in patches_with_censored_visits:
+            visits_to_uncensored_patches.append(visit)
+    # List of transits that were not cut short by a tracking hole
+    uncensored_transits = []
+    for transit in list_of_transits:
+        if not(transit[0] in first_times or transit[1] in last_times):
+            uncensored_transits.append(transit)
+
+    return uncensored_visits, uncensored_transits, visits_to_uncensored_patches
+
+
 def make_results_per_plate(data_per_id, trajectories):
     """
     Function that takes our results_per_id table as an input, and will output a table with info for each plate:
@@ -582,6 +632,9 @@ def make_results_per_plate(data_per_id, trajectories):
         # Aggregating visits when worm disappears and then reappears in the same place
         aggregated_visit_timestamps, aggregated_transit_timestamps = fill_holes(current_data)
 
+        # Extracting uncensored events (not interrupted by tracking holes)
+        uncensored_visit_timestamps, uncensored_transit_timestamps, visit_to_uncensored_patches_timestamps = remove_censored_events(current_data, aggregated_visit_timestamps, aggregated_transit_timestamps)
+
         # Adjusting it for MVT analyses
         adjusted_raw_durations = new_mvt_patch_visits(aggregated_visit_timestamps, patch_list)
 
@@ -593,7 +646,7 @@ def make_results_per_plate(data_per_id, trajectories):
         # To get time out, do total tracked time minus time inside
         average_speed_out = np.nansum(
             (current_data["average_speed_outside"] * (
-                        current_data["total_tracked_time"] - current_data["total_visit_time"])) /
+                    current_data["total_tracked_time"] - current_data["total_visit_time"])) /
             np.nansum((current_data["total_tracked_time"] - current_data["total_visit_time"])))
 
         # Fill up the table
@@ -612,6 +665,9 @@ def make_results_per_plate(data_per_id, trajectories):
             [pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0] + 1, axis=1)])
         results_per_plate.loc[i_plate, "no_hole_visits"] = str(aggregated_visit_timestamps)
         results_per_plate.loc[i_plate, "aggregated_raw_transits"] = str(aggregated_transit_timestamps)
+        results_per_plate.loc[i_plate, "uncensored_visits"] = str(uncensored_visit_timestamps)
+        results_per_plate.loc[i_plate, "uncensored_transits"] = str(uncensored_transit_timestamps)
+        results_per_plate.loc[i_plate, "visits_to_uncensored_patches"] = str(visit_to_uncensored_patches_timestamps)
         results_per_plate.loc[i_plate, "nb_of_visits"] = len(aggregated_visit_timestamps)
         results_per_plate.loc[i_plate, "mvt_raw_visits"] = str(adjusted_raw_durations)
         results_per_plate.loc[i_plate, "mvt_nb_of_visits"] = len(adjusted_raw_durations)
