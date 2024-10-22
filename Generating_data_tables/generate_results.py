@@ -213,6 +213,7 @@ def make_results_per_id_table(data):
         current_track = track_list[i_track]
         current_data = data[data["id_conservative"] == current_track]
         current_data = current_data.reset_index()
+
         current_list_x = current_data["x"]
         current_list_y = current_data["y"]
         current_folder = list(current_data["folder"])[0]
@@ -285,8 +286,8 @@ def nb_bad_events(data):
     nb_of_holes = len(data) - 1
     nb_of_bad_events = 0
     for i_hole in range(nb_of_holes):
-        position_start_hole = data["first_tracked_position_patch"][i_hole]
-        position_end_hole = data["last_tracked_position_patch"][i_hole + 1]
+        position_start_hole = data["last_tracked_position_patch"][i_hole]
+        position_end_hole = data["first_tracked_position_patch"][i_hole + 1]
         if position_start_hole != position_end_hole:
             nb_of_bad_events += 1
     return nb_of_bad_events
