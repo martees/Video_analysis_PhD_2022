@@ -30,6 +30,9 @@ one_frame_in_seconds = 0.82817
 # Ratio for conversion between mm and pixels
 one_pixel_in_mm = 0
 
+# Limit in number of seconds between BAD tracking holes that get filled, and BAD tracking holes that make us exclude videos
+hole_filling_threshold = 60
+
 # Condition names
 nb_to_name = {0: "close 0.2", 1: "med 0.2", 2: "far 0.2", 14: "superfar 0.2", 3: "cluster 0.2",
               4: "close 0.5", 5: "med 0.5", 6: "far 0.5", 15: "superfar 0.5", 7: "cluster 0.5",
