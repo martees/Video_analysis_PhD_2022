@@ -23,11 +23,12 @@ def add_visit_vs_time_in_patch_1_folder(visit_list, bin_list, values_each_bin):
     """
     total_time_each_patch = [0 for _ in range(52)]  # there's never more than 52 patches so just create a big list
     i_bin_each_patch = [0 for _ in range(52)]
-    current_bin_each_patch = [bin_list[i] for i in i_bin_each_patch]
+    current_bin_each_patch = [bin_list[0] for _ in range(52)]
     for i_visit, visit in enumerate(visit_list):
         current_patch = visit[2]
         current_visit_duration = visit[1] - visit[0] + 1
-        while total_time_each_patch[current_patch] > current_bin_each_patch[current_patch]:
+        while total_time_each_patch[current_patch] > current_bin_each_patch[current_patch] and i_bin_each_patch[
+            current_patch] < len(bin_list) - 1:
             i_bin_each_patch[current_patch] += 1
             current_bin_each_patch[current_patch] = bin_list[i_bin_each_patch[current_patch]]
         values_each_bin[i_bin_each_patch[current_patch]].append(current_visit_duration)
@@ -35,7 +36,7 @@ def add_visit_vs_time_in_patch_1_folder(visit_list, bin_list, values_each_bin):
     return values_each_bin
 
 
-def plot_visit_duration_vs_time_in_patch(results, curve_list, bin_list):
+def plot_visit_duration_vs_time_in_patch(results, curve_list, bin_list, min_nb_each_bin):
     full_list_of_folders = results["folder"]
     for i_curve, curve in enumerate(curve_list):
         # Extract the values for all folders
@@ -44,7 +45,8 @@ def plot_visit_duration_vs_time_in_patch(results, curve_list, bin_list):
         for i_folder, folder in enumerate(current_folder_list):
             current_results = results[results["folder"] == folder]
             current_visits = fd.load_list(current_results, "no_hole_visits")
-            all_visit_lengths_each_bin = add_visit_vs_time_in_patch_1_folder(current_visits, bin_list, all_visit_lengths_each_bin)
+            all_visit_lengths_each_bin = add_visit_vs_time_in_patch_1_folder(current_visits, bin_list,
+                                                                             all_visit_lengths_each_bin)
         # Compute stats for each bin
         average_visit_length_each_bin = [np.nan for _ in range(len(bin_list))]
         error_inf_visit_length_each_bin = [np.nan for _ in range(len(bin_list))]
@@ -68,6 +70,19 @@ def plot_visit_duration_vs_time_in_patch(results, curve_list, bin_list):
                                            not np.isnan(average_visit_length_each_bin[i])]
         average_visit_length_each_bin = [avg for avg in average_visit_length_each_bin if not np.isnan(avg)]
 
+        # Then, keep only the bins that have enough worms
+        bin_with_values = [bin_list[i] for i in range(len(bin_list)) if
+                           len(all_visit_lengths_each_bin[i]) > min_nb_each_bin]
+        error_inf_visit_length_each_bin = [error_inf_visit_length_each_bin[i] for i in
+                                           range(len(error_inf_visit_length_each_bin)) if
+                                           len(all_visit_lengths_each_bin[i]) > min_nb_each_bin]
+        error_sup_visit_length_each_bin = [error_sup_visit_length_each_bin[i] for i in
+                                           range(len(error_sup_visit_length_each_bin)) if
+                                           len(all_visit_lengths_each_bin[i]) > min_nb_each_bin]
+        average_visit_length_each_bin = [average_visit_length_each_bin[i] for i in
+                                         range(len(average_visit_length_each_bin)) if
+                                         len(all_visit_lengths_each_bin[i]) > min_nb_each_bin]
+
         # Then, plot it
         plt.plot(bin_with_values, average_visit_length_each_bin,
                  color=param.name_to_color[curve],
@@ -79,10 +94,26 @@ def plot_visit_duration_vs_time_in_patch(results, curve_list, bin_list):
     plt.yscale("log")
     plt.ylabel("Average visit duration (log)", fontsize=12)
     plt.xlabel("Duration of previous visits", fontsize=12)
+    plt.legend()
     plt.show()
 
 
 results_path = gen.generate("", shorten_traj=True)
 clean_results = pd.read_csv(results_path + "clean_results.csv")
-plot_visit_duration_vs_time_in_patch(clean_results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], [10, 100, 200, 1000, 10000])
+plot_visit_duration_vs_time_in_patch(clean_results, ["close 0", "close 0.2", "close 0.5", "close 1.25"],
+                                     [10, 100, 1000, 10000], 10)
+plot_visit_duration_vs_time_in_patch(clean_results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], [10, 100, 1000, 10000],
+                                     10)
+plot_visit_duration_vs_time_in_patch(clean_results, ["far 0", "far 0.2", "far 0.5", "far 1.25"], [10, 100, 1000, 10000],
+                                     10)
+plot_visit_duration_vs_time_in_patch(clean_results, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"],
+                                     [10, 100, 1000, 10000], 10)
 
+plot_visit_duration_vs_time_in_patch(clean_results, ["close 0", "med 0", "far 0", "superfar 0"], [10, 100, 1000, 10000],
+                                     10)
+plot_visit_duration_vs_time_in_patch(clean_results, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+                                     [10, 100, 1000, 10000], 10)
+plot_visit_duration_vs_time_in_patch(clean_results, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+                                     [10, 100, 1000, 10000], 10)
+plot_visit_duration_vs_time_in_patch(clean_results, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"],
+                                     [10, 100, 1000, 10000], 10)
