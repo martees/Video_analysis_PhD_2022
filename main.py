@@ -190,7 +190,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 plots.plot_selected_data(results, "Time per visit, OD=" + param.nb_to_density[current_conditions[0]],
                                          current_conditions, current_condition_names, "total_visit_time",
                                          divided_by="nb_of_visits", mycolor=current_color, plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot, remove_censored_events=True)
 
             if "first_visit_duration" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
@@ -198,7 +198,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                                          "First visit duration, OD=" + param.nb_to_density[current_conditions[0]],
                                          current_conditions, current_condition_names, "first_visit_duration",
                                          divided_by="", mycolor=current_color, plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot, remove_censored_events=True)
 
             if "visit_duration_mvt" in what_to_plot:
                 plots.plot_selected_data(results, "Average duration of MVT visits in " + plot_name + " conditions",
@@ -301,7 +301,7 @@ def plot_graphs(results, what_to_plot, curve_list=None):
 
 if __name__ == "__main__":
     #   Saves the results in a path that is returned (only needed at the beginning!)
-    path = gr.generate(starting_from="", modeled_data=False, shorten_traj=True)
+    path = gr.generate(starting_from="controls", modeled_data=False, shorten_traj=False)
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -345,37 +345,44 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(trajectories, 12)
 
-    plots.trajectories_1condition(path, trajectories, [0], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=True,  plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [2], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [3], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [4], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [5], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [6], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [7], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [8], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [9], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [10], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [12], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [13], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [14], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [15], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [16], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [17], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [18], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [19], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [], plate_list=["/media/admin/T7 Shield/Results_minipatches_retracked_shortened/20221126T114423_SmallPatches_C5-CAM1/traj.csv"], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=False)
+    #
+    # plots.trajectories_1condition(path, trajectories, [0], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=True,  plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [2], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [3], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [4], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [5], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [6], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [7], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [8], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [9], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [10], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [12], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [13], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [14], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [15], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [16], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [17], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [18], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [19], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
 
-    #plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
-    #plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    #plot_graphs(results, "leaving_probability", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    #plot_graphs(results, "leaving_probability", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
+    #plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    #plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    #plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    #plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
-    #plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    #plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    #plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #plot_graphs(results, "first_visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
+    #plot_graphs(results, "first_visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    #plot_graphs(results, "first_visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    #plot_graphs(results, "first_visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["transits"], only_first=False, plot_cumulative=True)
     #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)

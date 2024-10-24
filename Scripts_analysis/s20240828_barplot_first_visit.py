@@ -7,7 +7,7 @@ from Generating_data_tables import main as gen
 import analysis as ana
 
 
-def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True):
+def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True, remove_censored_events=False):
     """
     Function that plots a histogram with the average length of first visit to each food patch in each condition in condition_list.
     """
@@ -19,7 +19,10 @@ def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True):
     for i_plate, plate in enumerate(plate_list):
         current_plate = results[results["folder"] == plate].reset_index()
         condition = fd.load_condition(plate)
-        current_values = fd.load_list(current_plate, "no_hole_visits")
+        if remove_censored_events:
+            current_values = fd.load_list(current_plate, "uncensored_visits")
+        else:
+            current_values = fd.load_list(current_plate, "no_hole_visits")
         # Only select the first visits
         list_of_found_patches = []
         first_value_each_patch = []

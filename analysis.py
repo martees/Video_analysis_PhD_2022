@@ -70,7 +70,7 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
 
 
 def results_per_condition(result_table, list_of_conditions, column_name, divided_by="",
-                          normalize_by_video_length=False, remove_last_patch=False, only_first_visited_patch=False):
+                          remove_censored_events=False, normalize_by_video_length=False, only_first_visited_patch=False):
     """
     Function that takes our result table, a list of conditions, and a column name (as a string)
     Returns the list of values of that column pooled by condition, a list of the average value for each condition, and a
@@ -102,14 +102,10 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
         for i_plate in range(len(list_of_plates)):
             # Take only one plate
             current_plate = copy.deepcopy(current_data[current_data["folder"] == list_of_plates[i_plate]])
-            current_visits = fd.load_list(current_plate, "no_hole_visits")
-            if remove_last_patch and "visit" in column_name and len(current_visits) > 0:
-                last_visited_patch = current_visits[-1][2]
-                for visit in current_visits:
-                    if visit[2] == last_visited_patch:
-                        current_visits.remove(visit)
-                current_plate.loc["total_visit_time"] = np.sum(
-                    [pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0] + 1, axis=1)])
+            if remove_censored_events:
+                current_visits = fd.load_list(current_plate, "uncensored_visits")
+            else:
+                current_visits = fd.load_list(current_plate, "no_hole_visits")
             if only_first_visited_patch and "visit" in column_name and len(current_visits) > 0:
                 first_visited_patch = current_visits[0][2]
                 for visit in current_visits:
@@ -122,8 +118,6 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             if divided_by != "":
                 if divided_by == "nb_of_patches":
                     nb_of_patches = param.nb_to_nb_of_patches[i_condition]  # total nb of patches for each cond
-                    if remove_last_patch:
-                        nb_of_patches = nb_of_patches - 1
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / nb_of_patches
                 elif divided_by == "nb_of_visited_patches":
                     current_plate = current_plate.reset_index()
@@ -134,9 +128,6 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     if len(current_visits) > 0:
                         list_of_values[i_plate] = np.sum(current_plate[column_name]) / len(current_visits)
                 elif np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
-                    if remove_last_patch or first_visited_patch:
-                        print(
-                            "Pay attention, you're dividing by a column where I haven't implemented the remove_last_patch feature")
                     if np.sum(current_plate[column_name]) < 0:
                         print("Negative ", column_name, " for plate: ", current_plate["folder"].iloc[0])
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / np.sum(current_plate[divided_by])

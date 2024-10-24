@@ -531,7 +531,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 
 
 def plot_selected_data(results, plot_title, condition_list, condition_names, column_name, divided_by="",
-                       mycolor="blue", plot_model=False, is_plot=True, normalize_by_video_length=False):
+                       mycolor="blue", plot_model=False, is_plot=True, normalize_by_video_length=False, remove_censored_events=False):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -542,12 +542,12 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     # Getting results
     if column_name == "first_visit_duration":
         list_of_avg_each_plate, average_per_condition, errorbars = first_visit_script.bar_plot_first_visit_each_patch(
-            results, condition_list, is_plot=False)
+            results, condition_list, is_plot=False, remove_censored_events=remove_censored_events)
     else:
         list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                              column_name, divided_by,
-                                                                                             normalize_by_video_length,
-                                                                                             remove_last_patch=False,
+                                                                                             remove_censored_events=remove_censored_events,
+                                                                                             normalize_by_video_length=normalize_by_video_length,
                                                                                              only_first_visited_patch=False)
 
     # if not split_conditions:
@@ -589,7 +589,7 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
         ax.set_ylim(0, 3100)
     if column_name == "first_visit_duration":
         ax.set(ylabel="Duration of 1st visit to each patch (seconds)")
-        ax.set_ylim(0, 8000)
+        ax.set_ylim(0, 8200)
     if column_name == "average_speed_inside":
         ax.set(ylabel="Average speed inside food patches (pixel/second)")
     if column_name == "average_speed_outside":
