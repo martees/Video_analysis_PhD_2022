@@ -193,7 +193,6 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
 
     if starting_from == "smoothing":
         generate_smooth_trajectories(path)
@@ -201,29 +200,24 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
 
     if starting_from == "trajectories":
         generate_trajectories(path)
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "results_per_id":
         generate_results_per_id(path)
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "results_per_plate":
         generate_results_per_plate(path)
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "clean":
         generate_clean_tables_and_speed(path)
-        generate_aggregated_visits(path, param.threshold_list)
 
     elif starting_from == "only_beginning":
         gc.generate_controls(path)
