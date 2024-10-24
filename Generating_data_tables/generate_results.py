@@ -45,7 +45,8 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
     event_indexes = np.where(which_patch_array[:-1] != which_patch_array[1:])[0]
     # (this formula works by looking at differences between the list shifted by one to the left or to the right)
     # (for [1,1,2,2,6,6,6,6] it will return [1,3])
-    event_indexes = np.insert(event_indexes, 0, 0)  # add zero to the events to start the first visit
+    if which_patch_array[0] != -1:
+        event_indexes = np.insert(event_indexes, 0, 0)  # add zero to the events to start the first visit
 
     # Reset index of frame table, otherwise frames are not found once it's not the first worm
     list_of_time_stamps = list_of_time_stamps.reset_index()
@@ -54,9 +55,8 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
     patch_where_it_is = -1  # initializing variable to -1 so that if the worm starts inside it's counted as a new visit
     for time in event_indexes:
         patch_where_it_was = patch_where_it_is  # memorize the patch where it was
-        patch_where_it_is = which_patch_array[
-            min(len(which_patch_array) - 1, time + 1)]  # update patch, max to not exceed size
-        current_time = list_of_time_stamps["time"][time]  # NO ROUNDING BECAUSE RISK OF DOUBLE FRAMES!!
+        patch_where_it_is = which_patch_array[min(len(which_patch_array) - 1, time + 1)]  # update patch, max to not exceed size
+        current_time = np.round(list_of_time_stamps["time"][time], 2)  # ONLY SLIGHT ROUNDING BECAUSE RISK OF DOUBLE FRAMES!!
         # Worm just exited a patch
         if patch_where_it_is == -1:  # worm currently out
             if patch_where_it_was != patch_where_it_is:  # was inside before
@@ -66,8 +66,7 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
         if patch_where_it_is != -1:  # worm currently inside
             if patch_where_it_was == -1:  # it's a new visit (first patch or was outside before)
                 if len(list_of_visit_times) < patch_where_it_is:
-                    print(
-                        'WARNING: In single_traj_analysis(), the patch index called was higher than the number of patches.')
+                    print('WARNING: In single_traj_analysis(), the patch index called was higher than the number of patches.')
                 else:
                     list_of_visit_times[patch_where_it_is][-1][0] = current_time  # begin visit in current patch sublist
             # If the worm used to be in a different food patch, and transited without going through the outside
@@ -80,8 +79,7 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
 
     # Close the last visit
     if which_patch_array[-1] != -1:  # if the worm is inside, last visit hasn't been closed (no exit event)
-        list_of_visit_times[patch_where_it_is][-1][1] = int(
-            np.rint(list_of_time_stamps["time"].iloc[-1]))  # = last frame
+        list_of_visit_times[patch_where_it_is][-1][1] = np.round(list_of_time_stamps["time"].iloc[-1], 2)  # = last frame
     # Clean the table (remove the zeros because they're just here for the duration algorithm)
     for i_patch in range(len(list_of_visit_times)):
         list_of_visit_times[i_patch] = [nonzero for nonzero in list_of_visit_times[i_patch] if nonzero != [0, 0]]
@@ -400,7 +398,7 @@ def avg_speed_analysis(which_patch_list, list_of_times, distance_list):
                                                                                      time_outside_sum)  # the max is to prevent division by zero
 
 
-def fill_holes(data_per_id, list_of_time_stamps):
+def fill_holes(data_per_id):
     """
     Function that takes a list of visit time stamps for a plate [[[v0,v1, p0],[v2,v3, p1],...],[[v10,v11, p2],...],...],
     with one sublist of time stamps for each track of the same plate, third element being the patch of the visit
@@ -415,13 +413,15 @@ def fill_holes(data_per_id, list_of_time_stamps):
     # Sort the tracks for them to be in the order in which they were tracked otherwise it's a mess
     data_per_id = data_per_id.sort_values(by=['first_frame']).reset_index()
 
-    # Remove "np.int64()" that appeared in some places
+    # Remove "np.int64()" or "np.float64()" that might have appeared during the string conversion
+    data_per_id["raw_visits"] = [data_per_id["raw_visits"][i].replace("np.float64(", "").replace(")", "") for i in
+                                 range(len(data_per_id))]
     data_per_id["raw_visits"] = [data_per_id["raw_visits"][i].replace("np.int64(", "").replace(")", "") for i in
                                  range(len(data_per_id))]
 
     # Convert first/last frames to int
-    first_times = [data_per_id["first_frame"][i] for i in range(len(data_per_id["first_frame"]))]
-    last_times = [data_per_id["last_frame"][i] for i in range(len(data_per_id["last_frame"]))]
+    first_times = [np.round(data_per_id["first_frame"][i], 2) for i in range(len(data_per_id["first_frame"]))]
+    last_times = [np.round(data_per_id["last_frame"][i], 2) for i in range(len(data_per_id["last_frame"]))]
 
     # The original dataset: each track sublist = [[t,t],[t,t],...],[[t,t],...],...] with one sublist per patch
     # We want to remove all empty visits: it means the worm was outside before and after the end of the visit, so it
@@ -445,7 +445,7 @@ def fill_holes(data_per_id, list_of_time_stamps):
 
     while i_track < nb_of_tracks:  # for each track
 
-        if int(data_per_id["track_id"][i_track]) == 10:
+        if int(data_per_id["track_id"][i_track]) == 300013:
             print("jwkejskdmxc")
 
         nb_of_visits = len(list_of_visits[i_track])  # update number of visits for current track
@@ -494,10 +494,6 @@ def fill_holes(data_per_id, list_of_time_stamps):
                 next_visit_end = list_of_visits[i_track][i_visit + 1][1]
             # Otherwise, it's the last visit of the last track we won't need a next_visit to be defined
 
-            # Compute the time stamp right after the visit end because we need it for transits and visits to not overlap
-            time_index_current_visit_end = np.where(list_of_time_stamps == current_visit_end)[0]
-            time_stamp_after_visit_end = list_of_time_stamps[time_index_current_visit_end + 1]
-
             #if current_visit_end == next_visit_start:
             #    print("T-T")
 
@@ -513,7 +509,7 @@ def fill_holes(data_per_id, list_of_time_stamps):
                     if current_visit_end < last_times[i_track]:
                         # If the tracking restarts with the worm still out, it's counted as transit
                         if data_per_id["first_tracked_position_patch"][i_next_track] == -1:
-                            corrected_list_of_transits.append([time_stamp_after_visit_end, list_of_time_stamps[max(next_visit_start - 1, current_visit_end + 1)], -1])
+                            corrected_list_of_transits.append([current_visit_end, next_visit_start, -1])
                         # BAD HOLES: IF THE TRACKING ENDS OUT IT SHOULD NOT START ELSEWHERE
                         # If it's a bad hole but a short one (< 10 frames), end current transit at midpoint between
                         # last frame of current track and beginning of next track
@@ -521,10 +517,10 @@ def fill_holes(data_per_id, list_of_time_stamps):
                             current_end_time = last_times[i_next_track - 1]
                             # (Here I put i_next_track - 1 because I want to capture potential skipped empty tracks)
                             next_start_time = first_times[i_next_track]
-                            corrected_list_of_transits.append([time_stamp_after_visit_end, (current_end_time + next_start_time) / 2, -1])
+                            corrected_list_of_transits.append([current_visit_end, (current_end_time + next_start_time) / 2, -1])
                         # If hole is too big, just end current transit at last frame
                         else:
-                            corrected_list_of_transits.append([time_stamp_after_visit_end, last_times[i_next_track - 1], -1])
+                            corrected_list_of_transits.append([current_visit_end, last_times[i_next_track - 1], -1])
                     # Case where the tracking stops when the worm is inside, and it's not the last hole
                     if last_times[i_track] <= current_visit_end <= last_times[i_track] + 1:  # some approximation because of time rounding
                         # Case where the next track starts while the worm is still in, and we didn't have sneaky empty tracks in the middle
@@ -540,24 +536,24 @@ def fill_holes(data_per_id, list_of_time_stamps):
                             if next_start_time - current_end_time <= param.hole_filling_threshold:
                                 corrected_list_of_transits.append([(current_end_time + next_start_time) / 2, next_start_time, -1])
                             elif skipped_empty_tracks:  # If the hole is too big and the next track is empty
-                                corrected_list_of_transits.append([next_start_time + 1, last_times[i_next_track - 1], -1])
+                                corrected_list_of_transits.append([next_start_time, last_times[i_next_track - 1], -1])
                             else:  # If the hole is too big and the next track is not empty
-                                corrected_list_of_transits.append([next_start_time + 1, max(next_visit_start - 1, next_start_time + 1), -1])
+                                corrected_list_of_transits.append([next_start_time, next_visit_start, -1])
                             # Handle right hand of the hole(s)
                             # If next non-empty track starts with a visit (this only happens when there are skipped empty tracks in the middle)
                             if data_per_id["first_tracked_position_patch"][i_next_track] != -1:
                                 if next_visit_start - last_times[i_next_track - 1] <= param.hole_filling_threshold:
-                                    corrected_list_of_transits[-1][1] = int((next_visit_start + last_times[i_next_track - 1]) / 2)
+                                    corrected_list_of_transits[-1][1] = (next_visit_start + last_times[i_next_track - 1]) / 2
                                 # Else, hole is too big, so end the transit at the last frame of the intermediate empty tracks
                                 else:
                                     corrected_list_of_transits[-1][1] = last_times[i_next_track - 1]
                             # If next non-empty track starts with a transit
                             else:
-                                corrected_list_of_transits[-1][1] = max(next_visit_start - 1, corrected_list_of_transits[-1][0])
+                                corrected_list_of_transits[-1][1] = next_visit_start
 
                 # If it's not the last visit of any track then it's a piece of cake
                 else:
-                    corrected_list_of_transits.append([current_visit_end + 1, next_visit_start - 1, -1])
+                    corrected_list_of_transits.append([current_visit_end, next_visit_start, -1])
 
             # Fill the visits list
             # If this is the end of this track, and not the last track, and the tracking stops during the visit
@@ -571,7 +567,7 @@ def fill_holes(data_per_id, list_of_time_stamps):
                     init_visit_at_one = True
                     # Because of that, add the next transit! (if there's a transit after the next visit)
                     if not next_visit_end == last_times[i_track + 1] and next_next_visit_start > 0:
-                        corrected_list_of_transits.append([next_visit_end, next_next_visit_start])
+                        corrected_list_of_transits.append([next_visit_end, next_next_visit_start, -1])
                     # BUT if this next visit is the ONLY one of the next track, and the next track ends on that visit,
                     # then we might need to aggregate to the next next visit too!
                     # (Note: here i_next_track = i_track + 1 because we know there are no skipped empty tracks (see parent if))
@@ -596,17 +592,16 @@ def fill_holes(data_per_id, list_of_time_stamps):
                                 corrected_list_of_visits[-1][1] = next_visit[1]
                                 # Add transits, either till the start of next next visit, or till the end of next track
                                 if len(list_of_visits[local_i_track]) > 1:
-                                    corrected_list_of_transits.append([next_visit[1] + 1, max(next_visit[1] + 1, list_of_visits[local_i_track][1][0] - 1), - 1])
+                                    corrected_list_of_transits.append([next_visit[1], list_of_visits[local_i_track][1][0], - 1])
                                 else:
-                                    corrected_list_of_transits.append([next_visit[1] + 1, max(next_visit[1] + 1, last_times[local_i_track]), -1])
+                                    corrected_list_of_transits.append([next_visit[1], last_times[local_i_track], -1])
                                     # Then look for the end of that transit we just added :'-)
                                     i_non_empty = local_i_track + 1
                                     while i_non_empty < nb_of_tracks and len(list_of_visits[i_non_empty]) == 0:
                                         i_non_empty += 1
                                     # If a non-empty track was found
                                     if i_non_empty < nb_of_tracks:
-                                        corrected_list_of_transits[-1][1] = max(corrected_list_of_transits[-1][0],
-                                                                                list_of_visits[i_non_empty][0][0] - 1)
+                                        corrected_list_of_transits[-1][1] = list_of_visits[i_non_empty][0][0]
                                     else:
                                         corrected_list_of_transits[-1][1] = last_times[-1]
                                 i_track += 1
@@ -614,8 +609,8 @@ def fill_holes(data_per_id, list_of_time_stamps):
                             # Either the next track starts with a transit => BAD HOLE: check if it's small enough to fill
                             elif data_per_id["first_tracked_position_patch"][local_i_track] == -1:
                                 if (first_times[local_i_track] - last_times[i_track]) <= param.hole_filling_threshold:
-                                    corrected_list_of_visits[-1][1] = int((first_times[local_i_track] + last_times[i_track])/2)
-                                    corrected_list_of_transits.append([int((first_times[local_i_track] + last_times[i_track])/2), np.nan, -1])
+                                    corrected_list_of_visits[-1][1] = (first_times[local_i_track] + last_times[i_track])/2
+                                    corrected_list_of_transits.append([(first_times[local_i_track] + last_times[i_track])/2, np.nan, -1])
                                 else:
                                     corrected_list_of_transits.append([first_times[local_i_track], np.nan, -1])
                                 # Then look for the end of that transit we just added :'-)
@@ -624,7 +619,7 @@ def fill_holes(data_per_id, list_of_time_stamps):
                                     i_non_empty += 1
                                 # If a non-empty track was found
                                 if len(list_of_visits[i_non_empty]) > 0:
-                                    corrected_list_of_transits[-1][1] = min(corrected_list_of_transits[-1][0], list_of_visits[i_non_empty][0][0] - 1)
+                                    corrected_list_of_transits[-1][1] = list_of_visits[i_non_empty][0][0]
                                 else:
                                     corrected_list_of_transits[-1][1] = last_times[-1]
 
@@ -666,11 +661,11 @@ def fill_holes(data_per_id, list_of_time_stamps):
     else:
         if data_per_id["first_tracked_position_patch"][0] == -1:  # if worm starts the first track outside
             # Initialize first transit at first frame and end it at the beginning of the first visit
-            corrected_list_of_transits = [[first_times[0] + 1,
+            corrected_list_of_transits = [[first_times[0],
                                            corrected_list_of_visits[0][0], -1]] + corrected_list_of_transits
         if data_per_id["last_tracked_position_patch"].iloc[-1] == -1:  # if worm ends last track outside
             # Initialize last transit at the end of the last visit and end it at last frame
-            corrected_list_of_transits = corrected_list_of_transits + [[corrected_list_of_visits[-1][1] + 1,
+            corrected_list_of_transits = corrected_list_of_transits + [[corrected_list_of_visits[-1][1],
                                                                         last_times[-1], -1]]
 
     return corrected_list_of_visits, corrected_list_of_transits
