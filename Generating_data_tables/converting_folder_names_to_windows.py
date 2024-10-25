@@ -8,8 +8,8 @@ from Generating_data_tables import main as gen
 
 # CODE TO RUN WHEN ON WINDOWS WITH RESULTS PRODUCED IN LINUX
 def linux_to_windows():
-    linux_path = gen.generate("", shorten_traj=False, force_linux=True)
-    windows_path = gen.generate("", shorten_traj=False)
+    linux_path = gen.generate("", shorten_traj=True, modeled_data=True, force_linux=True)
+    windows_path = gen.generate("", shorten_traj=True, modeled_data=True)
     results = pd.read_csv(windows_path + "clean_results.csv")
     for i_folder in range(len(results["folder"])):
         current_folder = results["folder"][i_folder]
@@ -30,4 +30,4 @@ def windows_to_linux():
     results.to_csv(linux_path + "clean_results.csv")
 
 
-windows_to_linux()
+linux_to_windows()

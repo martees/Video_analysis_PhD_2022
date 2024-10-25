@@ -38,7 +38,7 @@ def optimal_rotation(points, reference_square):
     return rotate_points(points, result.x[0])
 
 
-path = gen.generate("")
+path = gen.generate("", shorten_traj=True, modeled_data=True)
 results = dt.fread(path + "clean_results.csv")
 full_list_of_folders = results[:, "folder"].to_list()[0]
 print("Finished loading tables!")

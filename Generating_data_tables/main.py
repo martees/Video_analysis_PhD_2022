@@ -180,7 +180,9 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
         if modeled_data:
             path = "E:/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
         if shorten_traj:
-            path = "E:/Results_minipatches_retracked_shortened/"
+            path = "E:/Only_Copy_Probably/Results_minipatches_retracked_shortened/"
+            if modeled_data:
+                path = "E:/Only_Copy_Probably/Results_minipatches_retracked_shortened_model_rw/"
 
     if modeled_data:
         print("Warning! To use modeled data, you must first generate it. "
