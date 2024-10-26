@@ -32,7 +32,7 @@ for i_condition, condition_name in enumerate(condition_names):
     nb_of_visits_this_cond = []
     folder_list = fd.return_folders_condition_list(full_folder_list, param.name_to_nb_list[condition_name])
     for i_folder, folder in enumerate(folder_list):
-        #print(">>> Folder ", folder)
+        # print(">>> Folder ", folder)
         current_results = results[results["folder"] == folder]
         all_visits = fd.load_list(current_results, "no_hole_visits")
         all_transits = fd.load_list(current_results, "aggregated_raw_transits")
@@ -43,7 +43,7 @@ for i_condition, condition_name in enumerate(condition_names):
             # Fill the tablezzz
             times_out_this_cond.append(total_time_out/nb_of_visited_patches)
             nb_of_visits_this_cond.append(nb_of_visits/nb_of_visited_patches)
-            #print("Total time out: ", total_time_out, ", Nb of visited patches: ", nb_of_visited_patches, ", Effective time out: ", total_time_out / nb_of_visited_patches)
+            # print("Total time out: ", total_time_out, ", Nb of visited patches: ", nb_of_visited_patches, ", Effective time out: ", total_time_out / nb_of_visited_patches)
         else:
             times_out_this_cond.append(total_time_out)  # don't divide by 0
             nb_of_visits_this_cond.append(nb_of_visits)  # should be 0
