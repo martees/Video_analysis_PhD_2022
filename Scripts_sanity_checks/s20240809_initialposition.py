@@ -18,7 +18,7 @@ trajectories = dt.fread(path + "clean_trajectories.csv")
 full_list_of_folders = results[:, "folder"].to_list()[0]
 print("Finished loading tables!")
 
-distances = ["close", "med", "far", "superfar", "cluster", "control"]
+distances = ["close", "med", "far", "superfar", "control"]
 # Lists to fill in following loop
 list_of_first_recorded_x = [[] for _ in range(len(distances))]
 list_of_first_recorded_y = [[] for _ in range(len(distances))]
