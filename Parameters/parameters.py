@@ -28,7 +28,7 @@ time_to_cut_videos = 16000
 one_frame_in_seconds = 0.82817
 
 # Ratio for conversion between mm and pixels
-one_pixel_in_mm = 0
+one_pixel_in_mm = 0.0324
 
 # Limit in number of seconds between BAD tracking holes that get filled, and BAD tracking holes that make us exclude videos
 hole_filling_threshold = 60
