@@ -11,6 +11,7 @@ from scipy import ndimage
 from Generating_data_tables import main as gen
 import ReferencePoints
 import analysis as ana
+import find_data as fd
 from Parameters import parameters as param
 from Parameters import colored_line_plot as colored_lines_script
 
@@ -67,7 +68,7 @@ def generate_environment_matrices(results_path, xp_plate_list):
             distance_map[int(np.rint(current_patch_x)), int(np.rint(current_patch_y))] = 0
             distance_map = ndimage.distance_transform_edt(distance_map)
             indices_inside_patch = np.where(distance_map <= patch_radius)
-            patch_map_this_distance[indices_inside_patch] = i_patch
+            patch_map_this_distance[indices_inside_patch] = 1
 
         # Add it to the list
         environment_matrices.append(patch_map_this_distance)
@@ -121,6 +122,7 @@ def random_walk(sim_length, speed_inside, speed_outside, environment_matrix):
     # Starting point
     x_list[0] = len(environment_matrix) / 2
     y_list[0] = len(environment_matrix[0]) / 2
+    speed_list[0] = speed_outside
     current_patch = return_patch(environment_matrix, x_list[0], y_list[0])
     # Simulation loop
     for i_time in range(1, sim_length):
@@ -140,6 +142,8 @@ def random_walk(sim_length, speed_inside, speed_outside, environment_matrix):
             x_list[i_time] = x_list[i_time - 1] + speed_outside * np.cos(current_heading)
             y_list[i_time] = y_list[i_time - 1] + speed_outside * np.sin(current_heading)
             speed_list[i_time] = speed_outside
+            # This is a trick for the plotting to work better
+            speed_list[i_time - 1] = speed_outside
             total_time_outside += 1
         # If worm is escaping the plate (current_patch == -2)
         else:
@@ -210,6 +214,7 @@ def correlated_walk(sim_length, speed_inside, speed_outside, max_turning_angle, 
     # Starting point
     x_list[0] = len(environment_matrix) / 2
     y_list[0] = len(environment_matrix[0]) / 2
+    speed_list[0] = speed_outside
     current_patch = return_patch(environment_matrix, x_list[0], y_list[0])
     current_heading = np.random.rand() * 2 * np.pi  # choose a random first angle
     # Simulation loop
@@ -327,6 +332,7 @@ def dynamic_speed_walk(sim_length, speed_inside, speed_outside, speed_table, env
     # Starting point
     x_list[0] = len(environment_matrix) / 2
     y_list[0] = len(environment_matrix[0]) / 2
+    speed_list[0] = speed_outside
     current_patch = return_patch(environment_matrix, x_list[0], y_list[0])
     # Remember when was the last time the agent was in the patch, to compute the speed
     time_since_patch_exit = 0
@@ -552,11 +558,6 @@ def effect_of_speed_out(length, speed_in):
     x_extent_points = np.linspace(min(nb_of_visits), max(nb_of_visits), 10)
     plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="turquoise", linewidth=2)
 
-    # Plot C. elegans values
-    xp_data = pd.read_csv(gen.generate("", shorten_traj=True) + "model_parameters_from_alid.csv")
-    for distance in param.distance_to_xy.keys():
-        print("hehehe" )
-
     plt.legend()
 
     plt.show()
@@ -606,7 +607,7 @@ def effect_of_speed_in(length, speed_out):
     plt.show()
 
 
-def effect_of_walk_type(length, speed_in, speed_out, half_life_speed, max_turning_angle):
+def effect_of_walk_type(length, speed_in, speed_out, half_life_speed, max_turning_angle, xp_table, list_xp_folders):
 
     # Plot background of plot with Alfonso's equation
     plt.title("Sim length=" + str(length) + ", speed inside="+str(speed_in)+", speed outside=" + str(speed_out)+", tau="+str(half_life_speed))
@@ -628,21 +629,42 @@ def effect_of_walk_type(length, speed_in, speed_out, half_life_speed, max_turnin
 
     # Classical random walk
     time_out, nb_of_visits = values_one_type_of_walk(envt_matrices, 10, "random", length, [speed_in, speed_out])
-    plt.scatter(nb_of_visits, time_out, color="yellow", label="Random walk, speed in ="+str(speed_in)+", speed out = "+str(speed_out))
-    x_extent_points = np.linspace(min(visit_values_list), max(visit_values_list), 10)
+    plt.scatter(nb_of_visits, time_out, color="yellow", label="Random walk")
+    x_extent_points = np.linspace(np.min(visit_values_list), np.max(visit_values_list), 10)
     plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="yellow", linewidth=2)
 
     # Walk that speeds up when leaving the patch
     time_out, nb_of_visits = values_one_type_of_walk(envt_matrices, 10, "dynamic_speed", length, [speed_in, speed_out, half_life_speed])
-    plt.scatter(nb_of_visits, time_out, color="chartreuse", label="Dynamic walk, speed in =" + str(speed_in) + ", speed out = " + str(speed_out) + ", half life = " + str(half_life_speed))
-    x_extent_points = np.linspace(min(visit_values_list), max(visit_values_list), 10)
+    plt.scatter(nb_of_visits, time_out, color="chartreuse", label="Dynamic speed walk")
+    x_extent_points = np.linspace(np.min(visit_values_list), np.max(visit_values_list), 10)
     plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="chartreuse", linewidth=2)
 
     # Correlated walk that speeds up when leaving the patch
     time_out, nb_of_visits = values_one_type_of_walk(envt_matrices, 10, "correlated", length, [speed_in, speed_out, max_turning_angle])
-    plt.scatter(nb_of_visits, time_out, color="turquoise", label="Dynamic walk, speed in =" + str(speed_in) + ", speed out = " + str(speed_out) + ", half life = " + str(half_life_speed))
-    x_extent_points = np.linspace(min(visit_values_list), max(visit_values_list), 10)
+    plt.scatter(nb_of_visits, time_out, color="turquoise", label="Correlated walk")
+    x_extent_points = np.linspace(np.min(visit_values_list), np.max(visit_values_list), 10)
     plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="turquoise", linewidth=2)
+
+    # Plot C. elegans values
+    time_out = []
+    nb_of_visits = []
+    for distance in param.distance_to_xy.keys():
+        folder_list = fd.return_folders_condition_list(list_xp_folders, param.name_to_nb_list[distance])
+        for i_folder, folder in enumerate(folder_list):
+            current_results = xp_table[xp_table["folder"] == folder]
+            all_visits = fd.load_list(current_results, "no_hole_visits")
+            all_transits = fd.load_list(current_results, "aggregated_raw_transits")
+            time_out.append(np.sum(ana.convert_to_durations(all_transits)))
+            nb_of_visits.append(len(all_visits))
+    plt.scatter(nb_of_visits, time_out, color="turquoise",
+                label="Experimental values")
+    x_extent_points = np.linspace(np.min(visit_values_list), np.max(visit_values_list), 10)
+    plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="cornflowerblue",
+             linewidth=2)
+
+    # Reset axis limits because regression lines might exceed them
+    plt.xlim(np.min(visit_values_list), np.max(visit_values_list))
+    plt.ylim(np.min(travel_values_list), np.max(travel_values_list))
 
     plt.legend()
 
@@ -657,39 +679,36 @@ def show_each_walk_type(length, speed_in, speed_out, half_life_speed, max_turnin
     envt_matrices = generate_environment_matrices("", [])
 
     # Classical random walk
-    t, x, y, speeds, time_in, time_out, nb_visited, nb_visits = random_walk(length, speed_in, 10*speed_out, envt_matrices[0])
-    ax0.imshow(envt_matrices[0])
-    # ax0.plot(x, y, color="orange")
-    # ax0.scatter(x, y, c=speeds, cmap="hot")
+    t, x, y, speeds, time_in, time_out, nb_visited, nb_visits = random_walk(length, speed_in, speed_out, envt_matrices[1])
+    ax0.imshow(envt_matrices[1])
     colored_lines_script.colored_line_between_pts(x, y, c=speeds, ax=ax0, cmap='hot')
     ax0.set_title("Random walk", fontsize=20)
-    ax0.set_xlabel("Parameters = "+str([length, speed_in, 10*speed_out]))
-    ax0.set_xlim(750, 1000)
-    ax0.set_ylim(750, 1000)
+    ax0.set_xlabel("Parameters = "+str([length, speed_in, speed_out]))
+    ax0.set_xlim(720, 1030)
+    ax0.set_ylim(720, 1030)
 
     # Dynamic speed walk
-    speed_table = dynamic_speed_table(speed_in, 14*speed_out, half_life_speed, length)
-    t, x, y, speeds, time_in, time_out, nb_visited, nb_visits = dynamic_speed_walk(length, speed_in, 10*speed_out, speed_table, envt_matrices[0])
-    ax1.imshow(envt_matrices[0])
+    speed_table = dynamic_speed_table(speed_in, speed_out, half_life_speed, length)
+    t, x, y, speeds, time_in, time_out, nb_visited, nb_visits = dynamic_speed_walk(length, speed_in, speed_out, speed_table, envt_matrices[1])
+    ax1.imshow(envt_matrices[1])
     # ax1.plot(x, y, color="orange")
     # normalize = mplcolors.Normalize(vmin=6, vmax=30)
     # ax1.scatter(x, y, c=speeds, cmap="hot", norm=normalize)
-    colored_lines_script.colored_line_between_pts(x, y, c=speeds, ax=ax1, cmap='hot')
+    colored_lines_script.colored_line(x, y, c=speeds, ax=ax1, cmap='hot')
     ax1.set_title("Dynamic speed walk", fontsize=20)
-    ax1.set_xlabel("Parameters = "+str([length, speed_in, 14*speed_out, half_life_speed]))
-    ax1.set_xlim(750, 1000)
-    ax1.set_ylim(750, 1000)
+    ax1.set_xlabel("Parameters = "+str([length, speed_in, speed_out, half_life_speed]))
+    ax1.set_xlim(720, 1030)
+    ax1.set_ylim(720, 1030)
 
     # Correlated walk
-    t, x, y, speeds, time_in, time_out, nb_visited, nb_visits = correlated_walk(length, speed_in, speed_out, max_turning_angle, envt_matrices[0])
-    ax2.imshow(envt_matrices[0])
-    # ax2.plot(x, y, color="orange")
-    # ax2.scatter(x, y, c=speeds, cmap="hot")
-    colored_lines_script.colored_line_between_pts(x, y, c=speeds, ax=ax2, cmap='hot')
+    t, x, y, speeds, time_in, time_out, nb_visited, nb_visits = correlated_walk(length, speed_in, speed_out, max_turning_angle, envt_matrices[1])
+    ax2.imshow(envt_matrices[1])
+    lines = colored_lines_script.colored_line(x, y, c=speeds, ax=ax2, cmap='hot')
     ax2.set_title("Correlated walk", fontsize=20)
     ax2.set_xlabel("Parameters = "+str([length, speed_in, speed_out, half_life_speed]))
-    ax2.set_xlim(750, 1000)
-    ax2.set_ylim(750, 1000)
+    ax2.set_xlim(720, 1030)
+    ax2.set_ylim(720, 1030)
+    plt.gcf().colorbar(lines)
 
     plt.show()
 
@@ -755,6 +774,6 @@ print("From literature values, it looks like the speed should be ", speed_inside
 # effect_of_speed_out(500000, 1.6)
 # effect_of_speed_in(500000, 16)
 # plot_dynamic_speed_function(0.6, 3.1, 50000)
-show_each_walk_type(100000, 0.6, 3.1, 10000, np.pi/2)
+show_each_walk_type(100000, 0.6, 3.1, 1000, np.pi/2)
 # effect_of_walk_type(500000, 0.6, 3.1, 10000, np.pi/2)
 
