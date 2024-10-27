@@ -24,6 +24,8 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
     """
     # Variables for the loop and the output
 
+    teleportation_count = 0
+
     # In list_of_visit_times, we will have one list per patch, containing the beginning and end of successive visits to that patch
     # [0,0] means "the worm was not in that patch in the previous timestep"
     # As soon as the worm enters the patch, first zero is updated to be current frame
@@ -39,20 +41,22 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
     # !!! contains -1 whenever the worm went outside !!!
     order_of_visits = [i[0] for i in groupby(which_patch_list)]
 
+    # Reset index of frame table, otherwise frames are not found once it's not the first worm
+    list_of_time_stamps = list_of_time_stamps.reset_index()
+
     # In order to compute when visits to patches start, end, and how long they last, we avoid looking at every line by
     # only looking at the indexes where the patch value changes:
     which_patch_array = np.array(which_patch_list)
     event_indexes = np.where(which_patch_array[:-1] != which_patch_array[1:])[0]
     # (this formula works by looking at differences between the list shifted by one to the left or to the right)
     # (for [1,1,2,2,6,6,6,6] it will return [1,3])
-    if which_patch_array[0] != -1:
-        event_indexes = np.insert(event_indexes, 0, 0)  # add zero to the events to start the first visit
 
-    # Reset index of frame table, otherwise frames are not found once it's not the first worm
-    list_of_time_stamps = list_of_time_stamps.reset_index()
+    # If the timeline starts with a visit, start it now!
+    if which_patch_array[0] != -1:
+        list_of_visit_times[which_patch_array[0]][-1][0] = np.round(list_of_time_stamps["time"][0], 2)
 
     # We go through every event
-    patch_where_it_is = -1  # initializing variable to -1 so that if the worm starts inside it's counted as a new visit
+    patch_where_it_is = which_patch_array[0]
     for time in event_indexes:
         patch_where_it_was = patch_where_it_is  # memorize the patch where it was
         patch_where_it_is = which_patch_array[min(len(which_patch_array) - 1, time + 1)]  # update patch, max to not exceed size
@@ -72,7 +76,8 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
             # If the worm used to be in a different food patch, and transited without going through the outside
             # print a warning! this is not supposed to happen.
             else:
-                print("WARNING: There's a worm teleporting from patch to patch!!!")
+                print("WARNING: There's a worm teleporting from patch to patch!!! time in video: ", current_time)
+                teleportation_count += 1
                 list_of_visit_times[patch_where_it_was][-1][1] = current_time  # end the previous visit
                 list_of_visit_times[patch_where_it_was].append([0, 0])  # add new visit to the previous patch
                 list_of_visit_times[patch_where_it_is][-1][0] = current_time  # begin visit in current patch sublist
@@ -89,85 +94,17 @@ def single_traj_analysis(which_patch_list, list_of_time_stamps, patch_centers):
         print("Some visits are negative in a folder! Starting times of those visits: ",
               np.array(list_of_time_stamps)[np.where(np.array(s) < 0)[0]])
 
-    return list_of_visit_times, order_of_visits
+    return list_of_visit_times, order_of_visits, teleportation_count
 
 
-def mvt_patch_visits(list_of_timestamps, order_of_visits, patch_centers):
+def analyse_patch_visits(list_of_timestamps, patch_centers, first_xy):
     """
-    Takes a list of time stamps as spitted by single_traj_analysis and returns an adjusted version of those visits
-    by aggregating successive visits to a same patch.
-    This is the list of durations we will use to test the Marginal Value Theorem.
-    """
-
-    adjusted_list_of_durations = [list(i) for i in np.zeros((len(patch_centers), 1), dtype='int')]
-    # List with the right format [[0],[0],...,[0]], one list of durations per patch
-    # The strategy to compute it:
-    # We copy the list_of_timestamps
-    # We go through the order of visit table, and for every patch on that:
-    # - We sum one duration from the list_of_time_stamp, and add it to current visit duration
-    # - If the patch changes we close the previous one and start a new one
-    timestamps_copy = copy.deepcopy(list_of_timestamps)
-    for i_visit in range(len(order_of_visits)):
-        current_patch = order_of_visits[i_visit]
-        if timestamps_copy[current_patch]:  # if it's not empty
-            current_visit = timestamps_copy[current_patch].pop(-1)  # removes the visit from the list and returns it
-            current_duration = current_visit[1] - current_visit[0]
-            if current_patch != -1:
-                if i_visit > 1:  # if it's not the first visit
-                    previous_patch = order_of_visits[i_visit - 2]
-                    if current_patch != previous_patch:  # if the worm changed career patch
-                        adjusted_list_of_durations[previous_patch].append(0)  # close previous visit
-                adjusted_list_of_durations[current_patch][
-                    -1] += current_duration  # in any case add duration to relevant patch
-    # Clean the adjusted durations
-    for i_patch in range(len(adjusted_list_of_durations)):
-        adjusted_list_of_durations[i_patch] = [nonzero for nonzero in adjusted_list_of_durations[i_patch] if
-                                               nonzero != 0]
-
-    return adjusted_list_of_durations
-
-
-# Same as before but probably new visit structure?
-def new_mvt_patch_visits(list_of_timestamps, patch_centers):
-    """
-    Takes a list of time stamps as spitted by single_traj_analysis and returns an adjusted version of those visits
-    by aggregating successive visits to a same patch.
-    This is the list of durations we will use to test the Marginal Value Theorem.
-    """
-
-    adjusted_list_of_durations = [list(i) for i in np.zeros((len(patch_centers), 1), dtype='int')]
-    # List with the right format [[0],[0],...,[0]], one list of durations per patch
-    # The strategy to compute it:
-    # We copy the list_of_timestamps
-    # We go through the order of visit table, and for every patch on that:
-    # - If patch didn't change we compute one duration from the list_of_timestamps, and add it to current visit duration
-    # - If the patch changes we close the previous one and start a new one
-    for i_visit in range(len(list_of_timestamps)):
-        current_patch = list_of_timestamps[i_visit][2]
-        current_duration = list_of_timestamps[i_visit][1] - list_of_timestamps[i_visit][0] + 1
-        if i_visit > 1:  # if it's not the first visit
-            previous_patch = list_of_timestamps[i_visit - 2][2]
-            if current_patch != previous_patch:  # if the worm changed career patch
-                adjusted_list_of_durations[previous_patch].append(0)  # close previous visit
-        adjusted_list_of_durations[current_patch][-1] += current_duration  # in any case add duration to relevant patch
-    # Clean the adjusted durations
-    for i_patch in range(len(adjusted_list_of_durations)):
-        adjusted_list_of_durations[i_patch] = [nonzero for nonzero in adjusted_list_of_durations[i_patch] if
-                                               nonzero != 0]
-
-    return adjusted_list_of_durations
-
-
-def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_centers, first_xy):
-    """
-    Function that takes a list of timestamps as spitted out by single_traj_analysis, and the MVT adjusted version,
+    Function that takes a list of timestamps as spitted out by single_traj_analysis,
     and returns global variables on these visits.
     """
 
     duration_sum = 0  # this is to compute the avg duration of visits
     nb_of_visits = 0
-    adjusted_duration_sum = 0
-    adjusted_nb_of_visits = 0
     list_of_visited_patches = []
     furthest_patch_distance = 0
     furthest_patch_position = [0, 0]
@@ -181,12 +118,6 @@ def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_c
             duration_sum += np.sum(current_list_of_timestamps.apply(lambda t: t[1] - t[0], axis=1))
             nb_of_visits += current_nb_of_visits
 
-        # Same but adjusted for multiple consecutive visits to same patch
-        current_adjusted_list_of_durations = np.array(adjusted_list_of_durations[i_patch])
-        if len(current_adjusted_list_of_durations) > 0:
-            adjusted_duration_sum += int(np.sum(current_adjusted_list_of_durations))
-            adjusted_nb_of_visits += len(current_adjusted_list_of_durations)
-
         # Update list of visited patches and the furthest patch visited
         if current_nb_of_visits > 0:  # if the patch was visited at least once in this trajectory
             patch_distance_to_center = distance.euclidean(first_xy, patch_centers[i_patch])
@@ -195,7 +126,7 @@ def analyse_patch_visits(list_of_timestamps, adjusted_list_of_durations, patch_c
                 furthest_patch_distance = distance.euclidean(first_xy, furthest_patch_position)
             list_of_visited_patches.append(i_patch)
 
-    return duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_duration_sum, adjusted_nb_of_visits
+    return duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position
 
 
 def make_results_per_id_table(data):
@@ -228,7 +159,7 @@ def make_results_per_id_table(data):
         if current_folder != old_folder:
             first_pos = [current_list_x[0], current_list_y[0]]
             print(current_folder)
-        fd.correct_time_stamps(current_data, print_bug=old_folder != current_folder)
+        current_data = fd.correct_time_stamps(current_data, print_bug=old_folder != current_folder)
         old_folder = current_folder
 
         # Getting to the metadata through the folder name in the data
@@ -241,14 +172,11 @@ def make_results_per_id_table(data):
 
         # Computing the list of visits
         patch_list = current_metadata["patch_centers"]
-        raw_visit_timestamps, order_of_visits = single_traj_analysis(which_patch_list,
-                                                                     current_data["time"],
-                                                                     patch_list)
-        # Adjusting it for MVT analyses
-        adjusted_raw_visits = mvt_patch_visits(raw_visit_timestamps, order_of_visits, patch_list)
+        raw_visit_timestamps, order_of_visits, nb_of_teleportations = single_traj_analysis(which_patch_list,
+                                                                      current_data["time"],
+                                                                      patch_list)
         # Computing global variables
-        duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position, adjusted_duration_sum, adjusted_nb_of_visits = analyse_patch_visits(
-            raw_visit_timestamps, adjusted_raw_visits, patch_list, first_pos)
+        duration_sum, nb_of_visits, list_of_visited_patches, furthest_patch_position = analyse_patch_visits(raw_visit_timestamps, patch_list, first_pos)
 
         # Computing average speed
         average_speed_in, average_speed_out = avg_speed_analysis(which_patch_list,
@@ -278,11 +206,9 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "last_tracked_position_patch"] = which_patch_list.iloc[
             -1]  # patch where the worm is when tracking stops (-1 = outside)
         results_table.loc[i_track, "furthest_patch_position"] = str(furthest_patch_position)
-        results_table.loc[i_track, "adjusted_raw_visits"] = str(adjusted_raw_visits)
-        results_table.loc[i_track, "adjusted_total_visit_time"] = adjusted_duration_sum
-        results_table.loc[i_track, "adjusted_nb_of_visits"] = adjusted_nb_of_visits
         results_table.loc[i_track, "average_speed_inside"] = average_speed_in
         results_table.loc[i_track, "average_speed_outside"] = average_speed_out
+        results_table.loc[i_track, "nb_of_teleportations"] = nb_of_teleportations
 
     return results_table
 
@@ -572,8 +498,8 @@ def fill_holes(data_per_id):
                     # then we might need to aggregate to the next next visit too!
                     # (Note: here i_next_track = i_track + 1 because we know there are no skipped empty tracks (see parent if))
                     local_i_track = i_track + 1
-                    next_visit = list_of_visits[local_i_track][0]
-                    if next_visit_end == last_times[i_track + 1]:
+                    if len(list_of_visits[local_i_track]) == 1 and list_of_visits[local_i_track][0][1] == last_times[i_track + 1]:
+                        next_visit = list_of_visits[local_i_track][0]
                         # Then as long as the tracks are just one visit from beginning to end, AGGREGATE
                         while local_i_track < nb_of_tracks - 1 and next_visit[0] == first_times[local_i_track] and next_visit[1] == last_times[local_i_track]:
                             corrected_list_of_visits[-1][1] = next_visit[1]
@@ -615,10 +541,10 @@ def fill_holes(data_per_id):
                                     corrected_list_of_transits.append([first_times[local_i_track], np.nan, -1])
                                 # Then look for the end of that transit we just added :'-)
                                 i_non_empty = local_i_track
-                                while len(list_of_visits[i_non_empty]) == 0 and i_non_empty < nb_of_tracks:
+                                while i_non_empty < nb_of_tracks and len(list_of_visits[i_non_empty]) == 0:
                                     i_non_empty += 1
                                 # If a non-empty track was found
-                                if len(list_of_visits[i_non_empty]) > 0:
+                                if i_non_empty < nb_of_tracks and len(list_of_visits[i_non_empty]) > 0:
                                     corrected_list_of_transits[-1][1] = list_of_visits[i_non_empty][0][0]
                                 else:
                                     corrected_list_of_transits[-1][1] = last_times[-1]
@@ -733,16 +659,17 @@ def make_results_per_plate(data_per_id, trajectories):
     results_per_plate = pd.DataFrame()
     list_of_plates = np.unique(data_per_id["folder"])
     for i_plate in range(len(list_of_plates)):
-        if i_plate % 10 == 0:
+        if i_plate % 1 == 0:
             print(i_plate, " / ", len(list_of_plates))
         # Import tables
         current_folder = list_of_plates[i_plate]
         current_trajectory = trajectories[trajectories["folder"] == current_folder]
-        current_metadata = fd.folder_to_metadata(current_folder)
         current_data = data_per_id[data_per_id["folder"] == current_folder].reset_index()
 
-        # Loading visit info from data_per_id
-        patch_list = current_metadata["patch_centers"]
+        # Temporary code to fix data which have bad times!!! recompute the visits and frames and everything
+        if np.isnan(current_data["first_frame"].iloc[0]):
+            data_per_id.iloc[data_per_id["folder"] == current_folder] = make_results_per_id_table(current_trajectory)
+            current_data = data_per_id[data_per_id["folder"] == current_folder].reset_index()
 
         # Aggregating visits when worm disappears and then reappears in the same place
         aggregated_visit_timestamps, aggregated_transit_timestamps = fill_holes(current_data)
@@ -750,9 +677,6 @@ def make_results_per_plate(data_per_id, trajectories):
         # Extracting uncensored events (not interrupted by tracking holes)
         uncensored_visit_timestamps, uncensored_transit_timestamps, visit_to_uncensored_patches_timestamps = remove_censored_events(
             current_data, aggregated_visit_timestamps, aggregated_transit_timestamps)
-
-        # Adjusting it for MVT analyses
-        adjusted_raw_durations = new_mvt_patch_visits(aggregated_visit_timestamps, patch_list)
 
         # Computing average speed by doing a weighted average of the average speeds in each track
         # (weight is relative total time inside or outside)
@@ -774,27 +698,29 @@ def make_results_per_plate(data_per_id, trajectories):
         results_per_plate.loc[i_plate, "total_video_time"] = np.max(current_data["last_frame"]) - np.min(
             current_data["first_frame"])
         results_per_plate.loc[i_plate, "total_tracked_time"] = np.sum(current_data["total_tracked_time"])
-        results_per_plate.loc[i_plate, "nb_of_holes"] = len(current_data)
-        results_per_plate.loc[i_plate, "nb_all_bad_events"] = nb_all_bad
-        results_per_plate.loc[i_plate, "length_all_bad_events"] = length_all_bad
-        results_per_plate.loc[i_plate, "nb_long_bad_events"] = nb_long_bad
-        results_per_plate.loc[i_plate, "length_long_bad_events"] = length_long_bad
+        results_per_plate.loc[i_plate, "nb_of_holes"] = len(current_data) - 1
+        results_per_plate.loc[i_plate, "nb_all_bad_holes"] = nb_all_bad
+        results_per_plate.loc[i_plate, "length_all_bad_holes"] = length_all_bad
+        results_per_plate.loc[i_plate, "nb_long_bad_holes"] = nb_long_bad
+        results_per_plate.loc[i_plate, "length_long_bad_holes"] = length_long_bad
+        results_per_plate.loc[i_plate, "nb_of_teleportations"] = np.sum(current_data["nb_of_teleportations"])
         results_per_plate.loc[i_plate, "avg_proportion_double_frames"] = (len(current_trajectory["frame"]) / len(
             np.unique(current_trajectory["frame"]))) - 1
         results_per_plate.loc[i_plate, "total_visit_time"] = np.sum(
-            [pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0] + 1, axis=1)])
+            [pd.DataFrame(aggregated_visit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
         results_per_plate.loc[i_plate, "total_transit_time"] = np.sum(
-            [pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0] + 1, axis=1)])
+            [pd.DataFrame(aggregated_transit_timestamps).apply(lambda t: t[1] - t[0], axis=1)])
         results_per_plate.loc[i_plate, "no_hole_visits"] = str(aggregated_visit_timestamps)
         results_per_plate.loc[i_plate, "aggregated_raw_transits"] = str(aggregated_transit_timestamps)
         results_per_plate.loc[i_plate, "uncensored_visits"] = str(uncensored_visit_timestamps)
         results_per_plate.loc[i_plate, "uncensored_transits"] = str(uncensored_transit_timestamps)
         results_per_plate.loc[i_plate, "visits_to_uncensored_patches"] = str(visit_to_uncensored_patches_timestamps)
         results_per_plate.loc[i_plate, "nb_of_visits"] = len(aggregated_visit_timestamps)
-        results_per_plate.loc[i_plate, "mvt_raw_visits"] = str(adjusted_raw_durations)
-        results_per_plate.loc[i_plate, "mvt_nb_of_visits"] = len(adjusted_raw_durations)
         results_per_plate.loc[i_plate, "average_speed_inside"] = average_speed_in
         results_per_plate.loc[i_plate, "average_speed_outside"] = average_speed_out
+
+    # TEMPORARY
+    data_per_id.to_csv("/media/admin/T7 Shield/Results_minipatches_retracked/results_per_id.csv")
 
     return results_per_plate
 
