@@ -409,6 +409,43 @@ def load_short_pixel_visits(traj, plate, regenerate=False):
     return 0
 
 
+def plot_distance_map_and_patches(results_path, plate):
+    # Load the matrix with patch to which each pixel belongs
+    in_patch_matrix_path = plate[:-len("traj.csv")] + "in_patch_matrix.csv"
+    in_patch_matrix = pd.read_csv(in_patch_matrix_path).to_numpy()
+
+    # Load the matrix with distance to the closest food patch boundary for each pixel
+    distance_map_path = plate[:-len(plate.split("/")[-1])] + "distance_to_patch_map.csv"
+    if not os.path.isdir(distance_map_path):
+        script_distance.generate_patch_distance_map(in_patch_matrix, plate)
+    distance_map = np.load(plate[:-len(plate.split("/")[-1])] + "distance_to_patch_map.npy")
+
+    # Load patch centers and boundaries
+    patch_centers = fd.folder_to_metadata(plate)["patch_centers"]
+    patch_boundaries = plots.patches(plate, show_composite=False, is_plot=False)
+    patch_x = [patch_centers[i][0] for i in range(len(patch_centers))]
+    patch_y = [patch_centers[i][1] for i in range(len(patch_centers))]
+
+    # Load theoretical patch centers
+    ideal_patch_centers_each_cond = idealized_patch_centers_mm(results_path, [plate], len(distance_map))
+    ideal_patch_centers = ideal_patch_centers_each_cond[fd.load_condition(plate)]
+
+    # Load the average patch radius
+    average_patch_radius_each_cond = pd.read_csv(
+        results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
+    average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
+
+    plt.title(str(plate[-48:-9]))
+    plt.imshow(distance_map)
+    plt.scatter(patch_boundaries[0], patch_boundaries[1], color="yellow")
+    plt.scatter(patch_x, patch_y, color="yellow", label="experimental patches")
+    plt.scatter(ideal_patch_centers[:, 0], ideal_patch_centers[:, 1], color="white", label="ideal patches")
+    for i_patch in range(len(ideal_patch_centers)):
+        circle = plt.Circle(ideal_patch_centers[i_patch], average_radius, color="white", fill=False)
+        plt.gca().add_patch(circle)
+    plt.show()
+
+
 def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixel_visits",
                  regenerate_pixel_values=False,
                  regenerate_polar_maps=False, regenerate_perfect_map=False,
@@ -582,12 +619,21 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1):
         counts = np.load(counts_path)
 
         # Convert speeds from pixel/s to mm/s
-        heatmap = heatmap * param.one_pixel_in_mm
+        if variable == "speed":
+            heatmap = heatmap * param.one_pixel_in_mm
+        # Normalize the presence by the total number of pixel measures (sum of the heatmap) to get
+        # a real presence probability
+        if variable == "pixel_visits":
+            heatmap = heatmap / np.nansum(heatmap)
 
         # Set the cells without values to white
         heatmap = np.ma.masked_where(counts == 0, heatmap)
-        cmap = plt.get_cmap("plasma")
-        cmap.set_bad('white', 1.)
+        if variable == "speed":
+            cmap = plt.get_cmap("plasma")
+            cmap.set_bad('black', 1.)
+        if variable == "pixel_visits":
+            cmap = plt.get_cmap("viridis")
+            cmap.set_bad('white', 1.)
 
         # Plot the heatmap
         plt.imshow(heatmap, vmin=v_min, vmax=v_max, cmap=cmap)
@@ -600,45 +646,15 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1):
         plt.xlim(250, 1600)
         plt.ylim(250, 1600)
         plt.title(str([param.nb_to_name[c] for c in condition_list]) + ", v_max=" + str(v_max))
-        plt.colorbar()
+
+        clb = plt.colorbar()
+        clb.ax.tick_params(labelsize=12)
+        if variable == "speed":
+            clb.set_label('Average speed (mm / s)', size=16)
+        if variable == "pixel_visits":
+            clb.set_label('Probability of presence', size=16)
+
         plt.show()
-
-
-def plot_distance_map_and_patches(results_path, plate):
-    # Load the matrix with patch to which each pixel belongs
-    in_patch_matrix_path = plate[:-len("traj.csv")] + "in_patch_matrix.csv"
-    in_patch_matrix = pd.read_csv(in_patch_matrix_path).to_numpy()
-
-    # Load the matrix with distance to the closest food patch boundary for each pixel
-    distance_map_path = plate[:-len(plate.split("/")[-1])] + "distance_to_patch_map.csv"
-    if not os.path.isdir(distance_map_path):
-        script_distance.generate_patch_distance_map(in_patch_matrix, plate)
-    distance_map = np.load(plate[:-len(plate.split("/")[-1])] + "distance_to_patch_map.npy")
-
-    # Load patch centers and boundaries
-    patch_centers = fd.folder_to_metadata(plate)["patch_centers"]
-    patch_boundaries = plots.patches(plate, show_composite=False, is_plot=False)
-    patch_x = [patch_centers[i][0] for i in range(len(patch_centers))]
-    patch_y = [patch_centers[i][1] for i in range(len(patch_centers))]
-
-    # Load theoretical patch centers
-    ideal_patch_centers_each_cond = idealized_patch_centers_mm(results_path, [plate], len(distance_map))
-    ideal_patch_centers = ideal_patch_centers_each_cond[fd.load_condition(plate)]
-
-    # Load the average patch radius
-    average_patch_radius_each_cond = pd.read_csv(
-        results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
-    average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
-
-    plt.title(str(plate[-48:-9]))
-    plt.imshow(distance_map)
-    plt.scatter(patch_boundaries[0], patch_boundaries[1], color="yellow")
-    plt.scatter(patch_x, patch_y, color="yellow", label="experimental patches")
-    plt.scatter(ideal_patch_centers[:, 0], ideal_patch_centers[:, 1], color="white", label="ideal patches")
-    for i_patch in range(len(ideal_patch_centers)):
-        circle = plt.Circle(ideal_patch_centers[i_patch], average_radius, color="white", fill=False)
-        plt.gca().add_patch(circle)
-    plt.show()
 
 
 if __name__ == "__main__":
@@ -693,15 +709,19 @@ if __name__ == "__main__":
     #             collapse_patches=False, show_plot=True)
 
     plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20]], variable="speed",
-                 regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
+                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
                  collapse_patches=False, show_plot=False)
     plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [14]], variable="speed",
+                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
+                 collapse_patches=False, show_plot=False)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6]], variable="speed",
+                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
+                 collapse_patches=False, show_plot=False)
+    # Started here at 8:47 pm
+    plot_heatmap(path, trajectories, full_list_of_folders, [[15]], variable="speed",
                  regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
                  collapse_patches=False, show_plot=False)
-    # at 4:30pm it was there
-    plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15]], variable="speed",
-                 regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=False)
+    # It's doing the 8 at 12:30 am
     plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="speed",
                  regenerate_pixel_values=True, regenerate_polar_maps=False, regenerate_perfect_map=False,
                  collapse_patches=False, show_plot=False)
