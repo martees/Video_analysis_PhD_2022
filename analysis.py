@@ -70,7 +70,8 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
 
 
 def results_per_condition(result_table, list_of_conditions, column_name, divided_by="",
-                          remove_censored_events=False, normalize_by_video_length=False, only_first_visited_patch=False):
+                          remove_censored_events=False, normalize_by_video_length=False, only_first_visited_patch=False,
+                          soft_cut=False, hard_cut=False):
     """
     Function that takes our result table, a list of conditions, and a column name (as a string)
     Returns the list of values of that column pooled by condition, a list of the average value for each condition, and a
@@ -106,13 +107,25 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 current_visits = fd.load_list(current_plate, "uncensored_visits")
             else:
                 current_visits = fd.load_list(current_plate, "no_hole_visits")
-            if only_first_visited_patch and "visit" in column_name and len(current_visits) > 0:
-                first_visited_patch = current_visits[0][2]
-                for visit in current_visits:
-                    if visit[2] != first_visited_patch:
-                        current_visits.remove(visit)
-                current_plate.loc["total_visit_time"] = np.sum(
-                    [pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0] + 1, axis=1)])
+
+            if "visit" in column_name and len(current_visits) > 0:
+                if only_first_visited_patch:
+                    first_visited_patch = current_visits[0][2]
+                    for visit in current_visits:
+                        if visit[2] != first_visited_patch:
+                            current_visits.remove(visit)
+                if soft_cut:
+                    for visit in current_visits:
+                        if visit[0] > param.time_to_cut_videos:
+                            current_visits.remove(visit)
+                if hard_cut:
+                    for visit in current_visits:
+                        if visit[1] > param.time_to_cut_videos:
+                            current_visits.remove(visit)
+                # Recompute total time with updated rule
+                current_plate["total_visit_time"] = np.sum([pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0], axis=1)])
+                # Convert to hours
+                current_plate["total_visit_time"] /= 3600
 
             # When we want to divide column name by another one
             if divided_by != "":
@@ -421,7 +434,7 @@ def convert_to_durations(list_of_time_stamps):
     #    list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
     # Code using lambda function instead:
     if list_of_time_stamps:
-        return list(np.apply_along_axis(lambda x: x[1] - x[0] + 1, 1, list_of_time_stamps))
+        return list(np.apply_along_axis(lambda x: x[1] - x[0], 1, list_of_time_stamps))
     else:  # If there are no time stamps
         return []
 

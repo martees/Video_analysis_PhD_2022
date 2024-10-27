@@ -7,7 +7,8 @@ from Generating_data_tables import main as gen
 import analysis as ana
 
 
-def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True, remove_censored_events=False):
+def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True, remove_censored_events=False,
+                                    only_first_visited_patch=False, soft_cut=False, hard_cut=False):
     """
     Function that plots a histogram with the average length of first visit to each food patch in each condition in condition_list.
     """
@@ -20,16 +21,32 @@ def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True, remov
         current_plate = results[results["folder"] == plate].reset_index()
         condition = fd.load_condition(plate)
         if remove_censored_events:
-            current_values = fd.load_list(current_plate, "uncensored_visits")
+            current_visits = fd.load_list(current_plate, "uncensored_visits")
         else:
-            current_values = fd.load_list(current_plate, "no_hole_visits")
+            current_visits = fd.load_list(current_plate, "no_hole_visits")
+
+        if len(current_visits) > 0:
+            if only_first_visited_patch:
+                first_visited_patch = current_visits[0][2]
+                for visit in current_visits:
+                    if visit[2] != first_visited_patch:
+                        current_visits.remove(visit)
+            if soft_cut:
+                for visit in current_visits:
+                    if visit[0] > param.time_to_cut_videos:
+                        current_visits.remove(visit)
+            if hard_cut:
+                for visit in current_visits:
+                    if visit[1] > param.time_to_cut_videos:
+                        current_visits.remove(visit)
+
         # Only select the first visits
         list_of_found_patches = []
         first_value_each_patch = []
-        for value in current_values:
+        for value in current_visits:
             if value[2] not in list_of_found_patches:
                 list_of_found_patches.append(value[2])
-                first_value_each_patch.append(value[1] - value[0] + 1)
+                first_value_each_patch.append((value[1] - value[0])/3600)  # convert to hours
         if condition in condition_list and len(first_value_each_patch) > 0:
             condition_index = np.where(condition_list == condition)[0][0]
             avg_value_each_condition_each_plate[condition_index].append(np.nanmean(first_value_each_patch))
@@ -45,7 +62,7 @@ def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True, remov
         condition_names = [param.nb_to_name[cond] for cond in condition_list]
         condition_colors = [param.name_to_color[name] for name in condition_names]
         plt.title("First visit to each patch")
-        plt.ylabel("First visit to each patch (s)")
+        plt.ylabel("First visit to each patch (hours)")
         # Bar plot
         plt.bar(range(len(condition_list)), avg_value_each_condition, color=condition_colors)
         plt.xticks(range(len(condition_list)), condition_names, rotation=45)

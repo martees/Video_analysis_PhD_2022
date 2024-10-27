@@ -82,25 +82,25 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 for thresh in param.threshold_list:
                     plots.plot_selected_data(results, "Average duration visits in " + plot_name +
                                              " conditions, aggregated with threshold " + str(thresh),
-                                             current_conditions, current_condition_names,
+                                             current_conditions,
                                              "aggregated_visits_thresh_" + str(thresh) + "_total_visit_time",
                                              divided_by="aggregated_visits_thresh_" + str(thresh) + "_nb_of_visits",
-                                             mycolor=current_color, plot_model=False, is_plot=is_plot)
+                                             plot_model=False, is_plot=is_plot)
 
             # Speed plots
             if "average_speed" in what_to_plot:
                 plots.plot_selected_data(results, "Average speed inside",
-                                         current_conditions, current_condition_names, "average_speed_inside",
-                                         divided_by="", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "average_speed_inside",
+                                         divided_by="", is_plot=is_plot)
                 plots.plot_selected_data(results, "Average speed outside",
-                                         current_conditions, current_condition_names, "average_speed_outside",
-                                         divided_by="", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "average_speed_outside",
+                                         divided_by="", is_plot=is_plot)
 
             # Data quality
             if "bad_events" in what_to_plot:
                 plots.plot_selected_data(results, "Average number of bad events in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names, "nb_of_bad_events",
-                                         mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "nb_of_bad_events",
+                                         is_plot=is_plot)
 
             # if "distribution" in what_to_plot:
             # plots.plot_variable_distribution(results, curve_list=current_conditions, curveeffect_of="nothing", only_first=True)
@@ -126,15 +126,15 @@ def plot_graphs(results, what_to_plot, curve_list=None):
             if "double_frames" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average proportion of double frames in " + plot_name + " conditions",
-                                         conditions_each_curve, current_condition_names, "avg_proportion_double_frames",
-                                         mycolor=current_color, is_plot=is_plot)
+                                         conditions_each_curve, "avg_proportion_double_frames",
+                                         is_plot=is_plot)
 
             # Furthest distance
             if "furthest_distance" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average number of visits in " + plot_name + "conditions",
-                                         current_conditions, current_condition_names, "furthest_patch_distance",
-                                         divided_by="", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "furthest_patch_distance",
+                                         divided_by="", is_plot=is_plot)
 
             if "leaving_events" in what_to_plot:
                 plots.plot_variable_distribution(results, current_conditions, effect_of="nothing",
@@ -166,67 +166,67 @@ def plot_graphs(results, what_to_plot, curve_list=None):
             if "number_of_visits" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average number of visits in " + plot_name + "conditions",
-                                         current_conditions, current_condition_names, "nb_of_visits",
-                                         divided_by="", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "nb_of_visits",
+                                         divided_by="", is_plot=is_plot)
 
             # Number of visits per patch
             if "number_of_visits_per_patch" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average number of visits per patch in " + plot_name + "conditions",
-                                         current_conditions, current_condition_names, "nb_of_visits",
-                                         divided_by="nb_of_patches", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "nb_of_visits",
+                                         divided_by="nb_of_patches", is_plot=is_plot)
 
             # Average total time spent in each patch
             if "total_visit_time" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
-                plots.plot_selected_data(results, "Total time, OD=" + param.nb_to_density[current_conditions[0]],
-                                         current_conditions, current_condition_names, "total_visit_time",
-                                         divided_by="nb_of_visited_patches", mycolor=current_color, plot_model=False,
-                                         is_plot=is_plot)
+                plots.plot_selected_data(results, "OD=" + param.nb_to_density[current_conditions[0]],
+                                         current_conditions, "total_visit_time",
+                                         divided_by="nb_of_visited_patches", plot_model=False,
+                                         is_plot=is_plot, hard_cut=True)
 
             # Visits plots
             if "visit_duration" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
-                plots.plot_selected_data(results, "Time per visit, OD=" + param.nb_to_density[current_conditions[0]],
-                                         current_conditions, current_condition_names, "total_visit_time",
-                                         divided_by="nb_of_visits", mycolor=current_color, plot_model=False,
-                                         is_plot=is_plot, remove_censored_events=True)
+                plots.plot_selected_data(results, "OD=" + param.nb_to_density[current_conditions[0]],
+                                         current_conditions, "total_visit_time",
+                                         divided_by="nb_of_visits", plot_model=False,
+                                         is_plot=is_plot, remove_censored_events=True, soft_cut=True)
 
             if "first_visit_duration" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
                 plots.plot_selected_data(results,
-                                         "First visit duration, OD=" + param.nb_to_density[current_conditions[0]],
-                                         current_conditions, current_condition_names, "first_visit_duration",
-                                         divided_by="", mycolor=current_color, plot_model=False,
-                                         is_plot=is_plot, remove_censored_events=True)
+                                         "OD=" + param.nb_to_density[current_conditions[0]],
+                                         current_conditions, "first_visit_duration",
+                                         divided_by="", plot_model=False,
+                                         is_plot=is_plot, remove_censored_events=True, only_first_visited_patch=True)
 
             if "visit_duration_mvt" in what_to_plot:
                 plots.plot_selected_data(results, "Average duration of MVT visits in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names, "total_visit_time",
-                                         divided_by="mvt_nb_of_visits", mycolor=current_color, plot_model=False,
+                                         current_conditions, "total_visit_time",
+                                         divided_by="mvt_nb_of_visits", plot_model=False,
                                          is_plot=is_plot)
 
             if "visit_duration_dist_speeds" in what_to_plot:
                 # This should only be called from the 20240117-visitdistanceandspeed script
                 plots.plot_selected_data(results, "Average distance of visits in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names, "average_distance_each_visit",
-                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         current_conditions, "average_distance_each_visit",
+                                         divided_by="", plot_model=False,
                                          is_plot=is_plot)
                 plots.plot_selected_data(results, "Average speed during visits in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names, "average_speed_each_visit",
-                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         current_conditions, "average_speed_each_visit",
+                                         divided_by="", plot_model=False,
                                          is_plot=is_plot)
                 plots.plot_selected_data(results,
                                          "Average of inverse of speed during visits in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names, "average_speed_each_visit_inv",
-                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         current_conditions, "average_speed_each_visit_inv",
+                                         divided_by="", plot_model=False,
                                          is_plot=is_plot)
 
             # Rate of visits (number of visits per transit time unit)
             if "visit_rate" in what_to_plot:
                 plots.plot_selected_data(results, "Average visit rate in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names, "nb_of_visits",
-                                         divided_by="total_transit_time", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "nb_of_visits",
+                                         divided_by="total_transit_time", is_plot=is_plot)
 
             if "visit_duration_vs_previous_transit" in what_to_plot:
                 plots.plot_visit_time(results, trajectories,
@@ -250,36 +250,36 @@ def plot_graphs(results, what_to_plot, curve_list=None):
                 # This should be called from the s20240313_pixelwiseleavingprob.py script
                 plots.plot_selected_data(results,
                                          "Average duration of visits to pixels inside food patches in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names,
+                                         current_conditions,
                                          "avg_visit_duration_to_pixels_inside_patches",
-                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         divided_by="", plot_model=False,
                                          is_plot=is_plot)
                 plots.plot_selected_data(results,
                                          "Average duration of visits to pixels outside food patches in " + plot_name + " conditions",
-                                         current_conditions, current_condition_names,
+                                         current_conditions,
                                          "avg_visit_duration_to_pixels_outside_patches",
-                                         divided_by="", mycolor=current_color, plot_model=False,
+                                         divided_by="", plot_model=False,
                                          is_plot=is_plot)
 
             # Proportion of time spent in patches
             if "proportion_of_time" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average proportion of time spent in patches in" + plot_name + "conditions",
-                                         current_conditions, current_condition_names, "total_visit_time",
-                                         divided_by="total_video_time", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "total_visit_time",
+                                         divided_by="total_video_time", is_plot=is_plot)
             # Number of visited patches
             if "number_of_visited_patches" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average proportion of visited patches in patches in" + plot_name + "conditions",
-                                         current_conditions, current_condition_names, "nb_of_visited_patches",
-                                         divided_by="", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "nb_of_visited_patches",
+                                         divided_by="", is_plot=is_plot)
 
             # Proportion of visited patches
             if "proportion_of_visited_patches" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Average proportion of visited patches in patches in" + plot_name + "conditions",
-                                         current_conditions, current_condition_names, "proportion_of_visited_patches",
-                                         divided_by="", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "proportion_of_visited_patches",
+                                         divided_by="", is_plot=is_plot)
 
             if "print_parameters_for_model" in what_to_plot:
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = ana.transit_properties(
@@ -289,19 +289,19 @@ def plot_graphs(results, what_to_plot, curve_list=None):
             if "total_video_time" in what_to_plot:
                 plots.plot_selected_data(results,
                                          "Total video time in " + plot_name + "conditions",
-                                         current_conditions, current_condition_names, "total_video_time",
-                                         divided_by="", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "total_video_time",
+                                         divided_by="", is_plot=is_plot)
 
             # Transits plot
             if "transit_duration" in what_to_plot:
                 plots.plot_selected_data(results, "Average duration of transits in " + plot_name + "conditions",
-                                         current_conditions, current_condition_names, "total_transit_time",
-                                         divided_by="nb_of_visits", mycolor=current_color, is_plot=is_plot)
+                                         current_conditions, "total_transit_time",
+                                         divided_by="nb_of_visits", is_plot=is_plot)
 
 
 if __name__ == "__main__":
     #   Saves the results in a path that is returned (only needed at the beginning!)
-    path = gr.generate(starting_from="controls", modeled_data=False, shorten_traj=False)
+    path = gr.generate(starting_from="")
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -347,7 +347,7 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(path, trajectories, [], plate_list=["/media/admin/T7 Shield/Results_minipatches_retracked_shortened/20221126T114423_SmallPatches_C5-CAM1/traj.csv"], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=False)
     #
-    # plots.trajectories_1condition(path, trajectories, [0], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
+    # plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=False, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=False, zoom_in=True)
     # plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=True,  plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [2], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [3], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
@@ -369,20 +369,21 @@ if __name__ == "__main__":
     # plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
 
-    #plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
-    #plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    #plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    #plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    #plot_graphs(results, "first_visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
-    #plot_graphs(results, "first_visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    #plot_graphs(results, "first_visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    #plot_graphs(results, "first_visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
     plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
     plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
     plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    plot_graphs(results, "first_visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "first_visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "first_visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "first_visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
 
     #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["transits"], only_first=False, plot_cumulative=True)
     #plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["transits"], only_first=False, plot_cumulative=True)
