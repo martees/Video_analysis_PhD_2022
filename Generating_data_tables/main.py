@@ -21,6 +21,8 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders,
     cleaned_results = results_per_plate[results_per_plate["total_video_time"] >= 10000]
     #cleaned_results = results_per_plate[results_per_plate["total_tracked_time"] >= 10000]
     cleaned_results = cleaned_results[cleaned_results["avg_proportion_double_frames"] <= 0.01]
+    cleaned_results = cleaned_results[cleaned_results["nb_of_teleportations"] == 0]
+    cleaned_results = cleaned_results[cleaned_results["length_long_bad_holes"] <= 600]
 
     print("Finished cleaning results. Cleaning trajectories...")
     # Once the bad folders have been excluded from clean_results, remove them from the trajectory file
@@ -48,7 +50,7 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders,
             writer.writeheader()
             for i in range(nb_of_lines):
                 if i % 2000000 == 0:
-                    print("Line ", i_line, " / ", len(trajectories))
+                    print("Line ", i, " / ", len(trajectories))
                 writer.writerow({col: cleaned_traj[col][i] for col in columns})
     except IOError:
         print("I/O error")
