@@ -4,8 +4,12 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mplcolors
 import matplotlib.patheffects as pe
 import random
+
+import scipy.stats
 import seaborn as sns
 import os
+
+from sympy.printing.pretty.pretty_symbology import line_width
 
 import analysis as ana
 from Generating_data_tables import main as gen
@@ -13,6 +17,7 @@ from Generating_data_tables import generate_trajectories as gt
 import find_data as fd
 from Parameters import parameters as param
 from Parameters import custom_legends
+from Parameters import colored_line_plot
 from Scripts_analysis import s20240828_barplot_first_visit as first_visit_script
 
 
@@ -113,7 +118,7 @@ def patches(folder_list, show_composite=True, is_plot=True):
 def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches=False, show_composite=True,
                             plot_in_patch=False,
                             plot_continuity=False, plot_speed=False, plot_time=False, plate_list=None, is_plot=True,
-                            save_fig=False, plot_lines=False):
+                            save_fig=False, plot_lines=False, zoom_in=False):
     """
     Function that takes in our dataframe format, using columns: "x", "y", "id_conservative", "folder"
     and extracting "condition" info in metadata
@@ -177,12 +182,27 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
             fig.set_size_inches(20, 20)
             ax = fig.gca()
             fig.set_tight_layout(True)  # make the margins tighter
+
             if show_composite:  # show composite with real patches
                 composite = plt.imread(fd.load_file_path(current_folder, "composite_patches.tif"))
                 ax.imshow(composite)
+                # White scale bar
+                plt.plot([100, 100 + 5 * (1 / param.one_pixel_in_mm)], [1800, 1800], color="white", linewidth=4)
+                plt.text(110, 1750, "5 mm", color="white")
             else:  # show cleaner background without the patches
                 background = plt.imread(fd.load_file_path(current_folder, "background.tif"))
                 ax.imshow(background, cmap='gray')
+                # Black scale bar
+                plt.plot([100, 100 + 5 * (1 / param.one_pixel_in_mm)], [1800, 1800], color="black", linewidth=4)
+                plt.text(110, 1750, "5 mm")
+
+            if zoom_in:
+                plt.xlim(670, 1080)
+                plt.ylim(670, 1080)
+                # White scale bar
+                plt.plot([1000, 1000 + (1 / param.one_pixel_in_mm)], [1050, 1050], color="white", linewidth=4)
+                plt.text(1000, 1030, "1 mm", color="white")
+
             ax.set_title(str(current_folder[-48:-9]))
             # Plot them patches
             if is_plot_patches:
@@ -204,17 +224,14 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
         # Plot the trajectory with a colormap based on the speed of the worm
         if plot_speed:
             speed_list = current_traj.reset_index()["speeds"]
-            #normalize = mplcolors.Normalize(vmin=0, vmax=3.5)
-            #plt.scatter(current_list_x, current_list_y, c=speed_list, cmap="hot", norm=normalize, s=1, zorder=1.3)
-            plt.scatter(current_list_x, current_list_y, c=speed_list, cmap="hot", s=1, zorder=1.3)
+            lines = colored_line_plot.colored_line(current_list_x, current_list_y, c=speed_list*param.one_pixel_in_mm, ax=ax, cmap="hot", zorder=1.3, linewidths=3)
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                plt.colorbar()
+                plt.gcf().colorbar(lines)
 
         # Plot the trajectory with a colormap based on time
         if plot_time:
             nb_of_timepoints = len(current_list_x)
             bin_size = 100
-            # colors = plt.cm.jet(np.linspace(0, 1, nb_of_timepoints//bin_size))
             for current_bin in range(nb_of_timepoints // bin_size):
                 lower_bound = current_bin * bin_size
                 upper_bound = min((current_bin + 1) * bin_size, len(current_list_x))
@@ -530,8 +547,10 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
         plt.show()
 
 
-def plot_selected_data(results, plot_title, condition_list, condition_names, column_name, divided_by="",
-                       mycolor="blue", plot_model=False, is_plot=True, normalize_by_video_length=False, remove_censored_events=False):
+def plot_selected_data(results, plot_title, condition_list, column_name, divided_by="",
+                       plot_model=False, is_plot=True, normalize_by_video_length=False,
+                       remove_censored_events=False, soft_cut=False, hard_cut=False,
+                       only_first_visited_patch=False):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -542,13 +561,15 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     # Getting results
     if column_name == "first_visit_duration":
         list_of_avg_each_plate, average_per_condition, errorbars = first_visit_script.bar_plot_first_visit_each_patch(
-            results, condition_list, is_plot=False, remove_censored_events=remove_censored_events)
+            results, condition_list, is_plot=False, remove_censored_events=remove_censored_events, only_first_visited_patch=only_first_visited_patch)
     else:
         list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                              column_name, divided_by,
                                                                                              remove_censored_events=remove_censored_events,
                                                                                              normalize_by_video_length=normalize_by_video_length,
-                                                                                             only_first_visited_patch=False)
+                                                                                             only_first_visited_patch=only_first_visited_patch,
+                                                                                             soft_cut=soft_cut,
+                                                                                             hard_cut=hard_cut)
 
     # if not split_conditions:
     #     condition_list = condition_list[0]  # reduce it to one element for all further loops to run only once
@@ -574,26 +595,28 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
     #     ax_for_outliers.set(ylabel="Average time per visit (seconds)")
     #else:
     # Plotttt
-    plt.title(plot_title)
+    plt.title(plot_title, fontsize=20)
     fig = plt.gcf()
     ax = fig.gca()
-    fig.set_size_inches(6, 8.6)
+    fig.set_size_inches(7, 8.6)
     # plt.style.use('dark_background')
 
     if column_name == "total_visit_time" and divided_by == "nb_of_visited_patches":
-        ax.set(ylabel="Total time in patch (seconds)")
-        #ax.set_ylim(0, 16000)
+        ax.set_ylabel("Total time per patch (hours)", fontsize=16)
+        ax.set_ylim(0, 4)
     if column_name == "total_visit_time" and divided_by == "nb_of_visits":
-        ax.set(ylabel="Average time per visit (seconds)")
-        #ax.set_ylim(0, 4600)
-        ax.set_ylim(0, 3100)
+        ax.set_ylabel("Average time per visit (hours)", fontsize=16)
+        ax.set_ylim(0, 0.6)
     if column_name == "first_visit_duration":
-        ax.set(ylabel="Duration of 1st visit to each patch (seconds)")
-        ax.set_ylim(0, 8200)
+        if only_first_visited_patch:
+            ax.set_ylabel("Duration of 1st visit of the video (hours)", fontsize=16)
+        else:
+            ax.set_ylabel("Duration of 1st visit to each patch (hours)", fontsize=16)
+        ax.set_ylim(0, 2.6)
     if column_name == "average_speed_inside":
-        ax.set(ylabel="Average speed inside food patches (pixel/second)")
+        ax.set_ylabel("Average speed inside food patches (pixel/second)", fontsize=16)
     if column_name == "average_speed_outside":
-        ax.set(ylabel="Average speed outside food patches (pixel/second)")
+        ax.set_ylabel("Average speed outside food patches (pixel/second)", fontsize=16)
 
     # Plot condition averages as a bar plot
     condition_names = [param.nb_to_name[cond] for cond in condition_list]
@@ -635,6 +658,18 @@ def plot_selected_data(results, plot_title, condition_list, condition_names, col
         # borderpad is the spacing between the legend and the bottom line of the rectangle around the legend
         # handletextpad is spacing between the legend and the right line of the rectangle around the legend
         # borderaxespad is the spacing between the legend rectangle and the axes of the figure
+
+        # Print statistical test results
+        print("Variable = ", column_name, ", divided_by = ", divided_by)
+        for i in range(len(condition_list)):
+            normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
+            print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
+            if normality_test.pvalue < 0.05:
+                print("(The data is not normal.)")
+            else:
+                print("(The data is normal.)")
+        stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
+        plt.xlabel(str(stat_test.pvalue))
 
         plt.show()
     else:
