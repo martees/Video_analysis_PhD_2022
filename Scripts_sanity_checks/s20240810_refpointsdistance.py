@@ -83,42 +83,52 @@ for i_condition, condition in enumerate(all_conditions_list):
             distances_each_condition_bottom.append(bottom_dist)
             pixel_to_mm_ratios += [32 / top_dist, 32 / left_dist, 32 / right_dist, 32 / bottom_dist]
 
-            # Then center them to the center of the plate
+            # Then rotate them to minimize distance with a perfect square
             points_array = np.array([point1, point2, point3, point4])
+            # plt.plot(points_array[:, 0], points_array[:, 1], label="before rotation")
+            x_centroid = np.mean(points_array[:, 0])
+            y_centroid = np.mean(points_array[:, 1])
+            perfect_square = np.array([[plate_center[0] - 500, plate_center[1] - 500], [plate_center[0] - 500, plate_center[1] + 500], [plate_center[0] + 500, plate_center[1] + 500], [plate_center[0] + 500, plate_center[1] - 500]])
+            points_array = optimal_rotation(points_array, perfect_square)
+            # plt.plot(perfect_square[:, 0], perfect_square[:, 1], label="perfecto")
+            # plt.plot(points_array[:, 0], points_array[:, 1], label="after rotation")
+
+            # Then center them to the center of the plate
             x_centroid_shift = plate_center[0] - np.mean(points_array[:, 0])
             y_centroid_shift = plate_center[1] - np.mean(points_array[:, 1])
             points_array[:, 0] += x_centroid_shift
             points_array[:, 1] += y_centroid_shift
-
-            # Then rotate them to minimize distance with a perfect square
-            perfect_square = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-            points_array = optimal_rotation(points_array, perfect_square)
+            # plt.plot(points_array[:, 0], points_array[:, 1], label="after shift")
 
             # Add them to the heatmap
-            heatmap_points[int(points_array[0, 1]), int(points_array[0, 1])] += 1
-            heatmap_points[int(points_array[1, 1]), int(points_array[1, 1])] += 1
-            heatmap_points[int(points_array[2, 1]), int(points_array[2, 1])] += 1
-            heatmap_points[int(points_array[3, 1]), int(points_array[3, 1])] += 1
+            heatmap_points[int(points_array[0, 0]), int(points_array[0, 1])] += 1
+            heatmap_points[int(points_array[1, 0]), int(points_array[1, 1])] += 1
+            heatmap_points[int(points_array[2, 0]), int(points_array[2, 1])] += 1
+            heatmap_points[int(points_array[3, 0]), int(points_array[3, 1])] += 1
+
+            # plt.legend()
+            # plt.show()
 
     condition_names.append(param.nb_to_name[condition])
     condition_colors.append(param.name_to_color[param.nb_to_name[condition]])
 
 fig, [ax0, ax1, ax2] = plt.subplots(1, 3)
+fig.set_size_inches(22, 5.6)
 
 # Heatmap of the points
 ax0.imshow(heatmap_points, cmap="hot", vmax=0.1)
-ax0.set_title("Heatmap of the reference points, vmax=0.1")
+ax0.set_title("Heatmap of reference points positions", fontsize=20)
 
 # Boxplot with one box for top edge, left edge, etc.
 ax1.boxplot([distances_each_condition_left, distances_each_condition_top, distances_each_condition_right, distances_each_condition_bottom])
 ax1.set_xticks([1, 2, 3, 4], ["Left", "Top", "Right", "Bottom"])
-ax1.set_title("Reference point distance for each edge")
+ax1.set_title("Reference point distance for each edge", fontsize=20)
 
 # Pixel to mm ratio histogram
-ax2.hist(pixel_to_mm_ratios, 100)
+ax2.hist(pixel_to_mm_ratios / np.mean(pixel_to_mm_ratios), 100)
 all_distances = distances_each_condition_top + distances_each_condition_bottom + distances_each_condition_left + distances_each_condition_right
 print("You can copy this number in Parameters/parameters.py, for the variable one_pixel_in_mm: ", 32 / np.mean(all_distances))
-ax2.set_title("Pixel to mm conversion distribution for all plates, avg: "+str(32 / np.mean(all_distances)))
+ax2.set_title("Pixel to mm ratio distribution", fontsize=20)
 
 plt.show()
 
