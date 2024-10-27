@@ -293,7 +293,8 @@ def trajectory_speeds(traj):
     # For each folder, array operation to compute speed
     # NOTE: distance and speed should be equal almost all the time, exceptions = points where the tracking is
     #       interrupted, because there can be multiple frames between to consecutive tracked positions
-    for folder in folder_list:
+    for i, folder in enumerate(folder_list):
+        print("Folder ", i+1, " / ", len(folder_list))
         current_traj = traj[dt.f.folder == folder, :]
         current_list_of_distances = current_traj[:, dt.f.distances].to_list()[0]
         # Correct the times for plates that have only NaNs or jumps in the time

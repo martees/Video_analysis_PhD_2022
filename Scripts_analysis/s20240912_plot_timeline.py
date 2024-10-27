@@ -210,7 +210,7 @@ def plot_overlap_timelines(result_datatable, full_folder_list, curve_names, plot
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(starting_from="results_per_id", shorten_traj=False, test_pipeline=False)
+    path = gen.generate(starting_from="results_per_plate", shorten_traj=False, test_pipeline=False)
     results = dt.fread(path + "clean_results.csv")
     trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = results[:, "folder"].to_list()[0]

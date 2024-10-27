@@ -1,3 +1,4 @@
+import copy
 import os
 import shutil
 from scipy.io import loadmat  # this is the SciPy module that loads mat-files
@@ -61,7 +62,6 @@ def trajcsv_to_dataframe(paths_of_mat, shortened=False):
 
         # We remove the datapoints that are after shorten time
         if shortened:
-            current_data = correct_time_stamps(current_data, print_bug=False)
             current_data = current_data[current_data["time"] <= param.time_to_cut_videos]
 
         if i_file == 0:

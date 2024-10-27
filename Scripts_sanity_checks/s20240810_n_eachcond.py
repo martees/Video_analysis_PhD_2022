@@ -4,7 +4,7 @@ from Generating_data_tables import main as gen
 import find_data as fd
 from Parameters import parameters as param
 
-path = gen.generate("", shorten_traj=True)
+path = gen.generate("")
 results = dt.fread(path + "clean_results.csv")
 full_list_of_folders = results[:, "folder"].to_list()[0]
 print("Finished loading tables!")
