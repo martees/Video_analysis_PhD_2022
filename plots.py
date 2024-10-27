@@ -6,10 +6,8 @@ import matplotlib.patheffects as pe
 import random
 
 import scipy.stats
-import seaborn as sns
 import os
-
-from sympy.printing.pretty.pretty_symbology import line_width
+from matplotlib.offsetbox import (OffsetImage, AnnotationBbox)
 
 import analysis as ana
 from Generating_data_tables import main as gen
@@ -226,7 +224,9 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
             speed_list = current_traj.reset_index()["speeds"]
             lines = colored_line_plot.colored_line(current_list_x, current_list_y, c=speed_list*param.one_pixel_in_mm, ax=ax, cmap="hot", zorder=1.3, linewidths=3)
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
-                plt.gcf().colorbar(lines)
+                clb = plt.gcf().colorbar(lines)
+                clb.ax.tick_params(labelsize=12)
+                clb.ax.set_title('Speed (mm / s)', fontsize=16)
 
         # Plot the trajectory with a colormap based on time
         if plot_time:
@@ -571,52 +571,29 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                                                                                              soft_cut=soft_cut,
                                                                                              hard_cut=hard_cut)
 
-    # if not split_conditions:
-    #     condition_list = condition_list[0]  # reduce it to one element for all further loops to run only once
-    #     list_of_avg_each_plate = [list_of_avg_each_plate[i] for i in range(len(list_of_avg_each_plate))]
-    #     average_per_condition = [average_per_condition[i] for i in range(len(average_per_condition))]
-    #     errorbars = [errorbars[i] for i in range(len(errorbars))]
-
-    # if column_name == "total_visit_time" and divided_by == "nb_of_visits":
-    #     # Here because of outliers I need to break the axis
-    #     # Code is from https://matplotlib.org/2.0.2/examples/pylab_examples/broken_axis.html
-    #     # On ax there's the normal plot, but with y-limits that hide the outliers
-    #     # On ax_for_outliers there will be the outliers
-    #     figure, (ax_for_outliers, ax) = plt.subplots(2, 1, sharex=True)
-    #     figure.suptitle(plot_title)
-    #     ax.set_ylim(0, 3200)
-    #     ax_for_outliers.set_ylim(4400, 4600)
-    #     # hide the spines between ax and ax2
-    #     ax_for_outliers.spines['bottom'].set_visible(False)
-    #     ax.spines['top'].set_visible(False)
-    #     ax_for_outliers.spines['top'].set_visible(False)
-    #     ax_for_outliers.xaxis.tick_top()
-    #     ax.xaxis.tick_bottom()
-    #     ax_for_outliers.set(ylabel="Average time per visit (seconds)")
-    #else:
     # Plotttt
-    plt.title(plot_title, fontsize=20)
+    plt.title(plot_title, fontsize=24)
     fig = plt.gcf()
     ax = fig.gca()
     fig.set_size_inches(7, 8.6)
     # plt.style.use('dark_background')
 
     if column_name == "total_visit_time" and divided_by == "nb_of_visited_patches":
-        ax.set_ylabel("Total time per patch (hours)", fontsize=16)
-        ax.set_ylim(0, 4)
+        ax.set_ylabel("Total time per patch (hours)", fontsize=20)
+        #ax.set_ylim(0, 4)
     if column_name == "total_visit_time" and divided_by == "nb_of_visits":
-        ax.set_ylabel("Average time per visit (hours)", fontsize=16)
-        ax.set_ylim(0, 0.6)
+        ax.set_ylabel("Average time per visit (hours)", fontsize=20)
+        #ax.set_ylim(0, 0.6)
     if column_name == "first_visit_duration":
         if only_first_visited_patch:
-            ax.set_ylabel("Duration of 1st visit of the video (hours)", fontsize=16)
+            ax.set_ylabel("Duration of 1st visit of the video (hours)", fontsize=20)
         else:
-            ax.set_ylabel("Duration of 1st visit to each patch (hours)", fontsize=16)
-        ax.set_ylim(0, 2.6)
+            ax.set_ylabel("Duration of 1st visit to each patch (hours)", fontsize=20)
+        #ax.set_ylim(0, 2.6)
     if column_name == "average_speed_inside":
-        ax.set_ylabel("Average speed inside food patches (pixel/second)", fontsize=16)
+        ax.set_ylabel("Average speed inside food patches (pixel/second)", fontsize=20)
     if column_name == "average_speed_outside":
-        ax.set_ylabel("Average speed outside food patches (pixel/second)", fontsize=16)
+        ax.set_ylabel("Average speed outside food patches (pixel/second)", fontsize=20)
 
     # Plot condition averages as a bar plot
     condition_names = [param.nb_to_name[cond] for cond in condition_list]
@@ -624,7 +601,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     ax.bar(range(len(condition_list)), average_per_condition, color=condition_colors, label=condition_names)
     ax.set_xticks(range(len(condition_list)))
     ax.set_xticklabels(condition_names, rotation=45)
-    ax.set(xlabel="Condition")
+    # ax.set_xlabel("Inter-patch distance", fontsize=16)
 
     # Plot plate averages as scatter on top
     for i_cond in range(len(condition_list)):
@@ -641,23 +618,30 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
 
     if is_plot:
-        # Plot empty lines to make the custom legend
-        lines = []
-        for i_cond, cond in enumerate(condition_list):
-            line, = ax.plot([], [], color=param.name_to_color[param.nb_to_name[cond]], linewidth=13,
-                            path_effects=[pe.Stroke(offset=(-0.5, 0.5), linewidth=16,
-                                                    foreground=param.name_to_color[param.nb_to_distance[cond]]),
-                                          pe.Normal()])
-            lines.append(line)
-        plt.legend(lines, ["" for _ in range(len(lines))],
-                   handler_map={lines[i]: custom_legends.HandlerLineImage(
-                       "icon_" + str(param.nb_to_distance[condition_list[i]]) + ".png") for i in
-                       range(len(lines))},
-                   handlelength=1.6, labelspacing=0.0, fontsize=50, borderpad=0.10, loc=2,
-                   handletextpad=0.05, borderaxespad=0.15)
-        # borderpad is the spacing between the legend and the bottom line of the rectangle around the legend
-        # handletextpad is spacing between the legend and the right line of the rectangle around the legend
-        # borderaxespad is the spacing between the legend rectangle and the axes of the figure
+        # Set the x labels to the distance icons!
+        # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
+        for i in range(len(condition_list)):
+            ax = plt.gcf().gca()
+            ax.set_xticks([])
+
+            # Image to use
+            arr_img = plt.imread(
+                "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
+                    condition_list[i]] + '.png')
+
+            # Image box to draw it!
+            imagebox = OffsetImage(arr_img, zoom=0.8)
+            imagebox.image.axes = ax
+
+            x_annotation_box = AnnotationBbox(imagebox, (i, 0),
+                                              xybox=(0, -8),
+                                              # that's the shift that the image will have compared to (i, 0)
+                                              xycoords=("data", "axes fraction"),
+                                              boxcoords="offset points",
+                                              box_alignment=(.5, 1),
+                                              bboxprops={"edgecolor": "none"})
+
+            ax.add_artist(x_annotation_box)
 
         # Print statistical test results
         print("Variable = ", column_name, ", divided_by = ", divided_by)
@@ -669,7 +653,14 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             else:
                 print("(The data is normal.)")
         stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
-        plt.xlabel(str(stat_test.pvalue))
+        y_axis_limits = plt.gca().get_ylim()
+        x_axis_limits = plt.gca().get_xlim()
+        # If the p_value is less than 0.01, write in scientific notation
+        if int(stat_test.pvalue*1000) == 0:
+            plt.text(0.4*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3)), fontsize=16)
+        # Else write it
+        else:
+            plt.text(0.46*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.round(stat_test.pvalue, 3)), fontsize=16)
 
         plt.show()
     else:

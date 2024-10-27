@@ -7,6 +7,8 @@ import os
 import pandas as pd
 from itertools import groupby
 
+from sympy.physics.units import current
+
 # My code
 from Parameters import parameters as param
 import find_data as fd
@@ -109,19 +111,74 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 current_visits = fd.load_list(current_plate, "no_hole_visits")
 
             if "visit" in column_name and len(current_visits) > 0:
+                original_length = len(current_visits)
+                current_visits = [visit for visit in current_visits if (visit[1] - visit[0]) >= 0]
+                if len(current_visits) != original_length:
+                    print("TEMPORARY FIX: removing negative visits... there were ", original_length - len(current_visits), "!!")
+
                 if only_first_visited_patch:
                     first_visited_patch = current_visits[0][2]
                     for visit in current_visits:
                         if visit[2] != first_visited_patch:
                             current_visits.remove(visit)
+                # SOFT CUT: only take the visits that start before the time at which we cut videos
                 if soft_cut:
                     for visit in current_visits:
-                        if visit[0] > param.time_to_cut_videos:
+                        if param.times_to_cut_videos[0] > visit[0] > param.times_to_cut_videos[1]:
                             current_visits.remove(visit)
+                # HARD CUT: only take the visits as long as the cumulated length of visits+transits is < time to cut
                 if hard_cut:
-                    for visit in current_visits:
-                        if visit[1] > param.time_to_cut_videos:
-                            current_visits.remove(visit)
+                    if remove_censored_events:
+                        current_transits = fd.load_list(current_plate, "uncensored_transits")
+                    else:
+                        current_transits = fd.load_list(current_plate, "aggregated_raw_transits")
+
+                    original_length = len(current_transits)
+                    current_transits = [visit for visit in current_transits if (visit[1] - visit[0]) >= 0]
+                    if len(current_transits) != original_length:
+                        print("TEMPORARY FIX: removed negative transits... there were ", original_length - len(current_transits), "!!")
+
+                    # Mix visits and transits and sort them by beginning
+                    current_events = copy.deepcopy(current_visits) + copy.deepcopy(current_transits)
+                    current_events = sorted(current_events, key=lambda x: x[0])
+                    # Loop through them and stop when it's reached time to cut!!!
+                    cumulated_duration_of_events = 0
+                    i_event = 0
+                    new_list_of_events = []
+                    first_event_found = False
+                    while i_event < len(current_events) and cumulated_duration_of_events < (param.times_to_cut_videos[1] - param.times_to_cut_videos[0]):
+                        current_event = current_events[i_event]
+                        if current_event[0] >= param.times_to_cut_videos[0]:
+                            if not first_event_found:
+                                first_event_found = True
+                                # If this is the first event that starts after time_to_cut[0] and not the first of the video, add the previous one
+                                if i_event > 0:
+                                    previous_event = current_events[i_event - 1]
+                                    previous_event[0] = param.times_to_cut_videos[0]  # but set it to start at time_to_cut[0]
+                                    cumulated_duration_of_events += previous_event[1] - previous_event[0]
+                                    new_list_of_events.append(previous_event)
+                                    # If this previous event does not exceed time_to_cut[1], then you can add the current one
+                                    if cumulated_duration_of_events < (param.times_to_cut_videos[1] - param.times_to_cut_videos[0]):
+                                        cumulated_duration_of_events += current_event[1] - current_event[0]
+                                        new_list_of_events.append(current_event)
+                                # If this is the first event, just add it! and start it at time_to_cut[0]
+                                else:
+                                    current_event[0] = param.times_to_cut_videos[0]  # but set it to start at time_to_cut[0]
+                                    cumulated_duration_of_events += current_event[1] - current_event[0]
+                                    new_list_of_events.append(current_event)
+
+                            else:
+                                cumulated_duration_of_events += current_event[1] - current_event[0]
+                                new_list_of_events.append(current_event)
+                        i_event += 1
+                    # In the end of the loop, if we have reached the cut parameter, cut the last event
+                    if cumulated_duration_of_events > (param.times_to_cut_videos[1] - param.times_to_cut_videos[0]):
+                        new_list_of_events[-1][1] -= cumulated_duration_of_events - (param.times_to_cut_videos[1] - param.times_to_cut_videos[0])
+                    # Then, sort the events back to visits!
+                    current_visits = [event for event in new_list_of_events if event[2] != -1]
+                    for i in current_visits:
+                        if i[1] - i[0] < 0:
+                            print("j")
                 # Recompute total time with updated rule
                 current_plate["total_visit_time"] = np.sum([pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0], axis=1)])
                 # Convert to hours
@@ -1007,7 +1064,8 @@ def list_of_visited_patches(list_of_visits):
     return np.unique(list_of_patches)
 
 
-def xy_to_bins(x, y, bin_size=10, print_progress=False, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True):
+def xy_to_bins(x, y, bin_size=10, print_progress=False, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True,
+               bins_in_middle=True):
     """
     Will take an x and a y iterable.
     Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
@@ -1080,11 +1138,13 @@ def xy_to_bins(x, y, bin_size=10, print_progress=False, custom_bins=None, do_not
                 bootstrap_ci = bottestrop_ci(current_values, 100)
                 errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
                 errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
-        # First bin should be halfway between minimal value and its value
-        if i_bin == 0:
-            bin_list[i_bin] = (bin_list[i_bin] - minimal_x_value) / 2
-        else:
-            bin_list[i_bin] = (bin_list[i_bin] - bin_list[i_bin - 1]) / 2
+        if bins_in_middle:
+            # First bin should be halfway between minimal value and its value
+            if i_bin == 0:
+                bin_list[i_bin] = (bin_list[i_bin] + minimal_x_value) / 2
+            # Other bins should be centered
+            else:
+                bin_list[i_bin] = (bin_list[i_bin] + bin_list[i_bin - 1]) / 2
     if print_progress:
         print("Finished xy_to_bins()")
 
