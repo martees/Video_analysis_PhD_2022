@@ -39,7 +39,7 @@ def plot_timeline_with_holes(results_path, full_folder_list, traj, curve_names, 
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        current_timeline = np.zeros((300*len(folder_list), param.time_to_cut_videos))
+        current_timeline = np.zeros((300*len(folder_list), param.times_to_cut_videos))
         current_timeline[:] = np.nan
         for i_folder, folder in enumerate(folder_list):
             current_trajectory = traj[dt.f.folder == folder, :]
@@ -170,9 +170,10 @@ def plot_overlap_timelines(result_datatable, full_folder_list, curve_names, plot
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        current_timeline = np.zeros((200*len(folder_list), param.time_to_cut_videos))
-        #current_timeline = np.zeros((200*len(folder_list), 30000))
+        # current_timeline = np.zeros((200*len(folder_list), param.times_to_cut_videos))
+        current_timeline = np.zeros((200*len(folder_list), 30000))
         for i_folder, folder in enumerate(folder_list):
+            print(i_folder)
             current_results = result_datatable[dt.f.folder == folder, :]
             if plot_only_uncensored:
                 visit_list = fd.load_list(current_results.to_pandas(), "uncensored_visits")
@@ -183,11 +184,17 @@ def plot_overlap_timelines(result_datatable, full_folder_list, curve_names, plot
             i = 0
             while i < len(visit_list) or i < len(transit_list):
                 if i < len(visit_list):
-                    current_timeline[200 * i_folder:200 * (i_folder + 1), int(np.rint(visit_list[i][0])):int(np.rint(visit_list[i][1]))] += 1
-                    print("Current visit: ", int(np.rint(visit_list[i][0])), ", ", int(np.rint(visit_list[i][1] + 1)))
+                    if visit_list[i][1] < visit_list[i][0]:
+                        print("Negative visit: ", int(np.rint(visit_list[i][0])), ", ", int(np.rint(visit_list[i][1])), ", folder: ", folder[-30:])
+                        current_timeline[200 * i_folder:200 * (i_folder + 1), int(np.rint(visit_list[i][1])):int(np.rint(visit_list[i][0]))] += 1
+                    else:
+                        current_timeline[200 * i_folder:200 * (i_folder + 1), int(np.rint(visit_list[i][0])):int(np.rint(visit_list[i][1]))] += 1
                 if i < len(transit_list):
-                    current_timeline[200 * i_folder:200 * (i_folder + 1), int(np.rint(transit_list[i][0])):int(np.rint(transit_list[i][1]))] += 1
-                    print("Current transit: ", int(np.rint(transit_list[i][0])), ", ", int(np.rint(transit_list[i][1]+1)))
+                    if transit_list[i][1] < transit_list[i][0]:
+                        print("Negative transit: ", int(np.rint(transit_list[i][0])), ", ", int(np.rint(transit_list[i][1])), ", folder: ", folder[-30:])
+                        current_timeline[200 * i_folder:200 * (i_folder + 1), int(np.rint(transit_list[i][1])):int(np.rint(transit_list[i][0]))] += 1
+                    else:
+                        current_timeline[200 * i_folder:200 * (i_folder + 1), int(np.rint(transit_list[i][0])):int(np.rint(transit_list[i][1]))] += 1
                 #plt.imshow(current_timeline)
                 #plt.colorbar()
                 #plt.show()
@@ -210,7 +217,7 @@ def plot_overlap_timelines(result_datatable, full_folder_list, curve_names, plot
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(starting_from="results_per_plate", shorten_traj=False, test_pipeline=False)
+    path = gen.generate(starting_from="", shorten_traj=False, test_pipeline=False)
     results = dt.fread(path + "clean_results.csv")
     trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = results[:, "folder"].to_list()[0]
@@ -220,22 +227,22 @@ if __name__ == "__main__":
     #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.5"], is_plot=True, plot_only_uncensored=False)
     #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 1.25"], is_plot=True, plot_only_uncensored=False)
 
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0"], is_plot=True, plot_only_uncensored=False)
-
+    #plot_overlap_timelines(results, full_list_of_folders, ["close 0"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["med 0"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["far 0"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["superfar 0"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["close 0.2"], plot_only_uncensored=False)
     #plot_overlap_timelines(results, full_list_of_folders, ["med 0.2"], plot_only_uncensored=False)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0.2"], is_plot=True, plot_only_uncensored=False)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0.5"], is_plot=True, plot_only_uncensored=False)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 1.25"], is_plot=True, plot_only_uncensored=False)
-
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0"], is_plot=True, plot_only_uncensored=True)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0.2"], is_plot=True, plot_only_uncensored=True)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0.5"], is_plot=True, plot_only_uncensored=True)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 1.25"], is_plot=True, plot_only_uncensored=True)
-
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0"], is_plot=True, plot_only_uncensored=True)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0.2"], is_plot=True, plot_only_uncensored=False)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0.5"], is_plot=True, plot_only_uncensored=False)
-    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 1.25"], is_plot=True, plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["far 0.2"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["superfar 0.2"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["close 0.5"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["med 0.5"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["far 0.5"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["superfar 0.5"], plot_only_uncensored=False)
+    #plot_overlap_timelines(results, full_list_of_folders, ["close 1.25"], plot_only_uncensored=False)
+    plot_overlap_timelines(results, full_list_of_folders, ["med 1.25"], plot_only_uncensored=False)
+    plot_overlap_timelines(results, full_list_of_folders, ["far 1.25"], plot_only_uncensored=False)
+    plot_overlap_timelines(results, full_list_of_folders, ["superfar 1.25"], plot_only_uncensored=False)
 
     plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0"], is_plot=False)
     plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.2"], is_plot=False)
