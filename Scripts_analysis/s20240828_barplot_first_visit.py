@@ -33,13 +33,13 @@ def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True, remov
                         current_visits.remove(visit)
             if soft_cut:
                 for visit in current_visits:
-                    if visit[0] > param.time_to_cut_videos:
+                    if param.times_to_cut_videos[0] > visit[0] > param.times_to_cut_videos[1]:
                         current_visits.remove(visit)
             if hard_cut:
+                print("WARNING, YOU HAVENT IMPLEMENTED THE FULL HARD CUT FOR FIRST VISITS è_é")
                 for visit in current_visits:
                     if visit[1] > param.time_to_cut_videos:
                         current_visits.remove(visit)
-
         # Only select the first visits
         list_of_found_patches = []
         first_value_each_patch = []
