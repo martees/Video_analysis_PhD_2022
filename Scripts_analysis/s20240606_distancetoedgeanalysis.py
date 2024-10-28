@@ -1,4 +1,5 @@
 # In this script, I will look at speed and visit time to pixels as a function of the distance to the edge of a patch
+import copy
 
 from scipy import ndimage
 import pandas as pd
@@ -49,7 +50,9 @@ def generate_patch_distance_map(in_patch_matrix, folder_to_save):
 
 def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="Total"):
     visit_values_each_bin_each_plate = np.zeros((len(bin_list), len(folder_list)))
+    total_time_steps_each_bin_each_plate = np.zeros((len(bin_list), len(folder_list)))
     visit_values_each_bin_each_plate[:] = np.nan
+    total_time_steps_each_bin_each_plate[:] = np.nan
     for i_folder, folder in enumerate(folder_list):
         print(">>> Folder ", i_folder, " / ", len(folder_list))
         # Correct the times for plates that have only NaNs or jumps in the time
@@ -66,15 +69,15 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
         distance_map = np.load(folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.npy")
         print(">>>>>> Loaded distance map!")
 
-        if variable == "Total":
+        if variable == "pixel_visits":
             pixel_wise_visits = heatmap_script.load_pixel_visits(current_traj[:, dt.f.time].to_list(),
-                                                                 folder)
+                                                                 folder, regenerate=False)
             print(">>>>>> Loaded pixel_wise visit durations!")
             # Make it a list
             current_folder_values = np.ravel(pixel_wise_visits)
 
-        if variable == "Speed":
-            pixel_wise_avg_speed = heatmap_script.load_avg_pixel_speed(current_traj, folder, regenerate=True)
+        if variable == "speed":
+            pixel_wise_avg_speed = heatmap_script.load_avg_pixel_speed(current_traj, folder, regenerate=False)
             print(">>>>>> Loaded pixel_wise average speeds!")
             # Note: the pixels that were never visited are returned as NaN values by the load_avg_pixel_speed() function,
             #       so they are not taken into account in the averaging.
@@ -84,14 +87,15 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
         current_folder_distances = np.ravel(distance_map)
 
         # Put all the gathered values in bins corresponding to the bin_List argument
-        current_folder_distance_bins, current_folder_bin_values, [_, _], _ = ana.xy_to_bins(
+        current_folder_distance_bins, current_folder_bin_values, [_, _], binned_y_values = ana.xy_to_bins(
             list(current_folder_distances),
             list(current_folder_values),
             bin_size=None,
             print_progress=False,
             custom_bins=bin_list,
             do_not_edit_xy=False,
-            compute_bootstrap=False)
+            compute_bootstrap=False,
+            bins_in_middle=False)
         for i_bin, distance_bin in enumerate(current_folder_distance_bins):
             if distance_bin in bin_list:  # check this because ana.xy_to_bins() adds max value to the output bin list
                 bin_index = np.where(np.asarray(bin_list) == distance_bin)[0]
@@ -99,7 +103,9 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
                 if type(bin_index.astype(int)) != int and len(bin_index) > 0:
                     bin_index = bin_index[0]
                 visit_values_each_bin_each_plate[bin_index][i_folder] = current_folder_bin_values[i_bin]
-    return visit_values_each_bin_each_plate
+                # The total timestep counts is the sum of the visit durations to the pixels of this bin
+                total_time_steps_each_bin_each_plate[bin_index][i_folder] = np.sum(binned_y_values[bin_index])
+    return visit_values_each_bin_each_plate, total_time_steps_each_bin_each_plate
 
 
 def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_list, variable):
@@ -118,12 +124,14 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        visit_values_each_bin_each_plate = pixel_visits_vs_distance_to_boundary(folder_list,
-                                                                                traj, bin_list,
-                                                                                variable=variable)
+        visit_values_each_bin_each_plate, total_time_steps_each_bin_each_plate = pixel_visits_vs_distance_to_boundary(
+            folder_list,
+            traj, bin_list,
+            variable=variable)
 
         # At this point, visit_values has one value per bin/folder in each cell => average and bootstrap all that
         nb_of_bins = len(bin_list)
+        centered_bin_list = copy.deepcopy(bin_list)
         avg_each_bin = np.empty(nb_of_bins)
         avg_each_bin[:] = np.nan  # just a convenient way of having a table full of NaNs
         # Errors
@@ -134,44 +142,74 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
         for i_bin in range(nb_of_bins):
             # Rename
             values_this_time_bin = visit_values_each_bin_each_plate[i_bin]
+            time_steps_this_time_bin = total_time_steps_each_bin_each_plate[i_bin]
             # and remove nan values for bootstrapping
+            time_steps_this_time_bin = [time_steps_this_time_bin[i] for i in range(len(time_steps_this_time_bin)) if
+                                        not np.isnan(values_this_time_bin[i])]
             values_this_time_bin = [values_this_time_bin[i] for i in range(len(values_this_time_bin)) if
                                     not np.isnan(values_this_time_bin[i])]
             if values_this_time_bin:
+                for i_plate in range(len(values_this_time_bin)):
+                    # For speeds, convert to mm / s
+                    if variable == "speed":
+                        values_this_time_bin[i_plate] = values_this_time_bin[i_plate] * param.one_pixel_in_mm
+                    # For pixel visits, normalize by the total nb of time steps in the bin, to get a probability of presence
+                    if variable == "pixel_visits":
+                        values_this_time_bin[i_plate] /= time_steps_this_time_bin[i_plate]
+                # Compute avg and confidence interval
                 current_avg = np.nanmean(values_this_time_bin)
                 avg_each_bin[i_bin] = current_avg
                 bootstrap_ci = ana.bottestrop_ci(values_this_time_bin, 1000)
                 errors_inf[i_bin] = current_avg - bootstrap_ci[0]
                 errors_sup[i_bin] = bootstrap_ci[1] - current_avg
 
+            # Put bin in the middle!
+            # First bin should be halfway between minimal value and its value
+            if i_bin == 0:
+                # I know the minimum is around 45, so I center it like that... would be cleaner to compute minimum
+                centered_bin_list[i_bin] = (bin_list[i_bin] - 45) / 2
+            # Other bins should be centered
+            else:
+                centered_bin_list[i_bin] = (bin_list[i_bin] + bin_list[i_bin - 1]) / 2
+
         # Plot and add error bars
-        condition_name = "OD = "+param.nb_to_density[curve[0]]
+        condition_name = "OD = " + param.nb_to_density[curve[0]]
         if condition_name == "OD = 0":
-            condition_name = "control"
+            condition_name = "Control (OD = 0)"
         condition_color = param.name_to_color[param.nb_to_density[curve[0]]]
-        plt.plot(bin_list, avg_each_bin, color=condition_color, label=condition_name, linewidth=3)
-        plt.errorbar(bin_list, avg_each_bin, [errors_inf, errors_sup], color=condition_color, capsize=5)
+        plt.plot(centered_bin_list, avg_each_bin, color=condition_color, label=condition_name, linewidth=3)
+        plt.errorbar(centered_bin_list, avg_each_bin, [errors_inf, errors_sup], color=condition_color, capsize=5)
 
     print("Total time: ", int((time.time() - tic) // 60), "min")
 
-    if variable == "Total":
-        plt.title("Total time in pixel as a function of distance to the edge of the patch in " + condition_name, fontsize=20)
+    if variable == "pixel_visits":
+        plt.title("Total time in pixel as a function of distance to the edge of the patch in " + condition_name,
+                  fontsize=20)
         plt.ylabel("Total visit time to pixel", fontsize=12)
-    if variable == "Speed":
-        plt.title("Average centroid speed while in pixel as a function of distance to the edge of the patch in " + condition_name, fontsize=20)
+    if variable == "speed":
+        plt.title(
+            "Average centroid speed while in pixel as a function of distance to the edge of the patch in " + condition_name,
+            fontsize=20)
         plt.ylabel("Average centroid speed while in pixel", fontsize=12)
     plt.xlabel("Distance to closest patch boundary ( <0 = inside)", fontsize=12)
-    plt.legend()
+    plt.legend(fontsize=12)
     plt.show()
 
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(starting_from="clean", shorten_traj=True)
+    path = gen.generate(starting_from="", shorten_traj=False)
     results = pd.read_csv(path + "clean_results.csv")
     trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
-    list_of_distance_bins = [-40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60]
+    list_of_distance_bins = [-35, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60]
+    plot_visit_duration_vs_distance(full_list_of_folders[:120], trajectories,
+                                    ['med 0.2'], list_of_distance_bins,
+                                    variable="pixel_visits")
+    plot_visit_duration_vs_distance(full_list_of_folders[:30], trajectories,
+                                    ['med 0.2'], list_of_distance_bins,
+                                    variable="speed")
+
     plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
                                     ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
                                     variable="Total")
