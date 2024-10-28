@@ -9,9 +9,6 @@ import time
 from main import *
 import find_data as fd
 from Generating_data_tables import main as gen
-from Generating_data_tables import generate_trajectories as gt
-from Scripts_analysis import s20240605_global_presence_heatmaps as heatmap_script
-from Scripts_sanity_checks import s20240810_interpatch_distance as interpatch_script
 
 # Analysis of the number of visited foodpatches throughout the videos
 
@@ -20,7 +17,7 @@ results = pd.read_csv(path + "clean_results.csv")
 trajectories = dt.fread(path + "clean_trajectories.csv")
 
 # Parameters
-curve_list = ["close", "med", "far", "superfar"]
+# curve_list = ["close", "med", "far", "superfar"]
 # curve_list = ["0", "0.2", "0.5", "1.25"]
 # curve_list = ["close 0", "med 0", "far 0", "superfar 0"]
 # curve_list = ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]
@@ -29,8 +26,8 @@ curve_list = ["close", "med", "far", "superfar"]
 # curve_list = ["close 0", "close 0.2", "close 0.5", "close 1.25"]
 # curve_list = ["med 0", "med 0.2", "med 0.5", "med 1.25"]
 # curve_list = ["far 0", "far 0.2", "far 0.5", "far 1.25"]
-# curve_list = ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"]
-time_bins = [0, 4000, 8000, 12000, 16000, 24000, 32000, 38000, 44000]
+curve_list = ["superfar 0.2", "superfar 0.5", "superfar 1.25"]
+time_bins = [0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400]
 min_length = 1  # minimal transit length to get considered
 min_nb_data_points = 10  # minimal number of transits for a point to get plotted
 plot_diff = True  # set this to true to plot the y difference between points instead of the points
@@ -95,21 +92,21 @@ for i_curve in range(len(curve_list)):
     x_list = np.array(time_bins) + i_curve * 100
 
     if plot_diff:
-        plt.plot(x_list, avg_each_bin[1:] - avg_each_bin[:-1], color=param.name_to_color[curve_name], label=curve_name, linewidth=3)
-        plt.errorbar(x_list, avg_each_bin[1:] - avg_each_bin[:-1], [errors_inf, errors_sup], fmt=param.name_to_color[curve_name], capsize=5)
+        plt.plot(x_list[1:], avg_each_bin[1:] - avg_each_bin[:-1], color=param.name_to_color[curve_name], label=curve_name, linewidth=3)
     else:
         plt.plot(x_list, avg_each_bin, color=param.name_to_color[curve_name], label=curve_name, linewidth=3)
         plt.errorbar(x_list, avg_each_bin, [errors_inf, errors_sup], fmt=param.name_to_color[curve_name], capsize=5)
 
 if plot_diff:
-    plt.title("New discovered food patch at different times in the videos", fontsize=20)
+    plt.title("New discovered food patch at different times in the videos", fontsize=12)
     plt.ylabel("Number of new discovered food patches", fontsize=12)
 else:
-    plt.title("Average nb of discovered food patch at different times in the videos", fontsize=20)
+    plt.title("Average nb of discovered food patch at different times in the videos", fontsize=12)
     plt.ylabel("Total number of discovered food patches", fontsize=12)
 
-plt.xticks(time_bins, [str(b) for b in time_bins], rotation=50)
-plt.xlabel("Time in video", fontsize=12)
+plt.gcf().set_size_inches(6.2, 6.6)
+plt.xticks(time_bins, [str(np.round(b/3600, 1)) for b in time_bins], rotation=50)  # hour conversion is here
+plt.xlabel("Time in video (hours)", fontsize=12)
 plt.legend()
 plt.show()
 
