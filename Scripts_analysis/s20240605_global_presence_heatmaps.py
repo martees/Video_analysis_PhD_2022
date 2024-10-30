@@ -176,6 +176,8 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
 
     pd.DataFrame(average_radius).to_csv(results_path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
 
+    return np.mean(average_radius["avg_patch_radius"])
+
 
 def compute_average_ref_points_distance(results_path, full_plate_list):
     """
@@ -244,6 +246,8 @@ def compute_average_ref_points_distance(results_path, full_plate_list):
     plt.show()
     pd.DataFrame(average_distance).to_csv(
         results_path + "perfect_heatmaps/average_reference_points_distance_each_condition.csv")
+
+    return np.mean(average_distance["avg_ref_points_distance"])
 
 
 def idealized_patch_centers_mm(results_path, full_plate_list, output_frame_size):
@@ -585,23 +589,24 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
             if variable == "speed":
                 # Convert the pixels in mm / s
                 heatmap_each_curve[i_curve] *= param.one_pixel_in_mm
+
             # Set the cells without values to white
             heatmap_each_curve[i_curve] = np.ma.masked_where(counts_each_curve[i_curve] == 0, heatmap_each_curve[i_curve])
             cmap = plt.get_cmap(color_map)
-            cmap.set_bad('black', 1.)
+            cmap.set_bad('white', 1.)
 
             if len(curve_list) == 1:
                 if variable == "speed":
                     plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.2)
                 else:
-                    plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.000002)
+                    plt.imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.00002)
                 plt.title(curve_names[i_curve])
                 plt.colorbar()
             else:
                 if variable == "speed":
                     axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.2)
                 else:
-                    axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.000002)
+                    axes[i_curve].imshow(heatmap_each_curve[i_curve].astype(float), cmap=color_map, vmax=0.00002)
                 axes[i_curve].set_title(curve_names[i_curve])
 
     if show_plot:
@@ -627,11 +632,13 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1):
             heatmap = heatmap / np.nansum(heatmap)
 
         # Set the cells without values to white
-        heatmap = np.ma.masked_where(counts == 0, heatmap)
-        if variable == "speed":
-            cmap = plt.get_cmap("plasma")
-            cmap.set_bad('black', 1.)
         if variable == "pixel_visits":
+            heatmap = np.ma.masked_where(heatmap == 0, heatmap)
+            cmap = plt.get_cmap("plasma")
+            cmap.set_bad('lightgrey', 1.)
+
+        if variable == "speed":
+            heatmap = np.ma.masked_where(counts == 0, heatmap)
             cmap = plt.get_cmap("viridis")
             cmap.set_bad('white', 1.)
 
@@ -646,6 +653,8 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1):
         plt.xlim(250, 1600)
         plt.ylim(250, 1600)
         plt.title(str([param.nb_to_name[c] for c in condition_list]) + ", v_max=" + str(v_max))
+        plt.xticks([])
+        plt.yticks([])
 
         clb = plt.colorbar()
         clb.ax.tick_params(labelsize=12)
@@ -660,26 +669,47 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1):
 if __name__ == "__main__":
     path = gen.generate(starting_from="", shorten_traj=False)
 
+    # # 0
+    # plot_existing_heatmap(path, [17], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [18], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [19], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [20], "speed", v_max=0.2)
+    # # 0.2
+    # plot_existing_heatmap(path, [0], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [1], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [2], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [14], "speed", v_max=0.2)
+    # # 0.5
+    # plot_existing_heatmap(path, [4], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [5], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [6], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [15], "speed", v_max=0.2)
+    # # 1.25
+    # plot_existing_heatmap(path, [12], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [8], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [13], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [16], "speed", v_max=0.2)
+
     # 0
-    #plot_existing_heatmap([17], "speed", v_max=0.000002)
-    #plot_existing_heatmap([18], "speed", v_max=0.000002)
-    #plot_existing_heatmap([19], "speed", v_max=0.000002)
-    #plot_existing_heatmap([20], "speed", v_max=0.000002)
+    plot_existing_heatmap(path, [17], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [18], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [19], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [20], "pixel_visits", v_max=0.00002)
     # 0.2
-    #plot_existing_heatmap([0], "speed", v_max=0.000002)
-    #plot_existing_heatmap([1], "speed", v_max=0.000002)
-    plot_existing_heatmap(path, [2], "speed", v_max=0.2)
-    #plot_existing_heatmap([14], "speed", v_max=0.000002)
+    plot_existing_heatmap(path, [0], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [1], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [2], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [14], "pixel_visits", v_max=0.00002)
     # 0.5
-    #plot_existing_heatmap([4], "speed", v_max=0.000002)
-    #plot_existing_heatmap([5], "speed", v_max=0.000002)
-    #plot_existing_heatmap([6], "speed", v_max=0.000002)
-    #plot_existing_heatmap([15], "speed", v_max=0.000002)
+    plot_existing_heatmap(path, [4], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [5], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [6], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [15], "pixel_visits", v_max=0.00002)
     # 1.25
-    #plot_existing_heatmap([12], "speed", v_max=0.000002)
-    #plot_existing_heatmap([8], "speed", v_max=0.000002)
-    #plot_existing_heatmap([13], "speed", v_max=0.000002)
-    #plot_existing_heatmap([16], "speed", v_max=0.000002)
+    plot_existing_heatmap(path, [12], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [8], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [13], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [16], "pixel_visits", v_max=0.00002)
 
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     results = pd.read_csv(path + "clean_results.csv")
