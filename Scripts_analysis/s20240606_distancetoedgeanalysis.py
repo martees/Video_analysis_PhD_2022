@@ -50,9 +50,7 @@ def generate_patch_distance_map(in_patch_matrix, folder_to_save):
 
 def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="Total"):
     visit_values_each_bin_each_plate = np.zeros((len(bin_list), len(folder_list)))
-    total_time_steps_each_bin_each_plate = np.zeros((len(bin_list), len(folder_list)))
     visit_values_each_bin_each_plate[:] = np.nan
-    total_time_steps_each_bin_each_plate[:] = np.nan
     for i_folder, folder in enumerate(folder_list):
         print(">>> Folder ", i_folder, " / ", len(folder_list))
         # Correct the times for plates that have only NaNs or jumps in the time
@@ -87,7 +85,7 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
         current_folder_distances = np.ravel(distance_map)
 
         # Put all the gathered values in bins corresponding to the bin_List argument
-        current_folder_distance_bins, current_folder_bin_values, [_, _], binned_y_values = ana.xy_to_bins(
+        current_folder_distance_bins, current_folder_avg_each_bin, [_, _], binned_y_values = ana.xy_to_bins(
             list(current_folder_distances),
             list(current_folder_values),
             bin_size=None,
@@ -102,13 +100,11 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
                 # Sometimes bin_index is a list with one element for some reason, if that's the case convert to int
                 if type(bin_index.astype(int)) != int and len(bin_index) > 0:
                     bin_index = bin_index[0]
-                visit_values_each_bin_each_plate[bin_index][i_folder] = current_folder_bin_values[i_bin]
-                # The total timestep counts is the sum of the visit durations to the pixels of this bin
-                total_time_steps_each_bin_each_plate[bin_index][i_folder] = np.sum(binned_y_values[bin_index])
-    return visit_values_each_bin_each_plate, total_time_steps_each_bin_each_plate
+                visit_values_each_bin_each_plate[bin_index][i_folder] = current_folder_avg_each_bin[i_bin]
+    return visit_values_each_bin_each_plate
 
 
-def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_list, variable):
+def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_list, variable, only_show_density=False):
     """
     Function that will make a plot with the duration of visits as a function of distance to the closest patch boundary
     (negative distance => worm is inside the patch). Average is made over all pixels pooled together for each curve.
@@ -124,7 +120,7 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        visit_values_each_bin_each_plate, total_time_steps_each_bin_each_plate = pixel_visits_vs_distance_to_boundary(
+        visit_values_each_bin_each_plate = pixel_visits_vs_distance_to_boundary(
             folder_list,
             traj, bin_list,
             variable=variable)
@@ -139,13 +135,15 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
         errors_sup = np.empty(nb_of_bins)
         errors_inf[:] = np.nan
         errors_sup[:] = np.nan
+        # To normalize probabilities of presence, get the sum of times for each plate
+        total_time_steps_each_plate = [0 for _ in range(len(visit_values_each_bin_each_plate[0]))]
+        for i_bin in range(nb_of_bins):
+            for i_plate in range(len(visit_values_each_bin_each_plate[i_bin])):
+                total_time_steps_each_plate[i_plate] += visit_values_each_bin_each_plate[i_bin][i_plate]
         for i_bin in range(nb_of_bins):
             # Rename
             values_this_time_bin = visit_values_each_bin_each_plate[i_bin]
-            time_steps_this_time_bin = total_time_steps_each_bin_each_plate[i_bin]
             # and remove nan values for bootstrapping
-            time_steps_this_time_bin = [time_steps_this_time_bin[i] for i in range(len(time_steps_this_time_bin)) if
-                                        not np.isnan(values_this_time_bin[i])]
             values_this_time_bin = [values_this_time_bin[i] for i in range(len(values_this_time_bin)) if
                                     not np.isnan(values_this_time_bin[i])]
             if values_this_time_bin:
@@ -153,9 +151,9 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
                     # For speeds, convert to mm / s
                     if variable == "speed":
                         values_this_time_bin[i_plate] = values_this_time_bin[i_plate] * param.one_pixel_in_mm
-                    # For pixel visits, normalize by the total nb of time steps in the bin, to get a probability of presence
+                    # For pixel visits, multiply by the proportion of time steps in this bin
                     if variable == "pixel_visits":
-                        values_this_time_bin[i_plate] /= time_steps_this_time_bin[i_plate]
+                        values_this_time_bin[i_plate] /= total_time_steps_each_plate[i_plate]
                 # Compute avg and confidence interval
                 current_avg = np.nanmean(values_this_time_bin)
                 avg_each_bin[i_bin] = current_avg
@@ -173,26 +171,30 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
                 centered_bin_list[i_bin] = (bin_list[i_bin] + bin_list[i_bin - 1]) / 2
 
         # Plot and add error bars
-        condition_name = "OD = " + param.nb_to_density[curve[0]]
-        if condition_name == "OD = 0":
-            condition_name = "Control (OD = 0)"
+        # Then, plot it
+        density = param.nb_to_density[curve[0]]
+        color_of_density = param.name_to_color[density]
+        color_of_condition = param.name_to_color[param.nb_to_name[curve[0]]]
+        if only_show_density:
+            color = color_of_density
+            label = "OD = " + density
+        else:
+            color = color_of_condition
+            label = param.nb_to_name[curve[0]]
         condition_color = param.name_to_color[param.nb_to_density[curve[0]]]
-        plt.plot(centered_bin_list, avg_each_bin, color=condition_color, label=condition_name, linewidth=3)
-        plt.errorbar(centered_bin_list, avg_each_bin, [errors_inf, errors_sup], color=condition_color, capsize=5)
+        plt.plot(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin, color=color, label=label, linewidth=3)
+        plt.errorbar(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin, [errors_inf, errors_sup], color=color, capsize=5)
 
     print("Total time: ", int((time.time() - tic) // 60), "min")
 
+    plt.title(str(curve_names), fontsize=20)
     if variable == "pixel_visits":
-        plt.title("Total time in pixel as a function of distance to the edge of the patch in " + condition_name,
-                  fontsize=20)
-        plt.ylabel("Total visit time to pixel", fontsize=12)
+        plt.ylabel("Probability of presence", fontsize=16)
+        #plt.yscale("log")
     if variable == "speed":
-        plt.title(
-            "Average centroid speed while in pixel as a function of distance to the edge of the patch in " + condition_name,
-            fontsize=20)
-        plt.ylabel("Average centroid speed while in pixel", fontsize=12)
-    plt.xlabel("Distance to closest patch boundary ( <0 = inside)", fontsize=12)
-    plt.legend(fontsize=12)
+        plt.ylabel("Average centroid speed (mm/s)", fontsize=16)
+    plt.xlabel("Distance to patch boundary (< 0 inside, mm)", fontsize=16)
+    plt.legend(fontsize=14)
     plt.show()
 
 
@@ -202,14 +204,21 @@ if __name__ == "__main__":
     results = pd.read_csv(path + "clean_results.csv")
     trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
-    list_of_distance_bins = [-35, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60]
-    plot_visit_duration_vs_distance(full_list_of_folders[:120], trajectories,
-                                    ['med 0.2'], list_of_distance_bins,
-                                    variable="pixel_visits")
-    plot_visit_duration_vs_distance(full_list_of_folders[:30], trajectories,
-                                    ['med 0.2'], list_of_distance_bins,
-                                    variable="speed")
+    # list_of_distance_bins = [-35, -30, -25, -20, -15, -10, -5, 5, 10, 20, 30, 40, 50, 60, 100]
+    list_of_distance_bins_mm = [-1.3, -1.1, -0.9, -0.7, -0.5, -0.3, -0.1, 0.1, 0.3, 0.7, 1.5, 2.4]
+    list_of_distance_bins = [b/param.one_pixel_in_mm for b in list_of_distance_bins_mm]
 
+    #plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
+    #                                 ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+    #                                 variable="pixel_visits", only_show_density=True)
+    #plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
+    #                                 ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+    #                                 variable="speed", only_show_density=True)
+
+    #plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
+    #                                ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+    #                                 variable="pixel_visits")
     plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
-                                    ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-                                    variable="Total")
+                                    ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+                                    variable="pixel_visits")
+
