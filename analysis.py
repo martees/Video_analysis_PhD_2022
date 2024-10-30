@@ -782,6 +782,9 @@ def aggregate_visits(list_of_visits, condition, aggregation_threshold, return_du
     visits_per_patch = []
     # We refactor visits from chronological to by_patch format (one sub-list per patch)
     sorted_visits = gr.sort_visits_by_patch(list_of_visits, param.nb_to_nb_of_patches[condition])
+    if not sorted_visits:
+        return []
+
     # We don't append because we want to pool all patches from all conditions in the same list (for now)
     visits_per_patch += sorted_visits
     # At the end of this, all visits to a same patch are in the same sublist of visits_per_patch
@@ -916,9 +919,10 @@ def delays_before_leaving(result_table, condition_list, min_visit_length=0):
         list_of_transits = fd.load_list(current_data, "aggregated_raw_transits")
         for i_patch in range(len(list_of_visits)):
             current_patch_info = list_of_visits[i_patch]
-            visit_start = current_patch_info[0]
-            visit_end = current_patch_info[1]
+            visit_start = int(np.rint(current_patch_info[0]))
+            visit_end = int(np.rint(current_patch_info[1]))
             current_patch_transits = current_patch_info[-1]
+            current_patch_transits = [[int(np.rint(t)) for t in transit] for transit in current_patch_transits]
             time_out_of_patch_counter = 0
             # Add delays that run from beginning of visit to first exit
             if current_patch_transits[0][0] - visit_start + 1 > min_visit_length:
