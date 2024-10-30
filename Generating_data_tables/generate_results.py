@@ -279,6 +279,7 @@ def sort_visits_by_patch(chronological_list_of_visits, nb_of_patches):
         # Fill the right sublist with the start / end info
         if visit[2] > nb_of_patches - 1:
             print("ayayay")
+            return False
         bypatch_list_of_visits[visit[2]].append([visit[0], visit[1]])
     for i_patch in range(len(bypatch_list_of_visits)):
         # For each patch, sort the visits chronologically based on visit start
@@ -758,7 +759,7 @@ def add_aggregate_visit_info_to_results(results, threshold_list):
     for i_plate in range(len(results)):
         current_plate = results["folder"][i_plate]
         current_results = results[results["folder"] == current_plate].reset_index(drop=True)
-        this_plate_visits = fd.load_list(current_results, "no_hole_visits")
+        this_plate_visits = fd.load_list(current_results, "visits_to_uncensored_patches")
         this_plate_condition = current_results["condition"][0]
         for i_thresh in range(len(threshold_list)):
             thresh = threshold_list[i_thresh]
@@ -799,7 +800,7 @@ def generate_pixelwise_visits(time_stamp_list, folder):
 
     # If the trajectories should be shortened to some time point, also shorten the silhouettes
     if "shortened" in folder:
-        pixels = pixels[:fd.find_closest(time_stamp_list.to_list()[0], param.time_to_cut_videos)]
+        pixels = pixels[:fd.find_closest(time_stamp_list.to_list()[0], param.times_to_cut_videos)]
 
     # Create a table with a list containing, for each pixel in the image, a sublist with the [start, end] of the visits
     # to this pixel. In the following algorithm, when the last element of a sublist is -1, it means that the pixel
