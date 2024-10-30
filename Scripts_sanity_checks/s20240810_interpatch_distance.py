@@ -23,7 +23,7 @@ def generate_patch_distances():
     print("Finished loading tables!")
 
     # Also show radius distribution
-    heatmap_script.generate_average_patch_radius_each_condition(gen.generate(""), full_list_of_folders)
+    #heatmap_script.generate_average_patch_radius_each_condition(gen.generate(""), full_list_of_folders)
 
     distances = ["close", "med", "far", "superfar"]
     nearest_neighbors_each_cond = transition_script.find_nearest_neighbors(path, full_list_of_folders, full_cond_list)
@@ -102,9 +102,9 @@ def generate_patch_distances():
 
     plt.show()
 
-    data_for_saving = pd.DataFrame({"distance": distances, "interpatch_distance": [np.mean(d) for d in list_nearest_neighbor_distances]})
+    data_for_saving = pd.DataFrame({"distance": distances, "interpatch_distance": [np.mean(d) for d in list_nearest_neighbor_distances],
+                                    "interpatch_distance_std": [np.std(d) for d in list_nearest_neighbor_distances]})
     data_for_saving.to_csv(path + "interpatch_distance.csv")
-
 
 
 generate_patch_distances()

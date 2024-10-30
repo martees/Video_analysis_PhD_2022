@@ -390,20 +390,20 @@ if __name__ == "__main__":
     #plot_graphs(results, "total_visit_time_first_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     #plot_graphs(results, "total_visit_time_first_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
+    #plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    #plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    #plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
+    #plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    #plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    #plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    plot_graphs(results, "first_visit_duration_video", [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, "first_visit_duration_video", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, "first_visit_duration_video", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, "first_visit_duration_video", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "leaving_probability", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "leaving_probability", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
 
     #plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["transits"], only_first=False, plot_cumulative=True)

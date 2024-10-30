@@ -62,7 +62,7 @@ def trajcsv_to_dataframe(paths_of_mat, shortened=False):
 
         # We remove the datapoints that are after shorten time
         if shortened:
-            current_data = current_data[current_data["time"] <= param.time_to_cut_videos]
+            current_data = current_data[current_data["time"] <= param.times_to_cut_videos]
 
         if i_file == 0:
             dataframe = current_data

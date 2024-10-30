@@ -16,14 +16,14 @@ travel_time_bins = [1, 10, 100, 1000, 10000]
 # curve_list = [param.name_to_nb_list["0"], param.name_to_nb_list["0.2"], param.name_to_nb_list["0.5"],
 #               param.name_to_nb_list["1.25"]]
 
-curve_list = [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
-              [param.name_to_nb["superfar 0"]]]
+#curve_list = [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
+#              [param.name_to_nb["superfar 0"]]]
 #curve_list = [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
 #              [param.name_to_nb["superfar 0.2"]]]
 #curve_list = [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
 #              [param.name_to_nb["superfar 0.5"]]]
-#curve_list = [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
-#              [param.name_to_nb["superfar 1.25"]]]
+curve_list = [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
+              [param.name_to_nb["superfar 1.25"]]]
 
 only_first = 1
 
@@ -43,7 +43,7 @@ for i_curve, curve in enumerate(curve_list):
                                                                                                       patch_or_pixel="patch",
                                                                                                       only_first=only_first,
                                                                                                       custom_bins=travel_time_bins,
-                                                                                                      min_nb_data_points=20)
+                                                                                                      min_nb_data_points=4)
         # Classical error bars
         # plt.errorbar([x_bin * (1 + 0.1 * i_curve) for x_bin in variable_value_bins], average_visit_duration,
         #              [errors_inf, errors_sup], fmt='.k', capsize=5)
@@ -76,7 +76,7 @@ for i_curve, curve in enumerate(curve_list):
                                                                                                      patch_or_pixel="patch",
                                                                                                      only_first=only_first,
                                                                                                      custom_bins=travel_time_bins,
-                                                                                                     min_nb_data_points=10)
+                                                                                                     min_nb_data_points=5)
             for i_bin in range(len(current_bins)):
                 bin_index = np.where(np.array(travel_time_bins) == current_bins[i_bin])[0][0]
                 bins_each_cond[i_cond][bin_index] = current_bins[i_bin]
