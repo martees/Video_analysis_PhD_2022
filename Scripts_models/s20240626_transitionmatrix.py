@@ -49,6 +49,9 @@ def generate_transition_matrices(results_path, condition_list, plot_everything=F
             transition_probability_matrix = np.zeros((nb_of_patches, nb_of_patches))
             transition_times_matrix = [[[] for _ in range(nb_of_patches)] for _ in range(nb_of_patches)]
             distance_matrix = [[[] for _ in range(nb_of_patches)] for _ in range(nb_of_patches)]
+            if np.max(current_visits[:, 2]) > nb_of_patches:
+                print("There's a plate with bad patch numbers!!!")
+                nb_of_patches = 0
             for i_patch in range(nb_of_patches):
                 # print(">>> Patch ", i_patch, " / ", nb_of_patches)
                 # Look for the outgoing transits, and then look at next visits to see which patch they went to
@@ -69,8 +72,8 @@ def generate_transition_matrices(results_path, condition_list, plot_everything=F
                     # If travel time is negative, it means we're at the junction between two plates
                     # => only look at positive travel times
                     if travel_time >= 0:
-                        transition_times_matrix[i_patch][next_patch].append(travel_time)
-                        counts_each_patch[next_patch] += 1
+                        transition_times_matrix[i_patch][int(next_patch)].append(travel_time)
+                        counts_each_patch[int(next_patch)] += 1
                 # Count how many outgoing transits go to each of the patches
                 probability_each_patch = ana.array_division_ignoring_zeros(counts_each_patch, np.sum(counts_each_patch))
                 transition_probability_matrix[i_patch] = probability_each_patch
@@ -92,11 +95,11 @@ def generate_transition_matrices(results_path, condition_list, plot_everything=F
         if plot_everything:
             # Plottttt
             fig, [ax0, ax1, ax2] = plt.subplots(1, 3)
-            fig.set_size_inches(10, 4)
+            fig.set_size_inches(14, 4)
             fig.suptitle(param.nb_to_name[condition], x=0.1)  # x value is to put the title on the left
             # Distances
             im = ax0.imshow(distance_matrix)
-            ax0.set_title("Euclidian distance")
+            ax0.set_title("Euclidian distance", fontsize=18)
             fig.colorbar(im, ax=ax0)
             # Transition probability
             # Find the maximal non-diagonal value to normalize edges with that
@@ -104,19 +107,19 @@ def generate_transition_matrices(results_path, condition_list, plot_everything=F
             np.fill_diagonal(mask, 0)
             max_value = transition_probability_matrix[mask].max()
             im = ax1.imshow(np.clip(np.rint(transition_probability_matrix / max_value * 100) / 100, 0, 1))
-            ax1.set_title("Transition probabilities")
-            ax1.set_xticks([0, 1, 2], labels=["0", "1", "2"])
-            ax1.set_yticks([0, 1, 2], labels=["0", "1", "2"])
-            ax1.tick_params(axis='both', labelsize=18, top=True, labeltop=True, bottom=False, labelbottom=False)
+            ax1.set_title("Transition probabilities", fontsize=18)
+            #ax1.set_xticks([0, 1, 2], labels=["0", "1", "2"])
+            #ax1.set_yticks([0, 1, 2], labels=["0", "1", "2"])
+            #ax1.tick_params(axis='both', labelsize=18, top=True, labeltop=True, bottom=False, labelbottom=False)
             fig.colorbar(im, ax=ax1, fraction=0.046)
             # Transition time
             transition_matrix_avg = [list(map(np.nanmean, line)) for line in transition_times_matrix]
             im = ax2.imshow(transition_matrix_avg, vmax=np.nanquantile(transition_matrix_avg, 0.9))
-            ax2.set_title("Transition durations")
-            ax2.set_xticks([0, 1, 2], labels=["0", "1", "2"])
-            ax2.set_yticks([0, 1, 2], labels=["0", "1", "2"])
-            ax2.tick_params(axis='both', labelsize=18, top=True, labeltop=True, bottom=False, labelbottom=False)
-            fig.colorbar(im, ax=ax2, fraction=0.046)
+            ax2.set_title("Transition durations (s)", fontsize=18)
+            #ax2.set_xticks([0, 1, 2], labels=["0", "1", "2"])
+            #ax2.set_yticks([0, 1, 2], labels=["0", "1", "2"])
+            #ax2.tick_params(axis='both', labelsize=18, top=True, labeltop=True, bottom=False, labelbottom=False)
+            fig.colorbar(im, ax=ax2, fraction=0.046, extend="max")
             plt.tight_layout()
             plt.show()
 
@@ -694,7 +697,6 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
     # Compute the experimental values of total time in patch
     average_per_condition, list_of_avg_each_plate, errorbars = plots.plot_selected_data(results_table, "",
                                                                                         condition_list_this_density,
-                                                                                        condition_names_this_density,
                                                                                         "total_visit_time",
                                                                                         divided_by="nb_of_visited_patches",
                                                                                         is_plot=False)
@@ -710,23 +712,23 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
     probability_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density, "revisit_probability", "total_visit_time", nb_of_exp, xp_length, False)
 
     # Plot simulated data
-    plt.ylabel("Total time per patch (seconds)", fontsize=18)
+    plt.ylabel("Total time per patch (hours)", fontsize=18)
     plt.title("Effect of distance vs. behavior for " + baseline_condition)
-    plt.plot([visit_exchange_matrix[i][i] for i in range(len(visit_exchange_matrix))], color="black", linewidth=4,
+    plt.plot([visit_exchange_matrix[i][i]/3600 for i in range(len(visit_exchange_matrix))], color="black", linewidth=4,
              label="Simulation: all parameters change with distance")
-    plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[i][i] for i in range(len(visit_exchange_matrix))], color="black", s=67)
+    plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[i][i]/3600 for i in range(len(visit_exchange_matrix))], color="black", s=67)
 
     # In order to plot the effect of changing parameters with baseline as an actual baseline, need to find
     # at what index it sits in the matrices
     baseline_index = np.where(np.array(condition_names_this_density) == baseline_condition)[0][0]
-    plt.plot([probability_exchange_matrix[baseline_index][i] for i in range(len(probability_exchange_matrix))], color="cornflowerblue", linewidth=4,
+    plt.plot([probability_exchange_matrix[baseline_index][i]/3600 for i in range(len(probability_exchange_matrix))], color="cornflowerblue", linewidth=4,
              label="Simulation: only revisit probability changes with distance")
-    plt.scatter(range(len(probability_exchange_matrix)), [probability_exchange_matrix[baseline_index][i] for i in range(len(probability_exchange_matrix))], color="cornflowerblue", s=67)
-    plt.plot([visit_exchange_matrix[baseline_index][i] for i in range(len(visit_exchange_matrix))], color="goldenrod", linewidth=4,
+    plt.scatter(range(len(probability_exchange_matrix)), [probability_exchange_matrix[baseline_index][i]/3600 for i in range(len(probability_exchange_matrix))], color="cornflowerblue", s=67)
+    plt.plot([visit_exchange_matrix[baseline_index][i]/3600 for i in range(len(visit_exchange_matrix))], color="goldenrod", linewidth=4,
              label="Simulation: only visit time changes with distance")
-    plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[baseline_index][i] for i in range(len(visit_exchange_matrix))], color="goldenrod", s=67)
-    plt.legend()
-    plt.ylim(100, 2800)
+    plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[baseline_index][i]/3600 for i in range(len(visit_exchange_matrix))], color="goldenrod", s=67)
+    plt.legend(fontsize=14)
+    #plt.ylim(100, 2800)
 
     # Set the x labels to the distance icons!
     # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
@@ -740,7 +742,7 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
                 condition_list_this_density[i]] + '.png')
 
         # Image box to draw it!
-        imagebox = OffsetImage(arr_img, zoom=0.5)
+        imagebox = OffsetImage(arr_img, zoom=0.8)
         imagebox.image.axes = ax
 
         x_annotation_box = AnnotationBbox(imagebox, (i, 0),
@@ -758,7 +760,7 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(test_pipeline=False, shorten_traj=True)
+    path = gen.generate()
     results = pd.read_csv(path + "clean_results.csv")
     # trajectories = pd.read_csv(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
@@ -767,8 +769,15 @@ if __name__ == "__main__":
             "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
-    #generate_transition_matrices(path, [14], plot_everything=True, plot_transition_matrix=False, is_recompute=False)
-    behavior_vs_geometry(path, results, "close 0.2", 1000, 16000)
+    # generate_transition_matrices(path, [0, 1, 2, 14], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
+    # generate_transition_matrices(path, [4, 5, 6, 15], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
+    # generate_transition_matrices(path, [12, 8, 13, 16], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
+    # generate_transition_matrices(path, [17, 18, 19, 20], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
+
+    # behavior_vs_geometry(path, results, "close 0", 2000, 16000)
+    behavior_vs_geometry(path, results, "close 0.2", 2000, 16000)
+    behavior_vs_geometry(path, results, "close 0.5", 2000, 16000)
+    behavior_vs_geometry(path, results, "close 1.25", 2000, 16000)
 
     # list_of_conditions = list(param.nb_to_name.keys())
     # show_patch_numbers(list_of_conditions)
