@@ -8,7 +8,8 @@ import analysis as ana
 
 
 def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True, remove_censored_events=False,
-                                    only_first_visited_patch=False, soft_cut=False, hard_cut=False):
+                                    only_first_visited_patch=False, soft_cut=False, hard_cut=False,
+                                    visits_longer_than=0):
     """
     Function that plots a histogram with the average length of first visit to each food patch in each condition in condition_list.
     """
@@ -19,11 +20,15 @@ def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True, remov
     plate_list = results["folder"]
     for i_plate, plate in enumerate(plate_list):
         current_plate = results[results["folder"] == plate].reset_index()
-        condition = fd.load_condition(plate)
+        condition = current_plate["condition"][0]
+        # condition = fd.load_condition(plate)
         if remove_censored_events:
             current_visits = fd.load_list(current_plate, "uncensored_visits")
         else:
             current_visits = fd.load_list(current_plate, "no_hole_visits")
+
+        # Remove visits shorter than threshold
+        current_visits = [visit for visit in current_visits if (visit[1] - visit[0]) >= visits_longer_than]
 
         if len(current_visits) > 0:
             if only_first_visited_patch:

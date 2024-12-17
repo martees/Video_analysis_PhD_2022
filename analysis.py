@@ -73,7 +73,7 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
 
 def results_per_condition(result_table, list_of_conditions, column_name, divided_by="",
                           remove_censored_events=False, normalize_by_video_length=False, only_first_visited_patch=False,
-                          soft_cut=False, hard_cut=False):
+                          soft_cut=False, hard_cut=False, visits_longer_than=0):
     """
     Function that takes our result table, a list of conditions, and a column name (as a string)
     Returns the list of values of that column pooled by condition, a list of the average value for each condition, and a
@@ -115,6 +115,9 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 current_visits = [visit for visit in current_visits if (visit[1] - visit[0]) >= 0]
                 if len(current_visits) != original_length:
                     print("TEMPORARY FIX: removing negative visits... there were ", original_length - len(current_visits), "!!")
+
+                # Remove visits shorter than threshold
+                current_visits = [visit for visit in current_visits if (visit[1] - visit[0]) >= visits_longer_than]
 
                 if only_first_visited_patch:
                     first_visited_patch = current_visits[0][2]

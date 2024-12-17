@@ -550,7 +550,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 def plot_selected_data(results, plot_title, condition_list, column_name, divided_by="",
                        plot_model=False, is_plot=True, normalize_by_video_length=False,
                        remove_censored_events=False, soft_cut=False, hard_cut=False,
-                       only_first_visited_patch=False):
+                       only_first_visited_patch=False, visits_longer_than=0):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -561,7 +561,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     # Getting results
     if column_name == "first_visit_duration":
         list_of_avg_each_plate, average_per_condition, errorbars = first_visit_script.bar_plot_first_visit_each_patch(
-            results, condition_list, is_plot=False, remove_censored_events=remove_censored_events, only_first_visited_patch=only_first_visited_patch)
+            results, condition_list, is_plot=False, remove_censored_events=remove_censored_events, only_first_visited_patch=only_first_visited_patch, visits_longer_than=visits_longer_than)
     else:
         list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                              column_name, divided_by,
@@ -569,7 +569,8 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                                                                                              normalize_by_video_length=normalize_by_video_length,
                                                                                              only_first_visited_patch=only_first_visited_patch,
                                                                                              soft_cut=soft_cut,
-                                                                                             hard_cut=hard_cut)
+                                                                                             hard_cut=hard_cut,
+                                                                                             visits_longer_than=visits_longer_than)
 
     # Plotttt
     plt.title(plot_title, fontsize=24)
@@ -626,7 +627,8 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
 
             # Image to use
             arr_img = plt.imread(
-                "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
+                # "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
+                "C://Users//Asmar//Desktop//These//2022_summer_videos//analysis//Parameters//icon_" + param.nb_to_distance[
                     condition_list[i]] + '.png')
 
             # Image box to draw it!
@@ -655,13 +657,15 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
         y_axis_limits = plt.gca().get_ylim()
         x_axis_limits = plt.gca().get_xlim()
-        # If the p_value is less than 0.01, write in scientific notation
-        if int(stat_test.pvalue*1000) == 0:
-            plt.text(0.4*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3)), fontsize=16)
-        # Else write it
+        if not np.isnan(stat_test.pvalue):
+            # If the p_value is less than 0.01, write in scientific notation
+            if int(stat_test.pvalue*1000) == 0:
+                plt.text(0.4*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3)), fontsize=16)
+            # Else write it
+            else:
+                plt.text(0.46*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.round(stat_test.pvalue, 3)), fontsize=16)
         else:
-            plt.text(0.46*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.round(stat_test.pvalue, 3)), fontsize=16)
-
+            plt.text(0.46 * x_axis_limits[1], 0.9 * y_axis_limits[1], "p-value is np.nan")
         plt.show()
     else:
         return average_per_condition, list_of_avg_each_plate, errorbars
