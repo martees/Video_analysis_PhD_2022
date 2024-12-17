@@ -67,7 +67,7 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
         distance_map = np.load(folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.npy")
         print(">>>>>> Loaded distance map!")
 
-        if variable == "pixel_visits":
+        if variable == "total_visit_each_pixel" or variable == "probability_of_presence":
             pixel_wise_visits = heatmap_script.load_pixel_visits(current_traj[:, dt.f.time].to_list(),
                                                                  folder, regenerate=False)
             print(">>>>>> Loaded pixel_wise visit durations!")
@@ -120,7 +120,7 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        visit_values_each_bin_each_plate = pixel_visits_vs_distance_to_boundary(
+        values_each_bin_each_plate = pixel_visits_vs_distance_to_boundary(
             folder_list,
             traj, bin_list,
             variable=variable)
@@ -136,13 +136,13 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
         errors_inf[:] = np.nan
         errors_sup[:] = np.nan
         # To normalize probabilities of presence, get the sum of times for each plate
-        total_time_steps_each_plate = [0 for _ in range(len(visit_values_each_bin_each_plate[0]))]
+        total_time_steps_each_plate = [0 for _ in range(len(values_each_bin_each_plate[0]))]
         for i_bin in range(nb_of_bins):
-            for i_plate in range(len(visit_values_each_bin_each_plate[i_bin])):
-                total_time_steps_each_plate[i_plate] += visit_values_each_bin_each_plate[i_bin][i_plate]
+            for i_plate in range(len(values_each_bin_each_plate[i_bin])):
+                total_time_steps_each_plate[i_plate] += values_each_bin_each_plate[i_bin][i_plate]
         for i_bin in range(nb_of_bins):
             # Rename
-            values_this_time_bin = visit_values_each_bin_each_plate[i_bin]
+            values_this_time_bin = values_each_bin_each_plate[i_bin]
             # and remove nan values for bootstrapping
             values_this_time_bin = [values_this_time_bin[i] for i in range(len(values_this_time_bin)) if
                                     not np.isnan(values_this_time_bin[i])]
@@ -151,8 +151,8 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
                     # For speeds, convert to mm / s
                     if variable == "speed":
                         values_this_time_bin[i_plate] = values_this_time_bin[i_plate] * param.one_pixel_in_mm
-                    # For pixel visits, multiply by the proportion of time steps in this bin
-                    if variable == "pixel_visits":
+                    # For probability of presence, multiply by the proportion of time steps in this bin
+                    if variable == "probability_of_presence":
                         values_this_time_bin[i_plate] /= total_time_steps_each_plate[i_plate]
                 # Compute avg and confidence interval
                 current_avg = np.nanmean(values_this_time_bin)
@@ -188,9 +188,11 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
     print("Total time: ", int((time.time() - tic) // 60), "min")
 
     plt.title(str(curve_names), fontsize=20)
-    if variable == "pixel_visits":
+    if variable == "total_visit_each_pixel":
+        plt.ylabel("Total time in pixels (s)", fontsize=16)
+    if variable == "probability_of_presence":
         plt.ylabel("Probability of presence", fontsize=16)
-        #plt.yscale("log")
+        # plt.yscale("log")
     if variable == "speed":
         plt.ylabel("Average centroid speed (mm/s)", fontsize=16)
     plt.xlabel("Distance to patch boundary (< 0 inside, mm)", fontsize=16)
@@ -207,6 +209,11 @@ if __name__ == "__main__":
     # list_of_distance_bins = [-35, -30, -25, -20, -15, -10, -5, 5, 10, 20, 30, 40, 50, 60, 100]
     list_of_distance_bins_mm = [-1.3, -1.1, -0.9, -0.7, -0.5, -0.3, -0.1, 0.1, 0.3, 0.7, 1.5, 2.4]
     list_of_distance_bins = [b/param.one_pixel_in_mm for b in list_of_distance_bins_mm]
+
+    # Three options for the plot_visit_duration_vs_distance()
+    # total_visit_each_pixel
+    # probability_of_presence
+    # speed
 
     #plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
     #                                 ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
