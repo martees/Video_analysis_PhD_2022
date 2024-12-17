@@ -575,7 +575,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
                                               ideal_patch_centers_each_cond[curve_list[i_curve][0]][i_patch][0],
                                               color="orange")
 
-        #heatmap_each_curve[i_curve] /= np.sum(heatmap_each_curve[i_curve])
+        # heatmap_each_curve[i_curve] /= np.sum(heatmap_each_curve[i_curve])
 
         # Save iiitttt
         heatmap_path = results_path + "perfect_heatmaps/" + variable + "_heatmap_cond_" + str(
