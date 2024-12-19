@@ -146,7 +146,7 @@ def generate_aggregated_visits(path, threshold_list):
     return new_results  # return this because this function is also used dynamically
 
 
-def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False, shorten_traj=False, force_linux=False, force_windows=False):
+def generate(starting_from="", test_pipeline=False, modeled_data=False, old_dataset=False, shorten_traj=False, force_linux=False, force_windows=False, custom_path=""):
     """
     Will generate the data tables starting more or less from scratch.
     Argument = from which level to regenerate stuff.
@@ -185,6 +185,9 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
             path = "E:/Only_Copy_Probably/Results_minipatches_retracked_shortened/"
             if modeled_data:
                 path = "E:/Only_Copy_Probably/Results_minipatches_retracked_shortened_model_rw/"
+
+    if custom_path != "":
+        path = custom_path
 
     if modeled_data:
         print("Warning! To use modeled data, you must first generate it. "
