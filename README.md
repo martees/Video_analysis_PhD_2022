@@ -4,31 +4,25 @@ _C. elegans_ foraging behavior in various landscapes. It is specifically designe
 
 ## Requirements
 I am running the code in both Windows 10 and Ubuntu 20.04.  
-I am using Python 3.8, and the following libraries are installed:  
-DateTime 4.7  	
-Pillow	9.2.0  
-contourpy	1.0.5  
-cycler	0.11.0
-fonttools	4.37.4  
-importlib-metadata	5.0.0  
-kiwisolver	1.4.4  
-llvmlite	0.39.1  
-matplotlib	3.6.1  
-numba	0.56.4  
-numpy	1.23.3  
-packaging	21.3  
-pandas	1.5.0  
-pip	21.3.1  
-pyparsing	3.0.9  
-python-dateutil	2.8.2  
-pytz	2022.2.1  
-scipy	1.9.1  
-seaborn	0.12.2  
-setuptools	60.2.0  
-six	1.16.0  
-wheel	0.37.1  
-zipp	3.10.0  
-zope.interface	5.4.0
+I am using Python 3.8, and have installed the following libraries:
+contourpy	1.2.1  
+datatable	1.1.0  
+json5	0.9.28  
+jsonpointer	3.0.0  
+jsonschema	4.23.0  
+jsonschema-specifications	2024.10.1  
+kiwisolver	1.4.5  
+matplotlib	3.9.0  
+numpy	2.0.1  
+opencv-python	4.8.1.78  
+pandas	2.2.2  
+pillow	10.4.0  
+pip	21.1.2  
+scipy	1.14.1  
+seaborn	0.13.2  
+setuptools	57.0.0  
+sympy	1.13.3  
+
 
 ## Data structure
 
@@ -37,12 +31,13 @@ following information in this folder:
 - a "traj.csv" file containing the following columns:
   - id_conservative: one id for every different object that the tracking detected. When the tracking lost an object and 
 caught it again, this id will have been incremented. This means we have to do some work to put those different tracks back together.
-  - frame: the video frame at which the object was detected by the tracking (note: in our case 1 frame = 0.8 sec)
-  - x: column with x coordinates
-  - y: column with y coordinates
+  - frame: the video frame at which the object was detected by the tracking.
+  - time: the corresponding time, in seconds, with a bazillion decimals. To check frame to second distribution, see the script Scripts_sanity_checks/interframe_times.py. 
+  - x: column with x coordinate of the object centroid, in pixels. 
+  - y: column with y coordinate of the object centroid, in pixels.
 - a "foodpatches.mat" which contains information about the density of each patch, and the experimental condition
 - a "foodpatches_new.mat" which contains spline information (stored in matlab format) for exact patch contours. 
-
+- a "foodpatches_reviewed.mat" which contains spline information reviewed by hand for the patch contours.
 
 ## Project structure
 
@@ -51,14 +46,14 @@ caught it again, this id will have been incremented. This means we have to do so
 > _Functions to make trajectories.csv in path_  
 This contains function to preanalyze our trajectories.  
 Goes into our data folders, takes the "traj.csv", mixes them all
-into too big of a table, and then computes worm position and 
-speed.
+into too big of a table, and computes in which patch the worm is
+> at each time step.
 
 > #### generate_controls.py
 > _Functions to make control subfolders inside the folders 
 > corresponding to control conditions_  
 > Will take our existing control plates, and make new controls out of it, one corresponding to each patch
-layout used in our experiments.
+layout used in our experiments. Uses one good plate from each condition as a patch layout.
 
 >#### generate_results.py
 > _Functions to generate results_per_id, results_per_plate and
@@ -98,10 +93,17 @@ Also contains a function that takes a folder name, and returns "metadata" found 
 condition number, patch positions, patch densities, splines. This allows to not have this info copied in every line of the data
 table, which would make it uselessly large.
 
-#### main.py 
-Contains functions to:
-- derive statistics from the results returned by generate_results.py
-- plot these statistics using mostly badly written functions
+> #### analysis.py
+> _Contains functions to extract statistics from the data, perform statistical tests, etc._
+
+> #### plots.py
+> _Contains plot functions._
+
+> #### main.py 
+> _Contains code to perform routine analyses with the right titles / colors / condition slicing:_
+> - Commented lines to load results and trajectories.
+> - The plot_graphs() function, which basically takes a string and calls the 
+    > corresponding functions in plots or other scripts to make the plot appear.
 
 ### Output tables structure
 #### trajectories.csv
@@ -133,4 +135,32 @@ Contains functions to:
 - **adjusted_raw_visits** = adjusted: consecutive visits to the same patch are counted as one  
 - **adjusted_total_visit_time** = should be the same as duration sum (did this to check)  
 - **adjusted_nb_of_visits** = nb of adjusted visits  
+
+#### clean_results.csv
+
+- **folder** = folder from which the worm comes (so plate identifier)  
+- **condition** = condition written on the plate of the worm
+- **total_video_time** = last tracked time - first tracked time (seconds)
+- **total_tracked_time** = number of tracked frames (frames)
+- **nb_of_holes** = number of different tracks in the plate
+- **nb_all_bad_holes** = number of times a hole starts inside + ends outside, or vice versa
+- **length_all_bad_holes** = cumulated length of these bad holes in seconds
+- **nb_long_bad_holes** = number of bad holes whose length is higher than the parameter defined in Parameters/parameters.py
+- **length_long_bad_holes** = cumulated length of these long bad holes in seconds
+- **nb_of_teleportations** = number of times the worm jumps from a patch to another
+- **avg_proportion_double_frames** = proportion of frames which have two entries in trajectories.csv
+- **total_visit_time** = cumulated duration of all visits in seconds
+- **total_transit_time** = cumulated duration of all transits in seconds
+- **no_hole_visits** = time stamps of visits ([[t0, t1, patch id],...], with holes shorter than threshold that are filled in.
+- **aggregated_raw_transits** = same but for transits ([[t0, t1, -1], ...])
+- **uncensored_visits** = same but for only visits that are not interrupted by a hole (start of video does not count)
+- **uncensored_transits** = same but for transits
+- **visits_to_uncensored_patches** = same but with only visits to patches which contain no censored event
+- **nb_of_visits** = what it says lol
+- **average_speed_inside** = average speed of the worm inside patches. 
+Computed from the average speed inside for each track, and then weighted by the
+time spent inside during that track divided by the total time spent inside in the
+video.
+- **average_speed_outside** = same but for speed outside.
+      
 
