@@ -327,7 +327,7 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
 if __name__ == "__main__":
     # Returns the path where the results are on my machines, for a custom path use the custom_path argument
     # Depending on the starting_from argument, can also generate result tables
-    path = gr.generate(starting_from="", custom_path="E:/Results_minipatches_retracked/")
+    path = gr.generate(starting_from="", custom_path="E:/Alid_hard_drive_20241122/Results_minipatches_retracked/")
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -353,7 +353,7 @@ if __name__ == "__main__":
     # NOTE: if you are using results generated on a different machines, run this line to switch the "folder" column
     #       of clean_results.csv, which contains the full path to the results of a plate
     from Generating_data_tables import converting_folder_names
-    converting_folder_names.switch_path(custom_path="E:/Results_minipatches_retracked/")
+    converting_folder_names.switch_path(custom_path="E:/Alid_hard_drive_20241122/Results_minipatches_retracked/")
 
     # plot_graphs(results, "visit_duration_vs_entry_speed",
     #            [["close 0.2"]])
