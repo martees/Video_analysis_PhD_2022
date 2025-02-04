@@ -625,25 +625,25 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             ax = plt.gcf().gca()
             ax.set_xticks([])
 
-            # Image to use
-            arr_img = plt.imread(
-                # "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
-                "C://Users//Asmar//Desktop//These//2022_summer_videos//analysis//Parameters//icon_" + param.nb_to_distance[
-                    condition_list[i]] + '.png')
+            # # Image to use
+            # arr_img = plt.imread(
+            #     # "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
+            #     "C://Users//Asmar//Desktop//These//2022_summer_videos//analysis//Parameters//icon_" + param.nb_to_distance[
+            #         condition_list[i]] + '.png')
 
-            # Image box to draw it!
-            imagebox = OffsetImage(arr_img, zoom=0.8)
-            imagebox.image.axes = ax
+            # # Image box to draw it!
+            # imagebox = OffsetImage(arr_img, zoom=0.8)
+            # imagebox.image.axes = ax
 
-            x_annotation_box = AnnotationBbox(imagebox, (i, 0),
-                                              xybox=(0, -8),
-                                              # that's the shift that the image will have compared to (i, 0)
-                                              xycoords=("data", "axes fraction"),
-                                              boxcoords="offset points",
-                                              box_alignment=(.5, 1),
-                                              bboxprops={"edgecolor": "none"})
+            # x_annotation_box = AnnotationBbox(imagebox, (i, 0),
+            #                                   xybox=(0, -8),
+            #                                   # that's the shift that the image will have compared to (i, 0)
+            #                                   xycoords=("data", "axes fraction"),
+            #                                   boxcoords="offset points",
+            #                                   box_alignment=(.5, 1),
+            #                                   bboxprops={"edgecolor": "none"})
 
-            ax.add_artist(x_annotation_box)
+            # ax.add_artist(x_annotation_box)
 
         # Print statistical test results
         print("Variable = ", column_name, ", divided_by = ", divided_by)
