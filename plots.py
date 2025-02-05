@@ -648,7 +648,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         # Print statistical test results
         print("Variable = ", column_name, ", divided_by = ", divided_by)
         for i in range(len(condition_list)):
-            if len(list_of_avg_each_plate[i]) > 5:
+            if len(list_of_avg_each_plate[i]) > 7:
                 normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
                 print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
                 if normality_test.pvalue < 0.05:
