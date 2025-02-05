@@ -648,12 +648,15 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         # Print statistical test results
         print("Variable = ", column_name, ", divided_by = ", divided_by)
         for i in range(len(condition_list)):
-            normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
-            print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
-            if normality_test.pvalue < 0.05:
-                print("(The data is not normal.)")
+            if len(list_of_avg_each_plate[i]) > 5:
+                normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
+                print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
+                if normality_test.pvalue < 0.05:
+                    print("(The data is not normal.)")
+                else:
+                    print("(The data is normal.)")
             else:
-                print("(The data is normal.)")
+                print("The bar number ", i+1," has less than 5 data points, normality cannot be checked for.")
         stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
         y_axis_limits = plt.gca().get_ylim()
         x_axis_limits = plt.gca().get_xlim()
