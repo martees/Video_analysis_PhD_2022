@@ -9,6 +9,13 @@ results = dt.fread(path + "clean_results.csv")
 full_list_of_folders = results[:, "folder"].to_list()[0]
 print("Finished loading tables!")
 
+print("Number of folders each condition:")
 for nb, name in param.nb_to_name.items():
     nb_of_folders = len(fd.return_folders_condition_list(full_list_of_folders, nb))
     print(name, ", n=", nb_of_folders)
+
+print("Folder names each condition:")
+for nb, name in param.nb_to_name.items():
+    folders = fd.return_folders_condition_list(full_list_of_folders, nb)
+    print(name, ", folder_list = ", folders)
+
