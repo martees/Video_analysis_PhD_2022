@@ -226,7 +226,7 @@ def reindex_silhouette(pixels, frame_size):
 
 
 def correct_time_stamps(data_one_folder, print_bug, return_validity=False):
-    was_there_something_wrong = False
+    was_there_something_wrong = "nothing_wrong"
     # Sometimes the time column instead of containing times just contains nans...
     # In that case infer the times from the frame columns, on average 1 frame = 0.8s, exact number in parameters
     if np.isnan(data_one_folder["time"].reset_index(drop=True).iloc[0]):
@@ -234,15 +234,16 @@ def correct_time_stamps(data_one_folder, print_bug, return_validity=False):
             # Print this only if that's the first time for this folder
             print("This folder has NaN in its time column!")
         data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
-        was_there_something_wrong = True
+        was_there_something_wrong = "time_nan"
     # Sometimes the time column is fucked and has very high values in the beginning??
     # In that case also infer the time from the frame columns
+    # (to determine this kind of resets, I look at whether the difference between successive time stamps is negative)
     if len(np.where(np.array(data_one_folder["time"])[:-1] - np.array(data_one_folder["time"])[1:] > 0)[0]) > 0:
         if print_bug:
             # Print this only if that's the first time for this folder
             print("This folder has bad times in the beginning!")
         data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
-        was_there_something_wrong = True
+        was_there_something_wrong = "time_reset"
     if return_validity:
         return data_one_folder, was_there_something_wrong
     else:
