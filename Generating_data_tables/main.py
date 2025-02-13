@@ -24,6 +24,8 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders,
     cleaned_results = cleaned_results[cleaned_results["nb_of_teleportations"] == 0]
     cleaned_results = cleaned_results[cleaned_results["length_long_bad_holes"] <= 600]
 
+    cleaned_results.to_csv(path + "clean_results.csv")
+
     print("Finished cleaning results. Cleaning trajectories...")
     # Once the bad folders have been excluded from clean_results, remove them from the trajectory file
     valid_folders = pd.unique(cleaned_results["folder"])  # pd.unique to keep order
@@ -54,8 +56,6 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders,
                 writer.writerow({col: cleaned_traj[col][i] for col in columns})
     except IOError:
         print("I/O error")
-
-    cleaned_results.to_csv(path + "clean_results.csv")
 
     #cleaned_traj["is_smoothed"] = cleaned_traj["is_smoothed"].astype(bool)
     #for plate in valid_folders:
