@@ -328,6 +328,7 @@ def smooth_trajectory(trajectory, radius):
     @return: a new trajectory with fewer points, resampled as described above
     """
     trajectory = trajectory.reset_index(drop=True)
+
     # Create a column with whether this time point was "smoothed out" (its coordinate were changed during smoothing)
     trajectory["is_smoothed"] = np.array([False for _ in range(len(trajectory))])
     current_circle_center_x = trajectory["x"][0]
@@ -352,41 +353,42 @@ def smooth_trajectory(trajectory, radius):
     # For each of those points, we interpolate linearly between the previous and next False points to redefine them
     # So if in three points A, B, C, B has to be smoothed out, their new coordinates become
     # A: (xA, yA), B: ((xA+xC)/2, (yA+yC)/2), C: (xC, yC)
-    false_indices = np.where(trajectory["is_smoothed"] == False)[0]
+    no_smooth_indices = np.where(trajectory["is_smoothed"] == False)[0]
     # Remember the points where the id_conservative changes (see later why)
     id_array = np.array(trajectory["id_conservative"])
     switches = id_array[1:] - id_array[:-1]
     id_switches_indices = np.where(switches != 0)[0]
-    for i_gap in range(len(false_indices) - 1):
+    for i_gap in range(len(no_smooth_indices) - 1):
         if i_gap % 50000 == 0:
-            print("Smoothing time point ", i_gap, " / ", len(false_indices))
-        previous_false_index = false_indices[i_gap]
-        next_false_index = false_indices[i_gap + 1]
-        nb_of_points_to_smooth = next_false_index - previous_false_index - 1
+            print("Smoothing time point ", i_gap, " / ", len(no_smooth_indices))
+        previous_no_smooth_index = no_smooth_indices[i_gap]
+        next_no_smooth_index = no_smooth_indices[i_gap + 1]
+        nb_of_points_to_smooth = next_no_smooth_index - previous_no_smooth_index - 1
         # Now we want to correct for tracking holes:
         # If there is a hole in the tracking (switch between two "id_conservative" values in the trajectories table),
         # the last point(s) before the hole cannot be smoothed (since otherwise we would interpolate between them across
         # a hole in the tracking, which can be a big jump, creating fake points)
-        if len(id_switches_indices[(id_switches_indices > previous_false_index) & (id_switches_indices < next_false_index)]) >= 1:
+        if len(id_switches_indices[(id_switches_indices > previous_no_smooth_index) & (id_switches_indices < next_no_smooth_index)]) >= 1:
             # If there's a tracking hole between the two frames, just don't smooth
-            for i_time in range(previous_false_index, next_false_index):
+            for i_time in range(previous_no_smooth_index, next_no_smooth_index):
                 trajectory.loc[i_time, "is_smoothed"] = False
             nb_of_points_to_smooth = 0
         # If smoothing needs to be done, define coordinates of the points between which to smooth
         if nb_of_points_to_smooth > 0:
-            x1 = trajectory.loc[previous_false_index, "x"]
-            y1 = trajectory.loc[previous_false_index, "y"]
-            x2 = trajectory.loc[next_false_index, "x"]
-            y2 = trajectory.loc[next_false_index, "y"]
-            # Loop runs only if there is at least one index between the two current false indices
-            for i_point in range(previous_false_index + 1, next_false_index):
-                # We interpolate linearly between the two points
-                # i_point is the index of the current point being smoothed, and its value depends on its rank among the
-                # points to smooth (so if we smooth between index 20 and 24, we will smooth point 21, 22 and 23, and their
-                # new coordinates are based on the fact that they are the 1st, 2nd and 3rd points on the interpolation).
-                rank_of_point = i_point - previous_false_index
-                trajectory.loc[i_point, "x"] = x1 + rank_of_point * (x2 - x1) / (nb_of_points_to_smooth + 1)
-                trajectory.loc[i_point, "y"] = y1 + rank_of_point * (y2 - y1) / (nb_of_points_to_smooth + 1)
+            previous_no_smooth = trajectory.loc[previous_no_smooth_index, :]
+            next_no_smooth = trajectory.loc[next_no_smooth_index, :]
+            x1 = previous_no_smooth.loc["x"]
+            y1 = previous_no_smooth.loc["y"]
+            x2 = next_no_smooth.loc["x"]
+            y2 = next_no_smooth.loc["y"]
+            # Then, compute the interpolation between those two points
+            # I put +2 in the linspace() function so that if there are no points to interpolate, the output is just
+            # the original coordinates of the two points
+            x_vector = np.linspace(x1, x2, next_no_smooth_index - previous_no_smooth_index + 2)
+            y_vector = np.linspace(y1, y2, next_no_smooth_index - previous_no_smooth_index + 2)
+            # Then, put the interpolation in the table
+            trajectory.loc[previous_no_smooth_index:next_no_smooth_index + 1, "x"] = x_vector
+            trajectory.loc[previous_no_smooth_index:next_no_smooth_index + 1, "y"] = y_vector
     return trajectory
 
 
