@@ -12,7 +12,7 @@ jsonpointer	3.0.0
 jsonschema	4.23.0  
 jsonschema-specifications	2024.10.1  
 kiwisolver	1.4.5  
-matplotlib	3.9.0  
+matplotlib	3.5.0  
 numpy	1.26.4 
 opencv-python	4.8.1.78  
 pandas	2.2.2  
@@ -20,7 +20,6 @@ pillow	10.4.0
 pip	21.1.2  
 scipy	1.14.1  
 seaborn	0.13.2  
-setuptools	57.0.0  
 sympy	1.13.3  
 
 
