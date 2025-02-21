@@ -329,7 +329,7 @@ if __name__ == "__main__":
     # Depending on the starting_from argument, can also generate result tables
     # path = gr.generate(starting_from="results_per_id", custom_path="E:/Results_minipatches_retracked_test/")
     # path = gr.generate(starting_from="controls", custom_path="E:/Alid_hard_drive_20241122/Results_minipatches_retracked/") # This works on my desktop at the lab
-    path = gr.generate(starting_from="controls", custom_path="../")
+    path = gr.generate(starting_from="controls", test_pipeline=False)
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -380,7 +380,7 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(path, trajectories, [], plate_list=["/media/admin/T7 Shield/Results_minipatches_retracked_shortened/20221126T114423_SmallPatches_C5-CAM1/traj.csv"], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=False)
     #
-    plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=False, plot_in_patch=True, plot_speed=False, is_plot=True, save_fig=False, zoom_in=False)
+    plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=False, plot_in_patch=True, plot_speed=False, is_plot=True, save_fig=False, plot_lines=True)
     # plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=True,  plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [2], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [3], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
