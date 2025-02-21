@@ -285,7 +285,7 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
             plt.scatter(current_list_x, current_list_y,
                         color=param.name_to_color[param.nb_to_distance[condition_list[0]]], s=1.6)
             if plot_lines:
-                plt.plot(current_list_x, current_list_y,
+                plt.plot(np.array(current_list_x), np.array(current_list_y),
                          color=param.name_to_color[param.nb_to_distance[condition_list[0]]], linewidth=3)
 
         previous_folder = current_folder
