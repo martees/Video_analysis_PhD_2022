@@ -549,7 +549,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 
 def plot_selected_data(results, plot_title, condition_list, column_name, divided_by="",
                        plot_model=False, is_plot=True, normalize_by_video_length=False,
-                       remove_censored_events=False, soft_cut=False, hard_cut=False,
+                       remove_censored_events=False, remove_censored_patches=False, soft_cut=False, hard_cut=False,
                        only_first_visited_patch=False, visits_longer_than=0):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
@@ -566,6 +566,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                              column_name, divided_by,
                                                                                              remove_censored_events=remove_censored_events,
+                                                                                             remove_censored_patches=remove_censored_patches,
                                                                                              normalize_by_video_length=normalize_by_video_length,
                                                                                              only_first_visited_patch=only_first_visited_patch,
                                                                                              soft_cut=soft_cut,
@@ -579,12 +580,15 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     fig.set_size_inches(7, 8.6)
     # plt.style.use('dark_background')
 
-    if column_name == "total_visit_time" and divided_by == "nb_of_visited_patches":
-        ax.set_ylabel("Total time per patch (hours)", fontsize=20)
-        #ax.set_ylim(0, 4)
-    if column_name == "total_visit_time" and divided_by == "nb_of_visits":
-        ax.set_ylabel("Average time per visit (hours)", fontsize=20)
-        #ax.set_ylim(0, 0.6)
+    if column_name == "total_visit_time":
+        if divided_by == "nb_of_visited_patches":
+            ax.set_ylabel("Total time spent in each patch (hours)", fontsize=20)
+            #ax.set_ylim(0, 4)
+        if divided_by == "nb_of_visits":
+            ax.set_ylabel("Average time per visit (hours)", fontsize=20)
+            #ax.set_ylim(0, 0.6)
+        if divided_by == "" and only_first_visited_patch:
+            ax.set_ylabel("Total time spent in first visited patch (hours)", fontsize=20)
     if column_name == "first_visit_duration":
         if only_first_visited_patch:
             ax.set_ylabel("Duration of 1st visit of the video (hours)", fontsize=20)
@@ -627,9 +631,8 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
 
             # Image to use
             arr_img = plt.imread(
-                # "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
-                "C://Users//Asmar//Desktop//These//2022_summer_videos//analysis//Parameters//icon_" + param.nb_to_distance[
-                    condition_list[i]] + '.png')
+                os.getcwd().replace("\\", "/") + "/Parameters/icon_" +
+                                    param.nb_to_distance[condition_list[i]] + '.png')
 
             # Image box to draw it!
             imagebox = OffsetImage(arr_img, zoom=0.8)
@@ -648,12 +651,15 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         # Print statistical test results
         print("Variable = ", column_name, ", divided_by = ", divided_by)
         for i in range(len(condition_list)):
-            normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
-            print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
-            if normality_test.pvalue < 0.05:
-                print("(The data is not normal.)")
+            if len(list_of_avg_each_plate[i]) < 8:
+                print("For condition ", condition_list[i], " there are only ", len(list_of_avg_each_plate[i]), ", not enough for statistics!")
             else:
-                print("(The data is normal.)")
+                normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
+                print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
+                if normality_test.pvalue < 0.05:
+                    print("(The data is not normal.)")
+                else:
+                    print("(The data is normal.)")
         stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
         y_axis_limits = plt.gca().get_ylim()
         x_axis_limits = plt.gca().get_xlim()
