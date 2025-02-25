@@ -72,8 +72,8 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
 
 
 def results_per_condition(result_table, list_of_conditions, column_name, divided_by="",
-                          remove_censored_events=False, normalize_by_video_length=False, only_first_visited_patch=False,
-                          soft_cut=False, hard_cut=False, visits_longer_than=0):
+                          remove_censored_events=False, remove_censored_patches=False, normalize_by_video_length=False,
+                          only_first_visited_patch=False, soft_cut=False, hard_cut=False, visits_longer_than=0):
     """
     Function that takes our result table, a list of conditions, and a column name (as a string)
     Returns the list of values of that column pooled by condition, a list of the average value for each condition, and a
@@ -107,6 +107,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             current_plate = copy.deepcopy(current_data[current_data["folder"] == list_of_plates[i_plate]])
             if remove_censored_events:
                 current_visits = fd.load_list(current_plate, "uncensored_visits")
+            elif remove_censored_patches:
+                current_visits = fd.load_list(current_plate, "visits_to_uncensored_patches")
             else:
                 current_visits = fd.load_list(current_plate, "no_hole_visits")
 
@@ -124,6 +126,7 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     for visit in current_visits:
                         if visit[2] != first_visited_patch:
                             current_visits.remove(visit)
+
                 # SOFT CUT: only take the visits that start before the time at which we cut videos
                 if soft_cut:
                     for visit in current_visits:
