@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import datatable as dt
+import time
 
 from Generating_data_tables import generate_results as gr
 from Parameters import parameters as param
@@ -329,21 +330,27 @@ def smooth_trajectory(trajectory, radius):
     """
     trajectory = trajectory.reset_index(drop=True)
 
+    # Converting the trajectory to a datatable just for the first half of this code, because it makes it much faster
+    trajectory = dt.Frame(trajectory)
+
     # Create a column with whether this time point was "smoothed out" (its coordinate were changed during smoothing)
-    trajectory["is_smoothed"] = np.array([False for _ in range(len(trajectory))])
-    current_circle_center_x = trajectory["x"][0]
-    current_circle_center_y = trajectory["y"][0]
-    for i_time in range(1, len(trajectory)):
+    trajectory["is_smoothed"] = np.array([False for _ in range(trajectory.shape[0])])
+    current_circle_center_x = trajectory[0, "x"]
+    current_circle_center_y = trajectory[0, "y"]
+    for i_time in range(1, trajectory.shape[0]):
         if i_time % 100000 == 0:
-            print("Computing which time points should be smoothed ", i_time, " / ", len(trajectory))
-        current_x = trajectory["x"][i_time]
-        current_y = trajectory["y"][i_time]
+            print("Computing which time points should be smoothed ", i_time, " / ", trajectory.shape[0])
+        current_x = trajectory[i_time, "x"]
+        current_y = trajectory[i_time, "y"]
         # If the point is far enough, it's kept in the trajectory, and we set it as the reference center for the next point
         if np.sqrt((current_x - current_circle_center_x) ** 2 + (current_y - current_circle_center_y) ** 2) > radius:
             current_circle_center_x = current_x
             current_circle_center_y = current_y
         else:
-            trajectory.loc[i_time, "is_smoothed"] = True  # we mark as True points that are not far enough
+            trajectory[i_time, "is_smoothed"] = True  # we mark as True points that are not far enough
+
+    # Converting back to pandas for the rest
+    trajectory = trajectory.to_pandas()
 
     # Make a copy of pre-smoothing x and y coordinates, for verification purposes
     trajectory["pre_smoothing_x"] = copy.copy(trajectory["x"])
@@ -358,7 +365,17 @@ def smooth_trajectory(trajectory, radius):
     id_array = np.array(trajectory["id_conservative"])
     switches = id_array[1:] - id_array[:-1]
     id_switches_indices = np.where(switches != 0)[0]
+
+    # Create numpy arrays to store the new coordinates
+    smoothed_x = np.array(trajectory["x"])
+    smoothed_y = np.array(trajectory["y"])
+
+    checkpoint_1 = []
+    checkpoint_2 = []
+    checkpoint_3 = []
+    t0 = time.time()
     for i_gap in range(len(no_smooth_indices) - 1):
+        t0 = time.time()
         if i_gap % 50000 == 0:
             print("Smoothing time point ", i_gap, " / ", len(no_smooth_indices))
         previous_no_smooth_index = no_smooth_indices[i_gap]
@@ -373,22 +390,32 @@ def smooth_trajectory(trajectory, radius):
             for i_time in range(previous_no_smooth_index, next_no_smooth_index):
                 trajectory.loc[i_time, "is_smoothed"] = False
             nb_of_points_to_smooth = 0
+        checkpoint_1.append(time.time() - t0)
+        t0 = time.time()
         # If smoothing needs to be done, define coordinates of the points between which to smooth
         if nb_of_points_to_smooth > 0:
-            previous_no_smooth = trajectory.loc[previous_no_smooth_index, :]
-            next_no_smooth = trajectory.loc[next_no_smooth_index, :]
-            x1 = previous_no_smooth.loc["x"]
-            y1 = previous_no_smooth.loc["y"]
-            x2 = next_no_smooth.loc["x"]
-            y2 = next_no_smooth.loc["y"]
+            x1 = smoothed_x[previous_no_smooth_index]
+            y1 = smoothed_y[previous_no_smooth_index]
+            x2 = smoothed_x[next_no_smooth_index]
+            y2 = smoothed_y[next_no_smooth_index]
+            checkpoint_2.append(time.time() - t0)
+            t0 = time.time()
             # Then, compute the interpolation between those two points
-            # I put +2 in the linspace() function so that if there are no points to interpolate, the output is just
+            # I put +1 in the linspace() function so that if there are no points to interpolate, the output is just
             # the original coordinates of the two points
-            x_vector = np.linspace(x1, x2, next_no_smooth_index - previous_no_smooth_index + 2)
-            y_vector = np.linspace(y1, y2, next_no_smooth_index - previous_no_smooth_index + 2)
+            x_vector = np.linspace(x1, x2, next_no_smooth_index - previous_no_smooth_index + 1)
+            y_vector = np.linspace(y1, y2, next_no_smooth_index - previous_no_smooth_index + 1)
             # Then, put the interpolation in the table
-            trajectory.loc[previous_no_smooth_index:next_no_smooth_index + 1, "x"] = x_vector
-            trajectory.loc[previous_no_smooth_index:next_no_smooth_index + 1, "y"] = y_vector
+            smoothed_x[previous_no_smooth_index:next_no_smooth_index + 1] = x_vector
+            smoothed_y[previous_no_smooth_index:next_no_smooth_index + 1] = y_vector
+            checkpoint_3.append(time.time() - t0)
+    print("Checkpoint 1:", np.mean(checkpoint_1))
+    print("Checkpoint 2:", np.mean(checkpoint_2))
+    print("Checkpoint 3:", np.mean(checkpoint_3))
+    print("Putting the x and y numpy columns in the pandas dataframe...")
+    trajectory["x"] = smoothed_x
+    trajectory["y"] = smoothed_y
+    print("This took ", int(time.time() - t0), " seconds!")
     return trajectory
 
 
