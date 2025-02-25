@@ -206,7 +206,7 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          "OD=" + param.nb_to_density[current_conditions[0]],
                                          current_conditions, "first_visit_duration",
                                          divided_by="", plot_model=False,
-                                         is_plot=is_plot, remove_censored_events=True, only_first_visited_patch=False,
+                                         is_plot=is_plot, remove_censored_patches=True, only_first_visited_patch=False,
                                          visits_longer_than=120)
 
             if "first_visit_duration_video" in what_to_plot:
@@ -215,7 +215,7 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          "OD=" + param.nb_to_density[current_conditions[0]],
                                          current_conditions, "first_visit_duration",
                                          divided_by="", plot_model=False,
-                                         is_plot=is_plot, remove_censored_events=True, only_first_visited_patch=True)
+                                         is_plot=is_plot, remove_censored_patches=True, only_first_visited_patch=True)
 
             if "total_visit_time_first_patch" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
@@ -223,7 +223,7 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          "OD=" + param.nb_to_density[current_conditions[0]],
                                          current_conditions, "total_visit_time",
                                          divided_by="", plot_model=False,
-                                         is_plot=is_plot, remove_censored_events=False, only_first_visited_patch=True)
+                                         is_plot=is_plot, remove_censored_patches=True, only_first_visited_patch=True)
 
             if "visit_duration_mvt" in what_to_plot:
                 plots.plot_selected_data(result_table, "Average duration of MVT visits in " + plot_name + " conditions",
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     # Depending on the starting_from argument, can also generate result tables
     # path = gr.generate(starting_from="results_per_id", custom_path="E:/Results_minipatches_retracked_test/")
     # path = gr.generate(starting_from="controls", custom_path="E:/Alid_hard_drive_20241122/Results_minipatches_retracked/") # This works on my desktop at the lab
-    path = gr.generate(starting_from="controls", test_pipeline=False)
+    path = gr.generate(starting_from="", test_pipeline=False)
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
@@ -380,7 +380,7 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(path, trajectories, [], plate_list=["/media/admin/T7 Shield/Results_minipatches_retracked_shortened/20221126T114423_SmallPatches_C5-CAM1/traj.csv"], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=False)
     #
-    plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=False, plot_in_patch=True, plot_speed=False, is_plot=True, save_fig=False, plot_lines=True)
+    # plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=False, plot_in_patch=True, plot_speed=False, is_plot=True, save_fig=False, plot_lines=True)
     # plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=True,  plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [2], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [3], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
@@ -402,20 +402,30 @@ if __name__ == "__main__":
     # plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
 
-    # plot_graphs(results, "total_visit_time_first_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "total_visit_time_first_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "total_visit_time_first_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "total_visit_time_first_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "total_visit_time_first_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "total_visit_time_first_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "total_visit_time_first_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "total_visit_time_first_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    plot_graphs(results, "first_visit_duration_video", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "first_visit_duration_video", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "first_visit_duration_video", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "first_visit_duration_video", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    plot_graphs(results, "first_visit_duration_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "first_visit_duration_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "first_visit_duration_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "first_visit_duration_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     # plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
     # plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
     # plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     # plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    # plot_graphs(results, "first_visit_duration_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "first_visit_duration_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "first_visit_duration_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "first_visit_duration_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #
+    # plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
     # plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
