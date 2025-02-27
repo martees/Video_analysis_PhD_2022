@@ -237,14 +237,15 @@ def correlated_walk(sim_length, speed_inside, speed_outside, max_turning_angle, 
     current_heading = np.random.rand() * 2 * np.pi  # choose a random first angle
     # Simulation loop
     for i_time in range(1, sim_length):
-        previous_heading = current_heading
         previous_patch = current_patch
         current_patch = return_patch(environment_matrix, x_list[i_time - 1], y_list[i_time - 1])
         # Heading is modified by a random value between the extrema defined by max_turning_angle
         # There is a probability of doing a sharp turn (turning of more than max_turning_angle)
         # This probability is multiplied by 10 if you have exited a patch not long ago
         p = random.uniform(0, 1)
-        if time_since_patch_exit < 100:
+        #if time_since_patch_exit < 100:
+        #if time_since_patch_exit < 100 and current_patch == -1 :
+        if abs(time_since_patch_exit) < 100:
             if p < turn_probability_factor*sharp_turn_probability:
                 current_heading += np.pi
             else:
@@ -257,16 +258,20 @@ def correlated_walk(sim_length, speed_inside, speed_outside, max_turning_angle, 
 
         # If worm is inside
         if current_patch >= 0:
-            x_list[i_time] = x_list[i_time - 1] + speed_inside * np.cos(current_heading)
-            y_list[i_time] = y_list[i_time - 1] + speed_inside * np.sin(current_heading)
-            total_time_inside += 1
-            speed_list[i_time] = speed_inside
             if current_patch != previous_patch:
                 # Set the time since patch exit to 0, as a new patch has now been found
                 time_since_patch_exit = 0
                 list_of_visited_patches.append(current_patch)
+            x_list[i_time] = x_list[i_time - 1] + speed_inside * np.cos(current_heading)
+            y_list[i_time] = y_list[i_time - 1] + speed_inside * np.sin(current_heading)
+            total_time_inside += 1
+            time_since_patch_exit -= 1  # this keeps decrementing as long as the worm is inside a food patch
+            speed_list[i_time] = speed_inside
         # If worm is outside
         elif current_patch == -1:
+            if current_patch != previous_patch:
+                # Set the time since patch exit to 0, as the patch has now been exited
+                time_since_patch_exit = 0
             x_list[i_time] = x_list[i_time - 1] + speed_outside * np.cos(current_heading)
             y_list[i_time] = y_list[i_time - 1] + speed_outside * np.sin(current_heading)
             speed_list[i_time] = speed_outside
@@ -950,7 +955,7 @@ def effect_of_walk_type(distance_list, length, nb_of_walkers, speed_in, speed_ou
         #ax1.set_xticks([])
         ax1.set_xticks([])
         # Image to use
-        arr_img = plt.imread("/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + distance_list[i] + '.png')
+        arr_img = plt.imread(os.getcwd().replace("\\", "/")[:-len("Scripts_models/")] + "/Parameters/icon_" + distance_list[i] + '.png')
 
         # Image box to draw it!
         #imagebox1 = OffsetImage(arr_img, zoom=0.6)
@@ -1278,7 +1283,7 @@ long_term_turn_per_s = long_term_turn_per_min / 60
 run_length_inside = speed_inside_pixel_s / exit_turn_per_s
 run_length_outside = speed_outside_pixel_s / long_term_turn_per_s
 
-print("From literature values, it looks like out run lengths should be ", run_length_inside, " pixels inside food, and ", run_length_outside, " pixels outside.")
+print("From literature values, it looks like our run lengths should be ", run_length_inside, " pixels inside food, and ", run_length_outside, " pixels outside.")
 print("From literature values, it looks like the speed should be ", speed_inside_pixel_s, " pixels/s inside food, and ", speed_outside_pixel_s, " pixels/s outside.")
 
 # effect_of_length(1.6, 30)
@@ -1289,13 +1294,15 @@ print("From literature values, it looks like the speed should be ", speed_inside
 
 path = gen.generate("")
 results = pd.read_csv(path + "clean_results.csv")
-speed_in = 1.5
-speed_out = 11
+# speed_in = 1.5
+# speed_out = 11
+speed_in = 6
+speed_out = 6
 max_turn = np.pi/4
 turn_prob = 0.01
 turn_prob_factor = 50
-sim_length = 160000
-#show_one_walk_type(sim_length, speed_in, speed_out, 1000, max_turn, turn_prob, turn_prob_factor, zoom_in=False)
-show_each_walk_type(sim_length, speed_in, speed_out, 1000, max_turn, turn_prob, turn_prob_factor, zoom_in=False)
+sim_length = 32000
+# show_one_walk_type(sim_length, speed_in, speed_out, 1000, max_turn, turn_prob, turn_prob_factor, zoom_in=False)
 effect_of_walk_type(["close", "med", "far", "superfar"], sim_length, 100, speed_in, speed_out, 1000, max_turn, turn_prob, turn_prob_factor, path, results, results["folder"])
+show_each_walk_type(sim_length, speed_in, speed_out, 1000, max_turn, turn_prob, turn_prob_factor, zoom_in=True)
 
