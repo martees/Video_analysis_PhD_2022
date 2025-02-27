@@ -161,17 +161,8 @@ def make_results_per_id_table(data):
             # First recorded position of each plate is first position of the first worm of the plate
             first_pos = [current_list_x[0], current_list_y[0]]
             print(current_folder)
-            # Check if the time stamps are bad for this plate
-            current_data, time_bug = fd.correct_time_stamps(current_data, print_bug=True, return_validity=True)
             # Update for the next folder change!
             old_folder = current_folder
-
-        else:
-            # If the first track had a timing reset, then specifically recompute time column from frames
-            if time_bug == "time_reset":
-                current_data["time"] = current_data["frame"] * param.one_frame_in_seconds
-            else:  # Otherwise, just run the regular time correction
-                current_data = fd.correct_time_stamps(current_data, print_bug=False)
 
         # Getting to the metadata through the folder name in the data
         current_metadata = fd.folder_to_metadata(current_folder)
@@ -208,7 +199,7 @@ def make_results_per_id_table(data):
         results_table.loc[i_track, "list_of_visited_patches"] = str(list_of_visited_patches)  # index of patches visited
         results_table.loc[i_track, "first_recorded_position"] = str(
             first_pos)  # first position for the whole plate (used to check trajectories)
-        results_table.loc[i_track, "first_frame"] = current_data["time"][0]
+        results_table.loc[i_track, "first_frame"] = current_data["time"].iloc[0]
         results_table.loc[i_track, "first_tracked_position_patch"] = which_patch_list[
             0]  # patch where the worm is when tracking starts (-1 = outside): one value per id
         results_table.loc[i_track, "last_frame"] = current_data["time"].iloc[-1]
@@ -458,24 +449,29 @@ def remove_censored_events(data_per_id, list_of_visits, list_of_transits):
     data_per_id = data_per_id.sort_values(by=['first_frame']).reset_index()
 
     # Convert first/last frames to int
-    first_times = [int(np.rint(data_per_id["first_frame"][i])) for i in range(len(data_per_id["first_frame"]))]
-    last_times = [int(np.rint(data_per_id["last_frame"][i])) for i in range(len(data_per_id["last_frame"]))]
+    # first_times = [int(np.rint(data_per_id["first_frame"][i])) for i in range(len(data_per_id["first_frame"]))]
+    # last_times = [int(np.rint(data_per_id["last_frame"][i])) for i in range(len(data_per_id["last_frame"]))]
+    first_times = [np.round(data_per_id["first_frame"][i], 2) for i in range(len(data_per_id["first_frame"]))]
+    last_times = [np.round(data_per_id["last_frame"][i], 2) for i in range(len(data_per_id["last_frame"]))]
 
     # List of visits that are not cut short by a tracking hole
     uncensored_visits = []
     patches_with_censored_visits = []
     for visit in list_of_visits:
-        # If visit was cut short in the beginning or in the end by a hole in the tracking
+        # If visit starts or ends at the same time as a track
         if visit[0] in first_times or visit[1] in last_times:
+            # Then, check if the track before / after start more than
             patches_with_censored_visits.append(visit[2])
         else:
             uncensored_visits.append(visit)
+
     # List of visits that are in patches containing no censored visit
     visits_to_uncensored_patches = []
     patches_with_censored_visits = np.unique(patches_with_censored_visits)
     for visit in uncensored_visits:
         if visit[2] not in patches_with_censored_visits:
             visits_to_uncensored_patches.append(visit)
+
     # List of transits that were not cut short by a tracking hole
     uncensored_transits = []
     for transit in list_of_transits:
