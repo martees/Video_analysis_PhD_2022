@@ -17,7 +17,7 @@ from Parameters import parameters as param
 
 
 def plot_inter_frame_histogram():
-    path = gen.generate("", shorten_traj=True)
+    path = gen.generate("")
     results = dt.fread(path + "clean_results.csv")
     trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = results[:, "folder"].to_list()[0]
@@ -30,14 +30,14 @@ def plot_inter_frame_histogram():
         current_traj = trajectories[dt.f.folder == folder, :]
         list_of_frames = current_traj[:, "frame"].to_numpy()
         list_of_times = current_traj[:, "time"].to_numpy()
-        _, are_times_invalid = fd.correct_time_stamps(current_traj.to_pandas(), False, True)
-        if not are_times_invalid:
+        _, time_bug = fd.correct_time_stamps(current_traj.to_pandas(), False, True)
+        if time_bug == "nothing_wrong" or "time_reset":
             frame_delta_each_line = list_of_frames[1:] - list_of_frames[:-1]
             time_delta_each_line = list_of_times[1:] - list_of_times[:-1]
             time_per_frame = ana.array_division_ignoring_zeros(time_delta_each_line, frame_delta_each_line)
             list_of_interframe_times += list(np.ravel(time_per_frame))
 
-    plt.hist(list_of_interframe_times, bins=1000, log=True)
+    plt.hist(list_of_interframe_times, bins=[-7000, -5000, -3000, -1000, -500, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 2], log=True)
     print("You can copy this number in Parameters/parameters.py, for the variable one_frame_in_seconds: ", np.mean(list_of_interframe_times))
     plt.show()
 
