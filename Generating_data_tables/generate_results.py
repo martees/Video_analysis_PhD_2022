@@ -448,35 +448,39 @@ def remove_censored_events(data_per_id, list_of_visits, list_of_transits):
     # Sort the tracks for them to be in the order in which they were tracked otherwise it's a mess
     data_per_id = data_per_id.sort_values(by=['first_frame']).reset_index()
 
-    # Convert first/last frames to int
-    # first_times = [int(np.rint(data_per_id["first_frame"][i])) for i in range(len(data_per_id["first_frame"]))]
-    # last_times = [int(np.rint(data_per_id["last_frame"][i])) for i in range(len(data_per_id["last_frame"]))]
-    first_times = [np.round(data_per_id["first_frame"][i], 2) for i in range(len(data_per_id["first_frame"]))]
-    last_times = [np.round(data_per_id["last_frame"][i], 2) for i in range(len(data_per_id["last_frame"]))]
+    # At this point in the pipeline, the censored events are those that do not have an adjacent event
+    # So the uncensored events are those that start when another event ends, or end when another event starts.
+    # We go through the events and only include those events.
 
-    # List of visits that are not cut short by a tracking hole
+    # Initialize lists
     uncensored_visits = []
+    uncensored_transits = []
     patches_with_censored_visits = []
-    for visit in list_of_visits:
-        # If visit starts or ends at the same time as a track
-        if visit[0] in first_times or visit[1] in last_times:
-            # Then, check if the track before / after start more than
-            patches_with_censored_visits.append(visit[2])
-        else:
-            uncensored_visits.append(visit)
 
-    # List of visits that are in patches containing no censored visit
+    # Extract uncensored transits
+    visit_start_times = [visit[0] for visit in list_of_visits]
+    visit_end_times = [visit[1] for visit in list_of_visits]
+    for transit in list_of_transits:
+        # We check that this transit starts/ends at the same time as a visit ends/starts
+        if transit[0] in visit_end_times and transit[1] in visit_start_times:
+            uncensored_transits.append(transit)
+
+    # Extract uncensored visits
+    transit_start_times = [transit[0] for transit in list_of_transits]
+    transit_end_times = [transit[1] for transit in list_of_transits]
+    for visit in list_of_visits:
+        # We check that this transit starts/ends at the same time as a visit
+        if visit[0] in transit_end_times and visit[1] in transit_start_times:
+            uncensored_visits.append(visit)
+        else:
+            patches_with_censored_visits.append(visit[2])
+
+    # Create a list of visits to patches containing no censored visit
     visits_to_uncensored_patches = []
     patches_with_censored_visits = np.unique(patches_with_censored_visits)
     for visit in uncensored_visits:
         if visit[2] not in patches_with_censored_visits:
             visits_to_uncensored_patches.append(visit)
-
-    # List of transits that were not cut short by a tracking hole
-    uncensored_transits = []
-    for transit in list_of_transits:
-        if not (transit[0] in first_times or transit[1] in last_times):
-            uncensored_transits.append(transit)
 
     return uncensored_visits, uncensored_transits, visits_to_uncensored_patches
 
