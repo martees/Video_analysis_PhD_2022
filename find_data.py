@@ -48,6 +48,7 @@ def trajcsv_to_dataframe(paths_of_mat, shortened=False):
         id_conservative: id of the worm
         folder: path of where the data was extracted from (to keep computer - camera - date info)
     NOTE: it's with the value in folder that you can call other info such as patch positions, using folder_to_metadata()
+    NOTE 2: this trajectories.csv has corrected time stamps!
     """
     folder_list = []
     for i_file in range(len(paths_of_mat)): #for every file
@@ -57,17 +58,20 @@ def trajcsv_to_dataframe(paths_of_mat, shortened=False):
         current_data = pd.read_csv(current_path) #dataframe with all the info
         if len(np.unique(current_data["id_conservative"])) > 100000:
             print("Problem in trajcsv_to_dataframe! id's will overlap")
-        # We add the file number to the worm identifyers, for them to become unique accross all folders
+        # We add the file number to the worm identifiers, for them to become unique across all folders
         current_data["id_conservative"] = [id + 100000*i_file for id in current_data["id_conservative"]]
 
         # We remove the datapoints that are after shorten time
         if shortened:
             current_data = current_data[current_data["time"] <= param.times_to_cut_videos]
 
+        # We correct time stamps column
+        current_data = correct_time_stamps(current_data, print_bug=False)
+
         if i_file == 0:
             dataframe = current_data
         else:
-            dataframe = pd.concat([dataframe,current_data]) #add it to the main dataframe
+            dataframe = pd.concat([dataframe, current_data]) #add it to the main dataframe
 
         #In the folder list, add the folder as many times as necessary:
         nb_of_timesteps = len(current_data.get('time'))  # get the length of that
@@ -227,6 +231,7 @@ def reindex_silhouette(pixels, frame_size):
 
 def correct_time_stamps(data_one_folder, print_bug, return_validity=False):
     was_there_something_wrong = "nothing_wrong"
+
     # Sometimes the time column instead of containing times just contains nans...
     # In that case infer the times from the frame columns, on average 1 frame = 0.8s, exact number in parameters
     if np.isnan(data_one_folder["time"].reset_index(drop=True).iloc[0]):
@@ -235,6 +240,7 @@ def correct_time_stamps(data_one_folder, print_bug, return_validity=False):
             print("This folder has NaN in its time column!")
         data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
         was_there_something_wrong = "time_nan"
+
     # Sometimes the time column is fucked and has very high values in the beginning??
     # In that case also infer the time from the frame columns
     # (to determine this kind of resets, I look at whether the difference between successive time stamps is negative)
@@ -244,6 +250,7 @@ def correct_time_stamps(data_one_folder, print_bug, return_validity=False):
             print("This folder has bad times in the beginning!")
         data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
         was_there_something_wrong = "time_reset"
+
     if return_validity:
         return data_one_folder, was_there_something_wrong
     else:

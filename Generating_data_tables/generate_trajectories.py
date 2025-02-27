@@ -298,8 +298,10 @@ def trajectory_speeds(traj):
         print("Folder ", i+1, " / ", len(folder_list))
         current_traj = traj[dt.f.folder == folder, :]
         current_list_of_distances = current_traj[:, dt.f.distances].to_list()[0]
+        # Commenting the following lines because I will correct time stamps earlier in the pipeline (when making trajectories.csv)
         # Correct the times for plates that have only NaNs or jumps in the time
-        list_of_times = np.array(fd.correct_time_stamps(current_traj.to_pandas(), True)["time"])
+        # list_of_times = np.array(fd.correct_time_stamps(current_traj.to_pandas(), True)["time"])
+        list_of_times = np.array(current_traj["time"])
 
         # Generate shifted versions of our time stamps columns, either shifted upwards or downwards
         array_times_r = list_of_times[1:]
