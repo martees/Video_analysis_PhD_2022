@@ -81,7 +81,7 @@ def generate_trajectories(path):
     trajectories = pd.read_csv(path + "trajectories.csv")
     # Add a column with the patch where the worm is (-1 is outside)
     print("Computing where the worm is...")
-    if "model" in path:
+    if "model" in path:  # For the models, we don't have silhouettes, so use the centroid instead
         trajectories["patch_centroid"], overlapping_patches = gt.in_patch_list(trajectories, using="centroid")
     else:
         trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouette")

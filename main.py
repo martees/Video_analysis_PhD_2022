@@ -329,7 +329,7 @@ if __name__ == "__main__":
     # Depending on the starting_from argument, can also generate result tables
     # path = gr.generate(starting_from="results_per_id", custom_path="E:/Results_minipatches_retracked_test/")
     # path = gr.generate(starting_from="controls", custom_path="E:/Alid_hard_drive_20241122/Results_minipatches_retracked/") # This works on my desktop at the lab
-    path = gr.generate(starting_from="", test_pipeline=False)
+    path = gr.generate(starting_from="smoothing", test_pipeline=True)
     # starting_from determines where to start generating results:
     # "controls" will generate everything starting here ->
     #       will generate control subfolders with fake patches of each distance in the control folders
