@@ -105,13 +105,16 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
         for i_plate in range(len(list_of_plates)):
             # Take only one plate
             current_plate = copy.deepcopy(current_data[current_data["folder"] == list_of_plates[i_plate]])
-            if remove_censored_events:
-                current_visits = fd.load_list(current_plate, "uncensored_visits")
-            elif remove_censored_patches:
+
+            # Apply censorship rules
+            if remove_censored_patches:
                 current_visits = fd.load_list(current_plate, "visits_to_uncensored_patches")
+            elif remove_censored_events:
+                current_visits = fd.load_list(current_plate, "uncensored_visits")
             else:
                 current_visits = fd.load_list(current_plate, "no_hole_visits")
 
+            # If there are any (uncensored) visits, apply other exclusion criteria to the list
             if "visit" in column_name and len(current_visits) > 0:
                 original_length = len(current_visits)
                 current_visits = [visit for visit in current_visits if (visit[1] - visit[0]) >= 0]
@@ -123,15 +126,17 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
 
                 if only_first_visited_patch:
                     first_visited_patch = current_visits[0][2]
-                    for visit in current_visits:
+                    full_current_visits = copy.deepcopy(current_visits)  # make a copy otherwise .remove() method does random things
+                    for visit in full_current_visits:
                         if visit[2] != first_visited_patch:
                             current_visits.remove(visit)
 
                 # SOFT CUT: only take the visits that start before the time at which we cut videos
                 if soft_cut:
                     for visit in current_visits:
-                        if param.times_to_cut_videos[0] > visit[0] > param.times_to_cut_videos[1]:
+                        if (param.times_to_cut_videos[0] > visit[0]) or (visit[0] > param.times_to_cut_videos[1]):
                             current_visits.remove(visit)
+
                 # HARD CUT: only take the visits as long as the cumulated length of visits+transits is < time to cut
                 if hard_cut:
                     if remove_censored_events:
@@ -147,29 +152,35 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     # Mix visits and transits and sort them by beginning
                     current_events = copy.deepcopy(current_visits) + copy.deepcopy(current_transits)
                     current_events = sorted(current_events, key=lambda x: x[0])
+                    # Load times to cut
+                    cut_start = param.times_to_cut_videos[0]
+                    cut_end = param.times_to_cut_videos[1]
+                    if only_first_visited_patch:
+                        print("Pay attention, for total time first patch, hard cut ends at ", cut_end/4)
+                        cut_end = cut_end/4
                     # Loop through them and stop when it's reached time to cut!!!
                     cumulated_duration_of_events = 0
                     i_event = 0
                     new_list_of_events = []
                     first_event_found = False
-                    while i_event < len(current_events) and cumulated_duration_of_events < (param.times_to_cut_videos[1] - param.times_to_cut_videos[0]):
+                    while i_event < len(current_events) and cumulated_duration_of_events < (cut_end - cut_start):
                         current_event = current_events[i_event]
-                        if current_event[0] >= param.times_to_cut_videos[0]:
+                        if current_event[0] >= cut_start:
                             if not first_event_found:
                                 first_event_found = True
                                 # If this is the first event that starts after time_to_cut[0] and not the first of the video, add the previous one
                                 if i_event > 0:
                                     previous_event = current_events[i_event - 1]
-                                    previous_event[0] = param.times_to_cut_videos[0]  # but set it to start at time_to_cut[0]
+                                    previous_event[0] = cut_start  # but set it to start at time_to_cut[0]
                                     cumulated_duration_of_events += previous_event[1] - previous_event[0]
                                     new_list_of_events.append(previous_event)
                                     # If this previous event does not exceed time_to_cut[1], then you can add the current one
-                                    if cumulated_duration_of_events < (param.times_to_cut_videos[1] - param.times_to_cut_videos[0]):
+                                    if cumulated_duration_of_events < cut_end - cut_start:
                                         cumulated_duration_of_events += current_event[1] - current_event[0]
                                         new_list_of_events.append(current_event)
                                 # If this is the first event, just add it! and start it at time_to_cut[0]
                                 else:
-                                    current_event[0] = param.times_to_cut_videos[0]  # but set it to start at time_to_cut[0]
+                                    current_event[0] = cut_start  # but set it to start at time_to_cut[0]
                                     cumulated_duration_of_events += current_event[1] - current_event[0]
                                     new_list_of_events.append(current_event)
 
@@ -178,17 +189,22 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                                 new_list_of_events.append(current_event)
                         i_event += 1
                     # In the end of the loop, if we have reached the cut parameter, cut the last event
-                    if cumulated_duration_of_events > (param.times_to_cut_videos[1] - param.times_to_cut_videos[0]):
-                        new_list_of_events[-1][1] -= cumulated_duration_of_events - (param.times_to_cut_videos[1] - param.times_to_cut_videos[0])
+                    if cumulated_duration_of_events > cut_end - cut_start:
+                        new_list_of_events[-1][1] -= cumulated_duration_of_events - (cut_end - cut_start)
                     # Then, sort the events back to visits!
                     current_visits = [event for event in new_list_of_events if event[2] != -1]
                     for i in current_visits:
                         if i[1] - i[0] < 0:
-                            print("j")
-                # Recompute total time with updated rule
+                            print("Negative visit aaaaaaaaaaaaaaaaaaaa")
+
+            if column_name == "total_visit_time":
+                # Recompute total time with updated visit list
                 current_plate["total_visit_time"] = np.sum([pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0], axis=1)])
                 # Convert to hours
                 current_plate["total_visit_time"] /= 3600
+            if column_name == "nb_of_visits":
+                # Recompute total time with updated visit list
+                current_plate["nb_of_visits"] = len(current_visits)
 
             # When we want to divide column name by another one
             if divided_by != "":
@@ -234,6 +250,9 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
 
             if normalize_by_video_length:
                 list_of_values[i_plate] /= current_plate["total_tracked_time"]
+
+            if list_of_values[i_plate] > 1000:
+                print('h')
 
         # Keep in memory the full list of averages
         full_list_of_values[i_condition] = list_of_values
@@ -320,7 +339,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
             # Lists that we'll fill up for this plate
             list_of_visit_lengths = []
             list_of_previous_transit_lengths = []
-            if only_first_visit != False:
+            if only_first_visit:
                 # Create a list with 0's, and when a patch is visited, increase by 1 the index i when patch i is visited
                 # Used if only a certain nb of first visits should be considered
                 nb_of_visits_each_patch = [0 for _ in range(100)]  # put 100 points because we always have less patches
@@ -405,12 +424,12 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
 
                     # If "only_first_visits", remove the last elements that we just added if this was an already
                     # visited patch (I do it now because otherwise it messes with the i_visit, i_double_whatever etc.)
-                    if only_first_visit != False:
-                        if nb_of_visits_each_patch[current_visit[2]] > only_first_visit:
+                    if only_first_visit:
+                        if nb_of_visits_each_patch[int(current_visit[2])] > only_first_visit:
                             list_of_visit_lengths = list_of_visit_lengths[:-1]
                             list_of_previous_transit_lengths = list_of_previous_transit_lengths[:-1]
                         else:
-                            nb_of_visits_each_patch[current_visit[2]] += 1
+                            nb_of_visits_each_patch[int(current_visit[2])] += 1
 
             condition = fd.load_condition(folder_list[i_folder])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
@@ -640,7 +659,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             if conserve_visit_order and current_values:
                 nb_of_visits_each_patch = np.zeros(52)  # there are never more than 52 patches
                 for value in current_values:
-                    current_patch = value[2]
+                    current_patch = int(value[2])
                     nb_of_visits_each_patch[current_patch] += 1
                     # If there isn't a sublist for i-th visits, then just add it
                     if len(list_of_values) <= nb_of_visits_each_patch[current_patch]:
