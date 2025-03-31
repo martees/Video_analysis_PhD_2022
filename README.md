@@ -13,7 +13,7 @@ jsonschema	4.23.0
 jsonschema-specifications	2024.10.1  
 kiwisolver	1.4.5  
 matplotlib	3.5.0  
-numpy	1.26.4 
+numpy	1.24.4 
 opencv-python	4.8.1.78  
 pandas	2.2.2  
 pillow	10.4.0  
