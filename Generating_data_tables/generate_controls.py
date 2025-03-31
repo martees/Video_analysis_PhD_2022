@@ -50,7 +50,6 @@ def generate_controls(path):
     for i_folder in range(len(folder_list)):
         if i_folder % 1 == 0:
             print("Generating control patches... ", i_folder, " / ", len(folder_list))
-            print(folder_list[i_folder])
         folder = folder_list[i_folder]
         # Find the corresponding control sub-folders (eg ./parent_folder/parent_folder_control_far/traj.csv)
         current_control_folders = fd.control_folders(folder, ["close", "med", "far", "superfar", "cluster"])
@@ -96,13 +95,21 @@ def steal_metadata_from_another_plate(path, parent_folder, distance):
     """
 
     # Find the folders of the experiments with the same distance between the patches, without controls because they are crappy
-    all_folders = fd.path_finding_traj(path, include_fake_control_folders=False)
+    # all_folders = fd.path_finding_traj(path, include_fake_control_folders=False)
     folder_each_distance = {"close": path + "20221011T112304_SmallPatches_C4-CAM5/traj.csv",
                             "med": path + "20221011T191616_SmallPatches_C1-CAM5/traj.csv",
                             "far": path + "20221012T202949_SmallPatches_C4-CAM4/traj.csv",
-                            "superfar": path + "20221115T194409_SmallPatches_C5-CAM6/traj.csv",
+                            "superfar": path + "20221116T194409_SmallPatches_C5-CAM6/traj.csv",
                             "cluster": path + "20221013T115441_SmallPatches_C6-CAM1/traj.csv"
                             }
+
+    # CHECK: DO THEY HAVE THE RIGHT CONDITION (adding this after 2 mistakes lol)
+    for condition, folder in folder_each_distance.items():
+        actual_condition = parameters.nb_to_distance[fd.load_condition(folder)]
+        if condition != actual_condition:
+            print("You have imputed a folder with the wrong condition in the controls you fool.")
+            print("Condition: ", condition)
+
     the_chosen_one = folder_each_distance[distance]
     # Load patch information for source folder
     source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
