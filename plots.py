@@ -550,7 +550,7 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 def plot_selected_data(results, plot_title, condition_list, column_name, divided_by="",
                        plot_model=False, is_plot=True, normalize_by_video_length=False,
                        remove_censored_events=False, remove_censored_patches=False, soft_cut=False, hard_cut=False,
-                       only_first_visited_patch=False, visits_longer_than=0):
+                       only_first_visited_patch=False, visits_longer_than=0, save_fig=True):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -561,7 +561,8 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     # Getting results
     if column_name == "first_visit_duration":
         list_of_avg_each_plate, average_per_condition, errorbars = first_visit_script.bar_plot_first_visit_each_patch(
-            results, condition_list, is_plot=False, remove_censored_events=remove_censored_events, only_first_visited_patch=only_first_visited_patch, visits_longer_than=visits_longer_than)
+            results, condition_list, is_plot=False, ignore_subsequent_uncensored_events=remove_censored_patches,
+            exclude_censored_events=remove_censored_events, only_first_visited_patch=only_first_visited_patch, visits_longer_than=visits_longer_than)
     else:
         list_of_avg_each_plate, average_per_condition, errorbars = ana.results_per_condition(results, condition_list,
                                                                                              column_name, divided_by,
@@ -586,7 +587,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             #ax.set_ylim(0, 4)
         if divided_by == "nb_of_visits":
             ax.set_ylabel("Average time per visit (hours)", fontsize=20)
-            #ax.set_ylim(0, 0.6)
+            ax.set_ylim(0, 0.6)
         if divided_by == "" and only_first_visited_patch:
             ax.set_ylabel("Total time spent in first visited patch (hours)", fontsize=20)
     if column_name == "first_visit_duration":
@@ -599,6 +600,12 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         ax.set_ylabel("Average speed inside food patches (pixel/second)", fontsize=20)
     if column_name == "average_speed_outside":
         ax.set_ylabel("Average speed outside food patches (pixel/second)", fontsize=20)
+    if column_name == "nb_of_visits":
+        if divided_by == "nb_of_visited_patches":
+            ax.set_ylabel("Average number of visits to each visited patch", fontsize=20)
+            ax.set_ylim(0, 90)
+        if divided_by == "nb_of_patches":
+            ax.set_ylabel("Average number of visits to each patch", fontsize=20)
 
     # Plot condition averages as a bar plot
     condition_names = [param.nb_to_name[cond] for cond in condition_list]
@@ -622,7 +629,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         model_per_condition = ana.model_per_condition(results, condition_list, column_name, divided_by)
         ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
 
-    if is_plot:
+    if is_plot or save_fig:
         # Set the x labels to the distance icons!
         # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
         for i in range(len(condition_list)):
@@ -644,7 +651,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                                               xycoords=("data", "axes fraction"),
                                               boxcoords="offset points",
                                               box_alignment=(.5, 1),
-                                              bboxprops={"edgecolor": "none"})
+                                              bboxprops={"edgecolor": "none", "alpha": 0})
 
             ax.add_artist(x_annotation_box)
 
@@ -672,7 +679,11 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                 plt.text(0.46*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.round(stat_test.pvalue, 3)), fontsize=16)
         else:
             plt.text(0.46 * x_axis_limits[1], 0.9 * y_axis_limits[1], "p-value is np.nan")
-        plt.show()
+
+        if save_fig:
+            plt.savefig(column_name + "_div_" + divided_by + "_" + str(condition_names) + ".png", transparent=True)
+        if is_plot:
+            plt.show()
     else:
         return average_per_condition, list_of_avg_each_plate, errorbars
 
@@ -801,7 +812,7 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
     # Initialize plot
     curve_names = [param.nb_list_to_name[str(curve)] for curve in curve_list]
     fig, axs = plt.subplots(len(scale_list), len(variable_list))
-    fig.set_size_inches(7 * len(variable_list), 6 * len(scale_list))
+    fig.set_size_inches(6 * len(variable_list), 5 * len(scale_list))
     fig.suptitle("Conditions " + str(curve_names))
     fig.set_tight_layout(True)  # make the margins tighter
 
@@ -827,8 +838,10 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
             if i_variable == 0:
                 ax.set(ylabel="normalized " + scale_list[i_scale] + " occurrences")
             if i_scale == 0:
-                ax.set_title(
-                    "first " * only_first + str(variable) + " values" + (end_time != False) * "until " + str(end_time))
+                if end_time:
+                    ax.set_title("first " * only_first + str(variable) + " values until " + str(end_time))
+                else:
+                    ax.set_title("first " * only_first + str(variable))
             ax.set_yscale(scale_list[i_scale])
             # For every condition pool in condition_list
             for i_curve in range(len(curve_list)):
@@ -895,7 +908,7 @@ def plot_leaving_delays(results, plot_title, condition_list, bin_size, color, is
 
 
 def plot_leaving_probability(results, plot_title, condition_list, custom_bins, worm_limit, color, label,
-                             split_conditions=False, is_plot=True, is_nb_of_worms=False):
+                             split_conditions=False, is_plot=True, is_nb_of_worms=False, plot_only_OD=False):
     plt.title(plot_title)
     plt.ylabel("Probability of exiting in the next " + str(param.time_threshold) + " time steps")
     plt.xlabel("Time already spent in patch")
@@ -930,18 +943,26 @@ def plot_leaving_probability(results, plot_title, condition_list, custom_bins, w
                 errorbars=True)
 
             # If there are lines to plot, plot them !
+            if plot_only_OD:
+                label = "OD=" + param.nb_to_density[current_condition]
+                color = param.name_to_color[param.nb_to_density[current_condition]]
+            else:
+                label = param.nb_to_name[current_condition]
+                color = param.name_to_color[label]
+
             if len(binned_times_in_patch) > 1:
-                plt.plot(binned_times_in_patch, binned_leaving_probability,
-                         color=param.name_to_color[param.nb_to_density[current_condition]], linewidth=3)
                 plt.errorbar(binned_times_in_patch, binned_leaving_probability, error_bars,
-                             label="OD=" + param.nb_to_density[current_condition],
-                             color=param.name_to_color[param.nb_to_density[current_condition]],
+                             label=label,
+                             color=color,
+                             fmt="-o",
+                             linewidth=3,
+                             elinewidth=2,
                              capsize=5)
             # If there's just one point, plot it but put an outline to make it visible (it's usually the control so very light)
             else:
                 plt.errorbar(binned_times_in_patch, binned_leaving_probability, error_bars,
-                             label="OD=" + param.nb_to_density[current_condition],
-                             color=param.name_to_color[param.nb_to_density[current_condition]],
+                             label=label,
+                             color=color,
                              capsize=5, path_effects=[pe.Stroke(linewidth=3,
                                                                 foreground=param.name_to_color["0.2"]),
                                                       pe.Normal()])
