@@ -217,7 +217,7 @@ def in_patch_list(traj, using):
 
     for i_plate, current_plate in enumerate(list_of_plates):  # for every plate
         # Handmade progress bar
-        if param.verbose and (i_plate % 20 == 0 or i_plate == nb_of_plates):
+        if i_plate % 20 == 0 or i_plate == nb_of_plates:
             print("Computing patch_position_" + using + " for plate ", i_plate, "/", nb_of_plates)
 
         # Extract worm positions
@@ -264,7 +264,10 @@ def trajectory_distances(traj):
     list_of_distances = []
 
     # For each folder, array operation to compute distance
-    for folder in folder_list:
+    for i_folder, folder in enumerate(folder_list):
+        if i_folder % 20 == 0:
+            print("Computing distance for plate ", i_folder, "/", len(folder_list))
+
         current_traj = traj[traj["folder"] == folder].reset_index()
 
         # Generate shifted versions of our position columns, either shifted leftwards or rightwards

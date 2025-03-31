@@ -69,12 +69,12 @@ def plot_speed_distribution(full_folder_list, trajectories, condition_list, firs
     plt.show()
 
 
-path = gen.generate("", shorten_traj=True)
+path = gen.generate("")
 results = pd.read_csv(path + "clean_results.csv")
 traj = dt.fread(path + "clean_trajectories.csv")
 full_list_of_folders = list(results["folder"])
 
-#plot_speed_distribution(full_list_of_folders, traj, [0, 1, 2, 14], first_visit=True)
-#plot_speed_distribution(full_list_of_folders, traj, [17, 18, 19, 20], first_visit=True)
-#plot_speed_distribution(full_list_of_folders, traj, [4, 5, 6, 15], first_visit=True)
-plot_speed_distribution(full_list_of_folders, traj, [12, 8, 13, 16], first_visit=True)
+plot_speed_distribution(full_list_of_folders, traj, [0, 1, 2, 14], first_visit=False)
+plot_speed_distribution(full_list_of_folders, traj, [17, 18, 19, 20], first_visit=False)
+plot_speed_distribution(full_list_of_folders, traj, [4, 5, 6, 15], first_visit=False)
+plot_speed_distribution(full_list_of_folders, traj, [12, 8, 13, 16], first_visit=False)

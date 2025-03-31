@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -19,7 +20,7 @@ t_first_model = {"close 0.2": 0.1099, "med 0.2": 0.2021, "far 0.2": 0.2869, "sup
                  "close 1.25": 0.3123, "med 1.25": 0.5296, "far 1.25": 0.5504, "superfar 1.25": 0.5635}
 
 
-def plot_Tp_vs_Nv(curve_list, is_save=False):
+def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
     results_path = gen.generate("", shorten_traj=False)
     results = pd.read_csv(results_path + "clean_results.csv")
     full_folder_list = results["folder"]
@@ -53,7 +54,7 @@ def plot_Tp_vs_Nv(curve_list, is_save=False):
                 nb_of_visits_each_patch = np.zeros(max_visited_patch)
                 total_time_each_patch = np.zeros(max_visited_patch)
                 for i_visit, visit in enumerate(visit_list):
-                    current_patch = visit[2]
+                    current_patch = int(visit[2])
                     nb_of_visits_each_patch[current_patch] += 1
                     total_time_each_patch[current_patch] += visit[1] - visit[0] + 1
                     # Then, add this total time in the right bin. Only add it when there's a change in bins, or if this is
@@ -110,17 +111,18 @@ def plot_Tp_vs_Nv(curve_list, is_save=False):
         error_sup_each_bin_this_cond = np.array(error_sup_each_bin_this_cond)/3600
 
         # Then, plot it
-        plt.errorbar(bin_with_values, average_each_bin_this_cond, [error_inf_each_bin_this_cond, error_sup_each_bin_this_cond],
-                     color=param.name_to_color[current_curve_name], capsize=5, marker="o", linewidth=2)
-        #for i_bin in range(len(bin_with_values)):
-        #    plt.text(bin_with_values[i_bin], average_each_bin_this_cond[i_bin] + 60, str(nb_of_points_each_bin_this_cond[i_bin]), fontsize=24)
+        if is_plot:
+            plt.errorbar(bin_with_values, average_each_bin_this_cond, [error_inf_each_bin_this_cond, error_sup_each_bin_this_cond],
+                         color=param.name_to_color[current_curve_name], capsize=5, marker="o", linewidth=2)
+            #for i_bin in range(len(bin_with_values)):
+            #    plt.text(bin_with_values[i_bin], average_each_bin_this_cond[i_bin] + 60, str(nb_of_points_each_bin_this_cond[i_bin]), fontsize=24)
 
-        # Then, plot as a dashed line Alfonso's model
-        bin_with_values = np.array(bin_with_values)
-        t_first = t_first_model[current_curve_name]
-        constant = 2.4909
-        equation_values = (t_first / (np.log(1 + constant))) * np.log(1 + constant * bin_with_values)
-        plt.plot(bin_with_values, equation_values, color=param.name_to_color[current_curve_name], linestyle="dashed", linewidth=2)
+            # Then, plot as a dashed line Alfonso's model
+            bin_with_values = np.array(bin_with_values)
+            t_first = t_first_model[current_curve_name]
+            constant = 2.4909
+            equation_values = (t_first / (np.log(1 + constant))) * np.log(1 + constant * bin_with_values)
+            plt.plot(bin_with_values, equation_values, color=param.name_to_color[current_curve_name], linestyle="dashed", linewidth=2)
 
         # But also add it to the bloody lists for the effing table
         final_table_conditions += [current_curve_name for _ in range(len(average_each_bin_this_cond))]
@@ -163,7 +165,7 @@ def plot_Tp_vs_Nv(curve_list, is_save=False):
         plt.xlabel("Number of visits", fontsize=16)
         plt.xscale("log")
         plt.ylabel("Total time in patch (hours)", fontsize=16)
-        plt.ylim(0, 2.25)
+        plt.ylim(0, 2.3)
         plt.show()
 
 
@@ -186,8 +188,7 @@ def plot_t_first_each_density():
         ax.set_xticks([])
 
         # Image to use
-        arr_img = plt.imread(
-            "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + distance_list[i] + '.png')
+        arr_img = plt.imread(os.getcwd().replace("\\", "/")[:-len("Scripts_analysis/")] + "/Parameters/icon_" + distance_list[i] + '.png')
 
         # Image box to draw it!
         imagebox = OffsetImage(arr_img, zoom=0.6)
@@ -208,16 +209,18 @@ def plot_t_first_each_density():
 
 
 #list_of_curves = param.name_to_nb_list.keys()
-#list_of_curves = ["close 0", "med 0", "far 0", "superfar 0"]
-#list_of_curves = ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]
-#list_of_curves = ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]
-#plot_Tp_vs_Nv(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], False)
-plot_t_first_each_density()
+list_of_curves = ["close 0", "med 0", "far 0", "superfar 0",
+                  "close 0.2", "med 0.2", "far 0.2", "superfar 0.2",
+                  "close 0.5", "med 0.5", "far 0.5", "superfar 0.5",
+                  "close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
+plot_Tp_vs_Nv(list_of_curves, False, True)
 
-#list_of_curves = ["close 0", "med 0", "far 0", "superfar 0",
-#              "close 0.2", "med 0.2", "far 0.2", "superfar 0.2",
-#              "close 0.5", "med 0.5", "far 0.5", "superfar 0.5",
-#              "close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
+# plot_Tp_vs_Nv(["close 0", "med 0", "far 0", "superfar 0"], False)
+# plot_Tp_vs_Nv(["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], False)
+# plot_Tp_vs_Nv(["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], False)
+# plot_Tp_vs_Nv(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], False)
+# plot_t_first_each_density()
+
 
 
 

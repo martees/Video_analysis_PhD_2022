@@ -233,7 +233,7 @@ def plot_timeline_with_censorship(results_path, result_datatable, full_folder_li
     else:
         if not os.path.isdir(results_path + "timeline_plots/"):
             os.mkdir(results_path + "timeline_plots/")
-        plt.savefig(results_path + "timeline_plots/censorship_in_black_timeline_condition_" + curve_names[i_curve] + ".png", dpi=2000)
+        plt.savefig(results_path + "timeline_plots/timeline_condition_" + curve_names[i_curve] + "_censorship_in_black.png", dpi=2000)
         # Calculate mean and STD
         #mean = np.nanmean(current_timeline)
         #std = np.nanstd(current_timeline)
@@ -250,7 +250,7 @@ def plot_timeline_with_censorship(results_path, result_datatable, full_folder_li
         plt.clf()
 
 
-def plot_overlap_timelines(result_datatable, full_folder_list, curve_names, plot_only_uncensored=False):
+def plot_overlap_timelines(results_path, result_datatable, full_folder_list, curve_names, plot_only_uncensored=False, is_plot=True):
     """
     A function that will plot a matrix with one line per folder in full_folder_list, and one column per frame
     in the videos, until the time point "time_to_cut_videos" defined in parameters.py.
@@ -308,12 +308,18 @@ def plot_overlap_timelines(result_datatable, full_folder_list, curve_names, plot
             axs[i_curve // 2, i_curve % 2].set_title("Timeline for condition "+curve_names[i_curve])
             axs[i_curve // 2, i_curve % 2].imshow(masked_array, cmap=cmap)
             axs[i_curve // 2, i_curve % 2].colorbar()
-    plt.show()
 
+    if is_plot:
+        plt.show()
+    else:
+        if not os.path.isdir(results_path + "timeline_plots/"):
+            os.mkdir(results_path + "timeline_plots/")
+        plt.savefig(results_path + "timeline_plots/timeline_condition_" + curve_names[i_curve] + "_overlap_check.png", dpi=2000)
+        plt.clf()
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(starting_from="smoothing", test_pipeline=False)
+    path = gen.generate(starting_from="smoothing", test_pipeline=True)
 
     results = dt.fread(path + "clean_results.csv")
     # trajectories = dt.fread(path + "clean_trajectories.csv")
@@ -337,62 +343,67 @@ if __name__ == "__main__":
     # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.5"], is_plot=True, plot_only_uncensored=False)
     # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 1.25"], is_plot=True, plot_only_uncensored=False)
 
-    plot_overlap_timelines(results, full_list_of_folders, ["close 0"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["med 0"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["far 0"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["superfar 0"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["close 0.2"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["med 0.2"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["far 0.2"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["superfar 0.2"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["close 0.5"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["med 0.5"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["far 0.5"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["superfar 0.5"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["close 1.25"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["med 1.25"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["far 1.25"], plot_only_uncensored=False)
-    plot_overlap_timelines(results, full_list_of_folders, ["superfar 1.25"], plot_only_uncensored=False)
+    # Sanity check: check that events do not overlap
+    plot_overlap_timelines(path, results, full_list_of_folders, ["close 0"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["med 0"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["far 0"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["superfar 0"], plot_only_uncensored=False, is_plot=False)
 
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.2"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.5"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 1.25"], is_plot=False)
-    #
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0.2"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0.5"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 1.25"], is_plot=False)
-    #
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0.2"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0.5"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 1.25"], is_plot=False)
-    #
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0.2"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0.5"], is_plot=False)
-    # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 1.25"], is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["close 0.2"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["med 0.2"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["far 0.2"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["superfar 0.2"], plot_only_uncensored=False, is_plot=False)
 
+    plot_overlap_timelines(path, results, full_list_of_folders, ["close 0.5"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["med 0.5"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["far 0.5"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["superfar 0.5"], plot_only_uncensored=False, is_plot=False)
 
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["close 0"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["close 0.2"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["close 0.5"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["close 1.25"], is_plot=True)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["close 1.25"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["med 1.25"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["far 1.25"], plot_only_uncensored=False, is_plot=False)
+    plot_overlap_timelines(path, results, full_list_of_folders, ["superfar 1.25"], plot_only_uncensored=False, is_plot=False)
 
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["med 0"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["med 0.2"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["med 0.5"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["med 1.25"], is_plot=True)
+    # Plotting what happens at each time step, with long bad tracking holes in white
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.2"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.5"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 1.25"], is_plot=False)
 
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 0"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 0.2"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 0.5"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 1.25"], is_plot=True)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0.2"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 0.5"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["med 1.25"], is_plot=False)
 
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["superfar 0"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["superfar 0.2"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["superfar 0.5"], is_plot=True)
-    plot_timeline_with_censorship(path, results, full_list_of_folders, ["superfar 1.25"], is_plot=True)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0.2"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0.5"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 1.25"], is_plot=False)
+
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0.2"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 0.5"], is_plot=False)
+    plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["superfar 1.25"], is_plot=False)
+
+    # Plotting what happens at each time step, censored events in black
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["close 0"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["close 0.2"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["close 0.5"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["close 1.25"], is_plot=False)
+
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["med 0"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["med 0.2"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["med 0.5"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["med 1.25"], is_plot=False)
+
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 0"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 0.2"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 0.5"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 1.25"], is_plot=False)
+
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["superfar 0"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["superfar 0.2"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["superfar 0.5"], is_plot=False)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["superfar 1.25"], is_plot=False)
 
 

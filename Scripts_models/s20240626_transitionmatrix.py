@@ -737,9 +737,8 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
         ax.set_xticks([])
 
         # Image to use
-        arr_img = plt.imread(
-            "/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[
-                condition_list_this_density[i]] + '.png')
+        arr_img = plt.imread(os.getcwd().replace("\\", "/")[:-len("Scripts_models/")] + "/Parameters/icon_" +
+                             param.nb_to_distance[condition_list_this_density[i]] + '.png')
 
         # Image box to draw it!
         imagebox = OffsetImage(arr_img, zoom=0.8)
@@ -764,17 +763,19 @@ if __name__ == "__main__":
     results = pd.read_csv(path + "clean_results.csv")
     # trajectories = pd.read_csv(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
-    if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv" in full_list_of_folders:
-        full_list_of_folders.remove(
-            "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
+    #if "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv" in full_list_of_folders:
+    #    full_list_of_folders.remove(
+    #        "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
-    # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
     # generate_transition_matrices(path, [0, 1, 2, 14], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
     # generate_transition_matrices(path, [4, 5, 6, 15], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
     # generate_transition_matrices(path, [12, 8, 13, 16], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
     # generate_transition_matrices(path, [17, 18, 19, 20], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
 
-    # behavior_vs_geometry(path, results, "close 0", 2000, 16000)
+    plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="probability")
+    # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
+
+    behavior_vs_geometry(path, results, "close 0", 2000, 16000)
     behavior_vs_geometry(path, results, "close 0.2", 2000, 16000)
     behavior_vs_geometry(path, results, "close 0.5", 2000, 16000)
     behavior_vs_geometry(path, results, "close 1.25", 2000, 16000)

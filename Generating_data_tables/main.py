@@ -86,7 +86,7 @@ def generate_trajectories(path):
     else:
         trajectories["patch_silhouette"], overlapping_patches = gt.in_patch_list(trajectories, using="silhouette")
     overlapping_patches.to_csv(path + "overlapping_patches.csv")
-    print("Finished computing in which patch the worm is at each time step")
+    print("Finished computing in which patch the worm is at each time step!")
     print("Computing distances...")
     # Add a column with the distance the worm crawled since last time step, for each time step
     # It should put 0 for the first point of every folder, but record distance even when there's a tracking hole
