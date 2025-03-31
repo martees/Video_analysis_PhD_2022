@@ -34,7 +34,7 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
     final_table_error_inf = []
     final_table_nb_of_points = []
 
-    nb_of_visit_bins = list(range(1, 300, 1))  # note: the code bug if there's a value superior to the last bin
+    nb_of_visit_bins = list(range(1, 300, 1))  # note: the code bugs if there's a value superior to the last bin
     nb_of_bins = len(nb_of_visit_bins)
     for i_curve, current_curve_name in enumerate(curve_list):
         print("Condition ", current_curve_name, ", ", i_curve, " / ", len(curve_list))
@@ -93,17 +93,17 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
                                            not np.isnan(average_each_bin_this_cond[i])]
         average_each_bin_this_cond = [avg for avg in average_each_bin_this_cond if not np.isnan(avg)]
 
-        # Then, keep only the bins with more than 100 data points
+        # Then, keep only the bins with more than 10 data points
         bin_with_values = [bin_with_values[i] for i in range(len(bin_with_values)) if
-                           nb_of_points_each_bin_this_cond[i] > 50]
+                           nb_of_points_each_bin_this_cond[i] > 10]
         error_inf_each_bin_this_cond = [error_inf_each_bin_this_cond[i] for i in range(len(error_inf_each_bin_this_cond)) if
-                                        nb_of_points_each_bin_this_cond[i] > 50]
+                                        nb_of_points_each_bin_this_cond[i] > 10]
         error_sup_each_bin_this_cond = [error_sup_each_bin_this_cond[i] for i in range(len(error_sup_each_bin_this_cond)) if
-                                        nb_of_points_each_bin_this_cond[i] > 50]
+                                        nb_of_points_each_bin_this_cond[i] > 10]
         average_each_bin_this_cond = [average_each_bin_this_cond[i] for i in range(len(average_each_bin_this_cond)) if
-                                      nb_of_points_each_bin_this_cond[i] > 50]
+                                      nb_of_points_each_bin_this_cond[i] > 10]
         nb_of_points_each_bin_this_cond = [nb_of_points_each_bin_this_cond[i] for i in range(len(nb_of_points_each_bin_this_cond)) if
-                                           nb_of_points_each_bin_this_cond[i] > 50]
+                                           nb_of_points_each_bin_this_cond[i] > 10]
 
         # Convert to hours
         average_each_bin_this_cond = np.array(average_each_bin_this_cond) / 3600
@@ -213,12 +213,12 @@ list_of_curves = ["close 0", "med 0", "far 0", "superfar 0",
                   "close 0.2", "med 0.2", "far 0.2", "superfar 0.2",
                   "close 0.5", "med 0.5", "far 0.5", "superfar 0.5",
                   "close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
-plot_Tp_vs_Nv(list_of_curves, False, True)
+#plot_Tp_vs_Nv(list_of_curves, False, True)
 
 # plot_Tp_vs_Nv(["close 0", "med 0", "far 0", "superfar 0"], False)
 # plot_Tp_vs_Nv(["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], False)
 # plot_Tp_vs_Nv(["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], False)
-# plot_Tp_vs_Nv(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], False)
+plot_Tp_vs_Nv(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], True)
 # plot_t_first_each_density()
 
 
