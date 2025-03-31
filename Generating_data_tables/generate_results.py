@@ -282,7 +282,7 @@ def sort_visits_by_patch(chronological_list_of_visits, nb_of_patches):
         if visit[2] > nb_of_patches - 1:
             print("ayayay")
             return False
-        bypatch_list_of_visits[visit[2]].append([visit[0], visit[1]])
+        bypatch_list_of_visits[int(visit[2])].append([visit[0], visit[1]])
     for i_patch in range(len(bypatch_list_of_visits)):
         # For each patch, sort the visits chronologically based on visit start
         bypatch_list_of_visits[i_patch] = sorted(bypatch_list_of_visits[i_patch], key=lambda x: x[0])
@@ -639,7 +639,7 @@ def generate_pixelwise_visits(time_stamp_list, folder):
 
     # If the trajectories should be shortened to some time point, also shorten the silhouettes
     if "shortened" in folder:
-        pixels = pixels[:fd.find_closest(time_stamp_list.to_list()[0], param.times_to_cut_videos)]
+        pixels = pixels[:fd.find_closest(time_stamp_list[0], param.times_to_cut_videos)]
 
     # Create a table with a list containing, for each pixel in the image, a sublist with the [start, end] of the visits
     # to this pixel. In the following algorithm, when the last element of a sublist is -1, it means that the pixel
@@ -654,11 +654,11 @@ def generate_pixelwise_visits(time_stamp_list, folder):
             current_pixel = [current_visited_pixels[0][i_pixel], current_visited_pixels[1][i_pixel]]
             # If visit just started, start it
             if visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] == [-1]:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [time_stamp_list[j_time, 0],
-                                                                                  time_stamp_list[j_time, 0]]
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1] = [time_stamp_list[j_time],
+                                                                                  time_stamp_list[j_time]]
             # If visit is continuing, update end time
             else:
-                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = time_stamp_list[j_time, 0]
+                visit_times_each_pixel[current_pixel[1]][current_pixel[0]][-1][1] = time_stamp_list[j_time]
         # Then, close the visits of the previous time step that are not being continued
         if j_time > 0:
             previous_visited_pixels = pixels[j_time - 1]
