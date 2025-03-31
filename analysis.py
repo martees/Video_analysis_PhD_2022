@@ -209,7 +209,7 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             # When we want to divide column name by another one
             if divided_by != "":
                 if divided_by == "nb_of_patches":
-                    nb_of_patches = param.nb_to_nb_of_patches[i_condition]  # total nb of patches for each cond
+                    nb_of_patches = param.nb_to_nb_of_patches[current_condition]  # total nb of patches for each cond
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / nb_of_patches
                 elif divided_by == "nb_of_visited_patches":
                     current_plate = current_plate.reset_index()

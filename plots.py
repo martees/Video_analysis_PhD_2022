@@ -667,18 +667,20 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                     print("(The data is not normal.)")
                 else:
                     print("(The data is normal.)")
-        stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
-        y_axis_limits = plt.gca().get_ylim()
-        x_axis_limits = plt.gca().get_xlim()
-        if not np.isnan(stat_test.pvalue):
-            # If the p_value is less than 0.01, write in scientific notation
-            if int(stat_test.pvalue*1000) == 0:
-                plt.text(0.4*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3)), fontsize=16)
-            # Else write it
+
+        if len(list_of_avg_each_plate) == 4:
+            stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
+            y_axis_limits = plt.gca().get_ylim()
+            x_axis_limits = plt.gca().get_xlim()
+            if not np.isnan(stat_test.pvalue):
+                # If the p_value is less than 0.01, write in scientific notation
+                if int(stat_test.pvalue*1000) == 0:
+                    plt.text(0.4*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3)), fontsize=16)
+                # Else write it
+                else:
+                    plt.text(0.46*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.round(stat_test.pvalue, 3)), fontsize=16)
             else:
-                plt.text(0.46*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.round(stat_test.pvalue, 3)), fontsize=16)
-        else:
-            plt.text(0.46 * x_axis_limits[1], 0.9 * y_axis_limits[1], "p-value is np.nan")
+                plt.text(0.46 * x_axis_limits[1], 0.9 * y_axis_limits[1], "p-value is np.nan")
 
         if save_fig:
             plt.savefig(column_name + "_div_" + divided_by + "_" + str(condition_names) + ".png", transparent=True)

@@ -445,10 +445,10 @@ if __name__ == "__main__":
     plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     plot_graphs(results, "number_of_visits_per_visited_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "number_of_visits_per_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, "number_of_visits_per_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, "number_of_visits_per_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, "number_of_visits_per_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
     # plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
