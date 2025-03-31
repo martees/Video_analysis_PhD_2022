@@ -504,7 +504,7 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
     return full_visit_list, full_variable_list
 
 
-def convert_to_durations(list_of_time_stamps):
+def convert_to_durations(list_of_time_stamps, add_one=True):
     """
     Function that takes a list of timestamps in the format [[t0,t1,...],[t2,t3,...],...] (uses t0 and t1 only)
     And will return the corresponding list of durations [d0,d1,...] (where d0 = t1 - t0 + 1)
@@ -516,7 +516,10 @@ def convert_to_durations(list_of_time_stamps):
     #    list_of_durations[i_event] = list_of_time_stamps[i_event][1] - list_of_time_stamps[i_event][0]
     # Code using lambda function instead:
     if list_of_time_stamps:
-        return list(np.apply_along_axis(lambda x: x[1] - x[0], 1, list_of_time_stamps))
+        if add_one:
+            return list(np.apply_along_axis(lambda x: x[1] - x[0] + 1, 1, list_of_time_stamps))
+        else:
+            return list(np.apply_along_axis(lambda x: x[1] - x[0], 1, list_of_time_stamps))
     else:  # If there are no time stamps
         return []
 
