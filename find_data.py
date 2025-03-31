@@ -241,14 +241,22 @@ def correct_time_stamps(data_one_folder, print_bug, return_validity=False):
         data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
         was_there_something_wrong = "time_nan"
 
-    # Sometimes the time column is fucked and has very high values in the beginning??
-    # In that case also infer the time from the frame columns
-    # (to determine this kind of resets, I look at whether the difference between successive time stamps is negative)
-    if len(np.where(np.array(data_one_folder["time"])[:-1] - np.array(data_one_folder["time"])[1:] > 0)[0]) > 0:
+    # Sometimes the time column has very high values in the beginning, and then resets to a low value
+    # This actually happens because the camera frame rate is set to high to visualize patches of bacteria
+    # in the beginning of the videos. We set it to right value, but this sometimes takes time, and ends up
+    # happening during video.
+    # In that case, we recompute time stamps while keeping inter-frame durations, excluding the negative one!
+    # (which happens when the time resets)
+    # (to detect this kind of resets, I look at whether the difference between successive time stamps is negative)
+    interframe_times = np.array(data_one_folder["time"])[1:] - np.array(data_one_folder["time"])[:-1]
+    if len(np.where(interframe_times < 0)[0]) > 0:
         if print_bug:
             # Print this only if that's the first time for this folder
             print("This folder has bad times in the beginning!")
-        data_one_folder["time"] = data_one_folder["frame"] * param.one_frame_in_seconds
+        # Change negative inter-frame time to the average one
+        interframe_times[np.where(interframe_times < 0)[0]] = param.one_frame_in_seconds
+        # Recreate a time column with the same interframe times except for the negative one
+        data_one_folder["time"] = np.concatenate(([0], np.cumsum(interframe_times)))
         was_there_something_wrong = "time_reset"
 
     if return_validity:
