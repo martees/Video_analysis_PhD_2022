@@ -300,7 +300,8 @@ def model_per_condition(result_table, list_of_conditions, column_name, divided_b
         return np.zeros(len(list_of_conditions))
 
 
-def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_or_pixel="patch", only_first_visit=True):
+def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_or_pixel="patch", only_first_visit=True,
+                                remove_censored=False):
     """
     Takes a results and trajectories table, a condition list, and a variable. Returns a list of visit durations and the
     corresponding values of variable.
@@ -336,14 +337,20 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
             # Visit and transit lists
             list_of_visits = fd.load_list(current_plate, "no_hole_visits")
             list_of_transits = fd.load_list(current_plate, "aggregated_raw_transits")
+            # Uncensored visits and transits
+            if remove_censored:
+                list_of_visits_uncensored = fd.load_list(current_plate, "uncensored_visits")
+                list_of_transits_uncensored = fd.load_list(current_plate, "uncensored_transits")
+            # Create a list with 0's, and increase by 1 the index i when patch i is visited
+            # Used if only a certain nb of first visits per patch should be considered
+            nb_of_visits_each_patch = [0 for _ in range(100)]  # put 100 points because we always have less patches
             # Lists that we'll fill up for this plate
             list_of_visit_lengths = []
             list_of_previous_transit_lengths = []
-            if only_first_visit:
-                # Create a list with 0's, and when a patch is visited, increase by 1 the index i when patch i is visited
-                # Used if only a certain nb of first visits should be considered
-                nb_of_visits_each_patch = [0 for _ in range(100)]  # put 100 points because we always have less patches
-            if list_of_visits and list_of_transits:  # if there's at least one visit and one transit
+
+            # This if is quite messy, but I debugged it as much as possible.
+            # The elif right after is the current one we use, as it removes censored events.
+            if not remove_censored and (list_of_visits and list_of_transits):  # if there's at least one visit and one transit
                 last_tracked_frame = max(list_of_visits[-1][1], list_of_transits[-1][1])  # for later computations
                 # Check whether the plate starts and ends with a visit or a transit
                 if list_of_visits[0][0] < list_of_transits[0][0]:
@@ -361,13 +368,6 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                     # We remove double_visits because successive visits increase i_visit without going through transits
                     # We add double_transits to account for multiple successive transits that don't go through the visits
                     i_transit = i_visit - double_visits + double_transits - starts_with_visit
-                    # TEMPORARY FIX: sometimes there's a missing transit in the end of the video...
-                    # In that case just stop the analysis there
-                    if i_transit >= len(list_of_transits):
-                        print("Temporary bug fix in visit_time_as_a_function_of(): debug missing transits!")
-                        print(folder_list[i_folder])
-                        i_visit += 100000
-                        break
                     current_transit = list_of_transits[i_transit]
 
                     # Debugging shit
@@ -431,11 +431,29 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
                         else:
                             nb_of_visits_each_patch[int(current_visit[2])] += 1
 
+            elif remove_censored:
+                # This uses the new version of the dataset where consecutive events share their start / end time stamps.
+                transit_end_times = [transit[1] for transit in list_of_transits_uncensored]
+                # We actually loop on the full visit list, because we want to know how many visits have been made to a
+                # patch regardless of censorship for only_first_visit parameter.
+                for i_visit in range(len(list_of_visits)):
+                    current_visit = list_of_visits[i_visit]
+                    current_patch = int(current_visit[2])
+                    if current_visit in list_of_visits_uncensored:
+                        if current_visit[0] in transit_end_times:
+                            if not only_first_visit or (nb_of_visits_each_patch[current_patch] < only_first_visit):
+                                previous_transit_index = transit_end_times.index(current_visit[0])
+                                previous_transit = list_of_transits_uncensored[previous_transit_index]
+                                list_of_visit_lengths.append(current_visit[1] - current_visit[0] + 1)
+                                list_of_previous_transit_lengths.append(previous_transit[1] - previous_transit[0] + 1)
+                    # Always increment number of visits to a patch, regardless of censorship
+                    nb_of_visits_each_patch[current_patch] += 1
+
             condition = fd.load_condition(folder_list[i_folder])
             i_condition = condition_list.index(condition)  # for the condition-label correspondence we need the index
             # plt.scatter(list_of_previous_transit_lengths, list_of_visit_lengths, color=colors[i_condition], label=str(condition_names[i_condition]), zorder=i_condition)
 
-            # For plotting
+            # Fill up return lists
             full_visit_list[i_condition] += list_of_visit_lengths
             full_variable_list[i_condition] += list_of_previous_transit_lengths
 
@@ -1097,12 +1115,20 @@ def list_of_visited_patches(list_of_visits):
 
 
 def xy_to_bins(x, y, bin_size=10, print_progress=False, custom_bins=None, do_not_edit_xy=True, compute_bootstrap=True,
-               bins_in_middle=True):
+               bins_in_middle=True, dynamic_bins=False):
     """
     Will take an x and a y iterable.
-    Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
+    If dynamic_bins is FALSE:
+        Will return bins spaced by bin_size for the x values, and the corresponding average y value in each of those bins.
+    If dynamic_bins is TRUE:
+        Will return bins spaced so that there are bin_size values in each, and the corresponding average y value in each.
     With errorbars if bootstrap is set to True.
+    If bins_in_middle is TRUE, the returned bins are in the middle of the two adjacent bins, OR in the middle between
+        the previous bin and the maximal x value in the case of the last bin.
+    If bins_in_middle is FALSE, left edge of the bins is returned.
     """
+    if len(x) == 0:
+        return [], [], [[], []], []
 
     if do_not_edit_xy:
         x_copy = copy.deepcopy(x)
@@ -1110,50 +1136,90 @@ def xy_to_bins(x, y, bin_size=10, print_progress=False, custom_bins=None, do_not
     else:
         x_copy = x
         y_copy = y
+
     # For later
     minimal_x_value = np.nanmin(x)
+    maximal_x_value = np.nanmax(x)
 
-    # Create or load bin list, with left limit of each bin
-    if custom_bins is None:
-        bin_list = []
-        current_bin = bin_size  # Start bins at bin_size, because they are the right limit of the bins
-        while current_bin < np.max(x_copy):
-            bin_list.append(current_bin)
-            current_bin += bin_size
-        bin_list.append(current_bin)  # add the last value
-        bin_list.sort()
-        nb_of_bins = len(bin_list)
+    # In case of dynamic bins, the "bin_size" parameter determines the number of points to accumulate in a bin before
+    # switching to the next.
+    if dynamic_bins:
+        if bin_size is None:
+            if len(x_copy) < 40:
+                bin_size = 0.4*len(x_copy)
+            elif len(x_copy) > 1000:
+                bin_size = 200
+            else:
+                bin_size = 0.2*len(x_copy)
+        original_y_len = len(y_copy)
+        binned_y_values = [[]]
+        bin_list = [minimal_x_value]  # use minimum x value as left bin edge (re-centered later in the code if bins_in_middle is True)
+        # Sort both lists according to x values
+        x_copy, y_copy = zip(*sorted(zip(x_copy, y_copy)))
+        x_copy, y_copy = list(x_copy), list(y_copy)
+        for i in range(len(y_copy)):
+            if print_progress and i % (1 + original_y_len // 10) == 0:
+                print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
+            # Pop the first element
+            current_y = y_copy.pop(0)
+            current_x = x_copy.pop(0)
+            # Add to current bin if number of point has not exceeded maximum.
+            if len(binned_y_values[-1]) < bin_size:
+                binned_y_values[-1].append(current_y)
+            # Otherwise create new bin
+            else:
+                binned_y_values.append([current_y])
+                bin_list.append(current_x)
+        nb_of_bins = len(binned_y_values)
+
+    # Regular binning
     else:
-        bin_list = sorted(custom_bins)
-        # If the value of the last bin is inferior to the max, there are bugs, so don't do that!
-        if bin_list[-1] < np.max(x):
-            bin_list.append(int(np.max(x) + 1))
+        # Create or load bin list, with left limit of each bin
+        if custom_bins is None:
+            bin_list = []
+            current_bin = minimal_x_value - 1  # Start bins at minimal value, because they are the left limit of the bins
+            while current_bin + 2*bin_size < maximal_x_value:  # Try to have a last bin roughly the same size as the others
+                bin_list.append(current_bin)
+                current_bin += bin_size
+            bin_list.append(current_bin)  # Add the last value
+            bin_list.sort()
+            nb_of_bins = len(bin_list)
+        else:  # For custom bins, sort them just in case, and add the minimal x value if it's not included
+            bin_list = sorted(custom_bins)
+            # If the value of the first bin is superior to the min, there are bugs, so don't do that!
+            if bin_list[0] > minimal_x_value:
+                bin_list.insert(0, minimal_x_value - 1)
+
         nb_of_bins = len(bin_list)
 
-    # Create a list with one sublist of y values for each bin
-    binned_y_values = [[] for _ in range(nb_of_bins)]
-    original_y_len = len(y_copy)
-    for i in range(len(y_copy)):
-        if print_progress and i % (1 + original_y_len // 10) == 0:
-            print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
-        current_y = y_copy.pop()
-        current_x = x_copy.pop()
-        # Looks for first index at which x can be inserted in the bin list while keeping it sorted
-        # So np.searchsorted([0, 1, 2], 1) = 1 // np.searchsorted([0, 1, 2], -1) = 0
-        i_bin = np.searchsorted(bin_list, current_x)
-        binned_y_values[i_bin].append(current_y)
+        # Create a list with one sublist of y values for each bin
+        binned_y_values = [[] for _ in range(nb_of_bins)]
+        original_y_len = len(y_copy)
+        for i in range(len(y_copy)):
+            if print_progress and i % (1 + original_y_len // 10) == 0:
+                print("Binning in xy_to_bins... ", int(100 * i / (i + len(y_copy))), "% done")
+            current_y = y_copy.pop()
+            current_x = x_copy.pop()
+            # Looks for first index at which x can be inserted in the bin list while keeping it sorted
+            # So np.searchsorted([0, 1, 2], 1) = 1
+            #    np.searchsorted([0, 1, 2], -1) = 0
+            #    np.searchsorted([0, 1, 2], 3) = 3
+            # We do -1 because there's never 0 (we added the min value in the bin_list), but sometimes there are values
+            # higher than max bin edge, which should go to the last bin edge (so in last example, 3 would become 2)
+            i_bin = np.searchsorted(bin_list, current_x) - 1
+            binned_y_values[i_bin].append(current_y)
 
-    # If the bins are custom and some lowest / highest bins are empty, remove them:
-    if custom_bins is not None:
-        i_low = 0
-        while binned_y_values[i_low] == []:
-            i_low += 1
-        i_high = nb_of_bins - 1
-        while binned_y_values[i_high] == []:
-            i_high -= 1
-        binned_y_values = binned_y_values[i_low:i_high + 1]
-        bin_list = bin_list[i_low:i_high + 1]
-        nb_of_bins = len(bin_list)
+        # If the bins are custom and some lowest / highest bins are empty, remove them:
+        if custom_bins is not None:
+            i_low = 0
+            while binned_y_values[i_low] == []:
+                i_low += 1
+            i_high = nb_of_bins - 1
+            while binned_y_values[i_high] == []:
+                i_high -= 1
+            binned_y_values = binned_y_values[i_low:i_high + 1]
+            bin_list = bin_list[i_low:i_high + 1]
+            nb_of_bins = len(bin_list)
 
     # Compute averages and bootstrap errorbars + shift the bins!!! (from right edge to middle
     avg_list = np.zeros(nb_of_bins)
@@ -1171,12 +1237,12 @@ def xy_to_bins(x, y, bin_size=10, print_progress=False, custom_bins=None, do_not
                 errors_inf[i_bin] = avg_list[i_bin] - bootstrap_ci[0]
                 errors_sup[i_bin] = bootstrap_ci[1] - avg_list[i_bin]
         if bins_in_middle:
-            # First bin should be halfway between minimal value and its value
-            if i_bin == 0:
-                bin_list[i_bin] = (bin_list[i_bin] + minimal_x_value) / 2
+            # Adjust last bin, to be between last bin edge and max x value
+            if i_bin == nb_of_bins - 1:
+                bin_list[i_bin] = (bin_list[i_bin] + maximal_x_value) / 2
             # Other bins should be centered
             else:
-                bin_list[i_bin] = (bin_list[i_bin] + bin_list[i_bin - 1]) / 2
+                bin_list[i_bin] = (bin_list[i_bin] + bin_list[i_bin + 1]) / 2
     if print_progress:
         print("Finished xy_to_bins()")
 
