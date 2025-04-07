@@ -694,7 +694,7 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
                     is_plot=True, patch_or_pixel="patch", only_first=False, min_nb_data_points=10, custom_bins=None):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
     full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable,
-                                                                          patch_or_pixel, only_first)
+                                                                          patch_or_pixel, only_first, remove_censored=True)
 
     # Plot the thing
     nb_cond = len(condition_list)
@@ -702,13 +702,13 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
     data["visit_duration"] = []
     data[variable] = []
 
-    # Set bin size for the plots
+    # Set bin size for the plots, will be ignored if custom bins are not None
     if variable == "speed_when_entering":
         bin_size = 0.2
     if variable == "visit_start":
         bin_size = 10000
     if variable == "last_travel_time":
-        bin_size = 100
+        bin_size = 10
 
     if split_conditions:
         for i_cond in range(nb_cond):
@@ -739,10 +739,14 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
         full_variable_list = [full_variable_list[i_cond][i_visit] for i_cond in range(len(full_variable_list)) for
                               i_visit in range(len(full_variable_list[i_cond]))]
 
+        # Bin them, bin value in the middle of the bin
         variable_values_bins, average_visit_duration, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
-            full_variable_list, full_visit_list, bin_size=bin_size, print_progress=False,
-            custom_bins=custom_bins)
-        # Exclude the ones that have 100 visits or fewer
+            full_variable_list, full_visit_list, bin_size=None, print_progress=False,
+            custom_bins=custom_bins, bins_in_middle=True, dynamic_bins=True)
+        # Counts in each bin
+        counts_each_bin = [len(visits_this_bin) for visits_this_bin in binned_current_visits]
+
+        # Exclude the conditions that have min_nb_data_points visits or fewer
         variable_values_bins = [variable_values_bins[i] for i in range(len(variable_values_bins)) if
                                 len(binned_current_visits[i]) > min_nb_data_points]
         average_visit_duration = [average_visit_duration[i] for i in range(len(average_visit_duration)) if
@@ -751,6 +755,10 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
                       len(binned_current_visits[i]) > min_nb_data_points]
         errors_sup = [errors_sup[i] for i in range(len(errors_sup)) if
                       len(binned_current_visits[i]) > min_nb_data_points]
+        counts_each_bin = [counts_each_bin[i] for i in range(len(counts_each_bin)) if
+                           len(binned_current_visits[i]) > min_nb_data_points]
+        binned_current_visits = [binned_current_visits[i] for i in range(len(binned_current_visits)) if
+                           len(binned_current_visits[i]) > min_nb_data_points]
 
         condition_name = param.nb_list_to_name[str(sorted(condition_list))]
         condition_color = param.name_to_color[condition_name]
@@ -772,7 +780,7 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
         plt.legend()
         plt.show()
     else:
-        return variable_values_bins, average_visit_duration, [errors_inf, errors_sup]
+        return variable_values_bins, average_visit_duration, [errors_inf, errors_sup], counts_each_bin, binned_current_visits
 
 
 def plot_variable_distribution(results, curve_list, variable_list=None, scale_list=None,
