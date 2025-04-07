@@ -212,6 +212,8 @@ name_to_color = {"close": "mediumslateblue", "med": "royalblue", "far": "deepsky
                  "food": "brown",
                  "mixed": "goldenrod"}
 
+distance_to_marker = {"close": "o", "med": "s", "far": "p", "superfar": "^"}
+
 # Add colors for single conditions, distance override but color is lighter when density is 0.2, darker when 1.25
 for condition in nb_to_name.keys():
     distance_color = name_to_color[nb_to_distance[condition]]
