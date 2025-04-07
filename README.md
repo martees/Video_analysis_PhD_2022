@@ -152,7 +152,7 @@ table, which would make it uselessly large.
 - **total_transit_time** = cumulated duration of all transits in seconds
 - **no_hole_visits** = time stamps of visits ([[t0, t1, patch id],...], with holes shorter than threshold that are filled in.
 - **aggregated_raw_transits** = same but for transits ([[t0, t1, -1], ...])
-- **uncensored_visits** = same but for only visits that are not interrupted by a hole (start of video does not count)
+- **uncensored_visits** = same but for only visits that are not interrupted by a hole, or by the start / end of video
 - **uncensored_transits** = same but for transits
 - **visits_to_uncensored_patches** = same but with only visits to patches which contain no censored event
 - **nb_of_visits** = what it says lol
