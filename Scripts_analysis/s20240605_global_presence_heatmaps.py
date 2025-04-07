@@ -605,7 +605,7 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1.0):
             heatmap = heatmap / np.nansum(heatmap)
 
         if variable == "pixel_visits":
-            heatmap = np.ma.masked_where(heatmap == 0, heatmap)
+            heatmap = np.ma.masked_where(heatmap == np.nan, heatmap)
             cmap = plt.get_cmap("plasma")
             cmap.set_bad('white', 1.)
             scale_bar_color = "white"
@@ -665,26 +665,26 @@ if __name__ == "__main__":
     # plot_existing_heatmap(path, [13], "speed", v_max=0.2)
     # plot_existing_heatmap(path, [16], "speed", v_max=0.2)
 
-    # # 0
-    # plot_existing_heatmap(path, [17], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [18], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [19], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [20], "pixel_visits", v_max=0.0000002)
+    # 0
+    plot_existing_heatmap(path, [17], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [18], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [19], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [20], "pixel_visits", v_max=0.00002)
     # 0.2
-    # plot_existing_heatmap(path, [0], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [1], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [2], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [14], "pixel_visits", v_max=0.0000002)
+    plot_existing_heatmap(path, [0], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [1], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [2], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [14], "pixel_visits", v_max=0.00002)
     # 0.5
-    # plot_existing_heatmap(path, [4], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [5], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [6], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [15], "pixel_visits", v_max=0.0000002)
+    plot_existing_heatmap(path, [4], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [5], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [6], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [15], "pixel_visits", v_max=0.00002)
     # 1.25
-    # plot_existing_heatmap(path, [12], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [8], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [13], "pixel_visits", v_max=0.0000002)
-    # plot_existing_heatmap(path, [16], "pixel_visits", v_max=0.0000002)
+    plot_existing_heatmap(path, [12], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [8], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [13], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [16], "pixel_visits", v_max=0.00002)
 
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     results = pd.read_csv(path + "clean_results.csv")
