@@ -550,7 +550,8 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
 def plot_selected_data(results, plot_title, condition_list, column_name, divided_by="",
                        plot_model=False, is_plot=True, normalize_by_video_length=False,
                        remove_censored_events=False, remove_censored_patches=False, soft_cut=False, hard_cut=False,
-                       only_first_visited_patch=False, visits_longer_than=0, save_fig=True):
+                       only_first_visited_patch=False, visits_longer_than=0, save_fig=True, old_plot=False,
+                       full_list_of_conditions=None):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -587,7 +588,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             #ax.set_ylim(0, 4)
         if divided_by == "nb_of_visits":
             ax.set_ylabel("Average time per visit (hours)", fontsize=20)
-            ax.set_ylim(0, 0.6)
+            # ax.set_ylim(0, 0.6)
         if divided_by == "" and only_first_visited_patch:
             ax.set_ylabel("Total time spent in first visited patch (hours)", fontsize=20)
     if column_name == "first_visit_duration":
@@ -603,89 +604,149 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     if column_name == "nb_of_visits":
         if divided_by == "nb_of_visited_patches":
             ax.set_ylabel("Average number of visits to each visited patch", fontsize=20)
-            ax.set_ylim(0, 90)
+            # ax.set_ylim(0, 90)
         if divided_by == "nb_of_patches":
             ax.set_ylabel("Average number of visits to each patch", fontsize=20)
 
-    # Plot condition averages as a bar plot
     condition_names = [param.nb_to_name[cond] for cond in condition_list]
     condition_colors = [param.name_to_color[name] for name in condition_names]
-    ax.bar(range(len(condition_list)), average_per_condition, color=condition_colors, label=condition_names)
-    ax.set_xticks(range(len(condition_list)))
-    ax.set_xticklabels(condition_names, rotation=45)
-    # ax.set_xlabel("Inter-patch distance", fontsize=16)
 
-    # Plot plate averages as scatter on top
-    for i_cond in range(len(condition_list)):
-        ax.scatter([range(len(condition_list))[i_cond] + 0.001 * random.randint(-100, 100) for p in
-                    range(len(list_of_avg_each_plate[i_cond]))],
-                   list_of_avg_each_plate[i_cond], color="orange", zorder=2, alpha=0.6)
+    # Old plot: bar plot
+    if old_plot:
+        # Plot condition averages as a bar plot
+        ax.bar(range(len(condition_list)), average_per_condition, color=condition_colors, label=condition_names)
 
-    # Plot error bars
-    ax.errorbar(range(len(condition_list)), average_per_condition, errorbars, fmt='.k', capsize=5)
+        # Plot plate averages as scatter on top
+        for i_cond in range(len(condition_list)):
+            ax.scatter([range(len(condition_list))[i_cond] + 0.001 * random.randint(-100, 100) for p in
+                        range(len(list_of_avg_each_plate[i_cond]))],
+                       list_of_avg_each_plate[i_cond], color="orange", zorder=2, alpha=0.6)
 
-    # Plot model as a dashed line on top
-    if plot_model:
-        model_per_condition = ana.model_per_condition(results, condition_list, column_name, divided_by)
-        ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
+        # Plot error bars
+        ax.errorbar(range(len(condition_list)), average_per_condition, errorbars, fmt='.k', capsize=5)
 
-    if is_plot or save_fig:
-        # Set the x labels to the distance icons!
-        # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
-        for i in range(len(condition_list)):
-            ax = plt.gcf().gca()
-            ax.set_xticks([])
+        # Plot model as a dashed line on top
+        if plot_model:
+            model_per_condition = ana.model_per_condition(results, condition_list, column_name, divided_by)
+            ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
 
-            # Image to use
-            arr_img = plt.imread(
-                os.getcwd().replace("\\", "/") + "/Parameters/icon_" +
-                                    param.nb_to_distance[condition_list[i]] + '.png')
+        if is_plot or save_fig:
+            # Set the x labels to the distance icons!
+            # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
+            for i in range(len(condition_list)):
+                ax = plt.gcf().gca()
+                ax.set_xticks([])
 
-            # Image box to draw it!
-            imagebox = OffsetImage(arr_img, zoom=0.8)
-            imagebox.image.axes = ax
+                # Image to use
+                arr_img = plt.imread(
+                    os.getcwd().replace("\\", "/") + "/Parameters/icon_" +
+                                        param.nb_to_distance[condition_list[i]] + '.png')
 
-            x_annotation_box = AnnotationBbox(imagebox, (i, 0),
-                                              xybox=(0, -8),
-                                              # that's the shift that the image will have compared to (i, 0)
-                                              xycoords=("data", "axes fraction"),
-                                              boxcoords="offset points",
-                                              box_alignment=(.5, 1),
-                                              bboxprops={"edgecolor": "none", "alpha": 0})
+                # Image box to draw it!
+                imagebox = OffsetImage(arr_img, zoom=0.8)
+                imagebox.image.axes = ax
 
-            ax.add_artist(x_annotation_box)
+                x_annotation_box = AnnotationBbox(imagebox, (i, 0),
+                                                  xybox=(0, -8),
+                                                  # that's the shift that the image will have compared to (i, 0)
+                                                  xycoords=("data", "axes fraction"),
+                                                  boxcoords="offset points",
+                                                  box_alignment=(.5, 1),
+                                                  bboxprops={"edgecolor": "none", "alpha": 0})
 
-        # Print statistical test results
-        print("Variable = ", column_name, ", divided_by = ", divided_by)
-        for i in range(len(condition_list)):
-            if len(list_of_avg_each_plate[i]) < 8:
-                print("For condition ", condition_list[i], " there are only ", len(list_of_avg_each_plate[i]), ", not enough for statistics!")
+                ax.add_artist(x_annotation_box)
+
+    # New plot format: one line per condition_list in the main.py plot_graphs()
+    else:
+        density_each_condition = [param.nb_to_density[cond] for cond in condition_list]
+        distance_each_condition = [param.nb_to_distance[cond] for cond in condition_list]
+
+        # If all the conditions of the curve have the same density:
+        #     - use this density as a color,
+        #     - each point has their own marker based on distance
+        #     - distance legend is displayed as tiny images in the x axis
+        if len(np.unique(density_each_condition)) == 1:
+            plt.errorbar(range(len(condition_list)), average_per_condition, errorbars, capsize=5,
+                         color=param.name_to_color[density_each_condition[0]],
+                         label=param.name_to_color[density_each_condition[0]], linewidth=2.3, elinewidth=1.2)
+            # Scatter points one by one because matplotlib cannot handle marker lists???
+            for c in range(len(condition_list)):
+                plt.scatter(c, average_per_condition[c],
+                            color=param.name_to_color[density_each_condition[c]],
+                            marker=param.distance_to_marker[distance_each_condition[c]],
+                            s=86)
+
+            # Set the x labels to the distance icons!
+            # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
+            for i in range(len(condition_list)):
+                ax = plt.gcf().gca()
+                ax.set_xticks([])
+
+                # Image to use
+                arr_img = plt.imread(
+                    os.getcwd().replace("\\", "/") + "/Parameters/icon_" +
+                    param.nb_to_distance[condition_list[i]] + '.png')
+
+                # Image box to draw it!
+                imagebox = OffsetImage(arr_img, zoom=0.8)
+                imagebox.image.axes = ax
+
+                x_annotation_box = AnnotationBbox(imagebox, (i, 0),
+                                                  xybox=(0, -8),
+                                                  # that's the shift that the image will have compared to (i, 0)
+                                                  xycoords=("data", "axes fraction"),
+                                                  boxcoords="offset points",
+                                                  box_alignment=(.5, 1),
+                                                  bboxprops={"edgecolor": "none", "alpha": 0})
+
+                ax.add_artist(x_annotation_box)
+
+        # ELSE if all the conditions of the curve have the same distance:
+        # Well it's not supported LMAO
+        else:
+            print("You did not implement this feature yet.")
+
+    # Print statistical test results
+    print("Variable = ", column_name, ", divided_by = ", divided_by)
+    for i in range(len(condition_list)):
+        if len(list_of_avg_each_plate[i]) < 8:
+            print("For condition ", condition_list[i], " there are only ", len(list_of_avg_each_plate[i]), ", not enough for statistics!")
+        else:
+            normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
+            print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
+            if normality_test.pvalue < 0.05:
+                print("(The data is not normal.)")
             else:
-                normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
-                print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
-                if normality_test.pvalue < 0.05:
-                    print("(The data is not normal.)")
-                else:
-                    print("(The data is normal.)")
+                print("(The data is normal.)")
 
-        if len(list_of_avg_each_plate) == 4:
-            stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
-            y_axis_limits = plt.gca().get_ylim()
-            x_axis_limits = plt.gca().get_xlim()
-            if not np.isnan(stat_test.pvalue):
-                # If the p_value is less than 0.01, write in scientific notation
-                if int(stat_test.pvalue*1000) == 0:
-                    plt.text(0.4*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3)), fontsize=16)
-                # Else write it
-                else:
-                    plt.text(0.46*x_axis_limits[1], 0.9*y_axis_limits[1], "p-value = "+str(np.round(stat_test.pvalue, 3)), fontsize=16)
+    # Statistical tests
+    y_axis_limits = plt.gca().get_ylim()
+    x_axis_limits = plt.gca().get_xlim()
+    curve_index = full_list_of_conditions.index([param.nb_to_name[c] for c in condition_list])
+    stats_to_show = ""
+    if len(list_of_avg_each_plate) >= 4:
+        stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
+        if not np.isnan(stat_test.pvalue):
+            # If the p_value is less than 0.01, write in scientific notation
+            if int(stat_test.pvalue*1000) == 0:
+                stats_to_show = "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3))
+            # Else write it normally
             else:
-                plt.text(0.46 * x_axis_limits[1], 0.9 * y_axis_limits[1], "p-value is np.nan")
+                stats_to_show = "p-value = "+str(np.round(stat_test.pvalue, 3))
+        else:
+            stats_to_show = "p-value is np.nan"
+    else:
+        stats_to_show = "not enough data for stats"
 
-        if save_fig:
-            plt.savefig(column_name + "_div_" + divided_by + "_" + str(condition_names) + ".png", transparent=True)
-        if is_plot:
-            plt.show()
+    plt.text(0.46 * x_axis_limits[1], (0.8 + 0.05 * curve_index) * y_axis_limits[1],
+             stats_to_show, fontsize=16,
+             color=param.name_to_color[param.nb_to_density[condition_list[0]]],
+             path_effects=[pe.SimplePatchShadow(offset=(0,-1), alpha=0.6, shadow_rgbFace="black"), pe.Normal()])
+
+    if save_fig:
+        plt.savefig(column_name + "_div_" + divided_by + "_" + str(condition_names) + ".png", transparent=True)
+    if is_plot:
+        plt.show()
     else:
         return average_per_condition, list_of_avg_each_plate, errorbars
 

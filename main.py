@@ -74,7 +74,7 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
             current_condition_names = condition_names[i_curve]
             current_color = condition_colors[i_curve]
 
-            is_plot = True  # if False, plot functions will not run "plt.show()", so that we can display the next curve
+            is_plot = False  # if False, plot functions will not run "plt.show()", so that we can display the next curve
             if i_curve == len(conditions_each_curve) - 1:  # If this is the last curve to plot
                 is_plot = True
 
@@ -185,7 +185,8 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          "OD=" + param.nb_to_density[current_conditions[0]],
                                          current_conditions, "nb_of_visits",
                                          hard_cut=True,
-                                         divided_by="nb_of_visited_patches", is_plot=is_plot)
+                                         divided_by="nb_of_visited_patches", is_plot=is_plot,
+                                         full_list_of_conditions = curve_list)
 
             # Average total time spent in each patch
             if "total_visit_time" in what_to_plot:
@@ -440,15 +441,20 @@ if __name__ == "__main__":
     # plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     # plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"],
+                                                                                  ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+                                                                                  ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+                                                                                  ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    plot_graphs(results, "number_of_visits_per_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, "number_of_visits_per_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, "number_of_visits_per_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, "number_of_visits_per_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #
+    # plot_graphs(results, "number_of_visits_per_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, "number_of_visits_per_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, "number_of_visits_per_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, "number_of_visits_per_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
     # plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
