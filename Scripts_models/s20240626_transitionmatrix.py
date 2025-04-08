@@ -98,15 +98,18 @@ def generate_transition_matrices(results_path, condition_list, plot_everything=F
             fig.set_size_inches(14, 4)
             fig.suptitle(param.nb_to_name[condition], x=0.1)  # x value is to put the title on the left
             # Distances
-            im = ax0.imshow(distance_matrix)
+            im = ax0.imshow(distance_matrix, cmap="Greys")
             ax0.set_title("Euclidian distance", fontsize=18)
             fig.colorbar(im, ax=ax0)
             # Transition probability
             # Find the maximal non-diagonal value to normalize edges with that
-            mask = np.ones(np.array(transition_probability_matrix).shape, dtype=bool)
-            np.fill_diagonal(mask, 0)
-            max_value = transition_probability_matrix[mask].max()
-            im = ax1.imshow(np.clip(np.rint(transition_probability_matrix / max_value * 100) / 100, 0, 1))
+            mask = np.zeros(np.array(transition_probability_matrix).shape, dtype=bool)
+            np.fill_diagonal(mask, 1)
+            non_diagonal = np.ma.masked_array(transition_probability_matrix, mask)
+            max_each_line = np.max(non_diagonal, axis=1)
+            cmap = plt.get_cmap('plasma')
+            cmap.set_bad('white', 1.)
+            im = ax1.imshow(non_diagonal/np.transpose(np.atleast_2d(max_each_line)), cmap=cmap)
             ax1.set_title("Transition probabilities", fontsize=18)
             #ax1.set_xticks([0, 1, 2], labels=["0", "1", "2"])
             #ax1.set_yticks([0, 1, 2], labels=["0", "1", "2"])
@@ -208,10 +211,12 @@ def plot_transition_matrix_graph(results_path, full_plate_list, condition_list, 
 
     if probability_or_time == "probability":
         value_matrices = transition_probability_matrices
+        colors = plt.cm.plasma(np.linspace(0, 1, 101))
     if probability_or_time == "time":
         value_matrices = transition_duration_matrices
+        colors = plt.cm.viridis(np.linspace(0, 1, 101))
+    print(value_matrices)
 
-    colors = plt.cm.viridis(np.linspace(0, 1, 101))
     for i_condition, condition in enumerate(condition_list):
         plt.title(param.nb_to_name[condition])
         current_value_matrix = value_matrices[i_condition]
@@ -771,23 +776,23 @@ if __name__ == "__main__":
     # generate_transition_matrices(path, [4, 5, 6, 15], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
     # generate_transition_matrices(path, [12, 8, 13, 16], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
     # generate_transition_matrices(path, [17, 18, 19, 20], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
-
-    plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="probability")
+    #
+    # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="probability")
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
 
-    behavior_vs_geometry(path, results, "close 0", 2000, 16000)
-    behavior_vs_geometry(path, results, "close 0.2", 2000, 16000)
-    behavior_vs_geometry(path, results, "close 0.5", 2000, 16000)
-    behavior_vs_geometry(path, results, "close 1.25", 2000, 16000)
+    # behavior_vs_geometry(path, results, "close 0", 2000, 16000)
+    # behavior_vs_geometry(path, results, "close 0.2", 2000, 16000)
+    # behavior_vs_geometry(path, results, "close 0.5", 2000, 16000)
+    # behavior_vs_geometry(path, results, "close 1.25", 2000, 16000)
 
     # list_of_conditions = list(param.nb_to_name.keys())
     # show_patch_numbers(list_of_conditions)
     # simulate_total_visit_time(results, [0, 1, 2], 30)
     # simulate_nb_of_visits(results, [0, 1, 2], 30)
 
-    # parameter_exchange_matrix(path, results, [0, 1, 2, 14], "visit_times", "total_visit_time", 1000, 30000)
-    # parameter_exchange_matrix(path, results, [4, 5, 6, 15], "visit_times", "total_visit_time", 1000, 30000)
-    # parameter_exchange_matrix(path, results, [12, 8, 13, 16], "visit_times", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(path, results, [0, 1, 2, 14], "visit_times", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(path, results, [4, 5, 6, 15], "visit_times", "total_visit_time", 1000, 30000)
+    parameter_exchange_matrix(path, results, [12, 8, 13, 16], "visit_times", "total_visit_time", 1000, 30000)
 
     # parameter_exchange_matrix(path, results, [0, 1, 2, 14], "revisit_probability", "total_visit_time", 1000, 30000)
     # parameter_exchange_matrix(path, results, [4, 5, 6, 15], "revisit_probability", "total_visit_time", 1000, 30000)
