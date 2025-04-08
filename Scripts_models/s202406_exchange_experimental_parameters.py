@@ -12,6 +12,7 @@ import analysis as ana
 import pandas as pd
 import numpy as np
 from itertools import groupby
+import os
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -82,7 +83,8 @@ def plot_matrix(condition_list, value_matrix, parameter_to_exchange, nb_of_draws
     # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
     for i in range(len(condition_list)):
         # Image to use
-        arr_img = plt.imread("/home/admin/Desktop/Camera_setup_analysis/Video_analysis/Parameters/icon_" + param.nb_to_distance[condition_list[i]] + '.png')
+        arr_img = plt.imread(os.getcwd().replace("\\", "/")[:-len("Scripts_analysis/")] +
+                             "/Parameters/icon_" + param.nb_to_distance[condition_list[i]] + '.png')
 
         # Image box to draw it!
         imagebox = OffsetImage(arr_img, zoom=0.5)
