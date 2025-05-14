@@ -166,68 +166,70 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
             # Number of visits
             if "number_of_visits" in what_to_plot:
                 plots.plot_selected_data(result_table,
-                                         "Average number of visits in " + plot_name + "conditions",
+                                         "Number of visits",
                                          current_conditions, "nb_of_visits",
-                                         divided_by="", is_plot=is_plot)
+                                         divided_by="", is_plot=is_plot,
+                                         full_list_of_conditions = curve_list)
 
             # Number of visits per patch
             if "number_of_visits_per_patch" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
                 plots.plot_selected_data(result_table,
-                                         "OD=" + param.nb_to_density[current_conditions[0]],
+                                         "Number of visits per total number of patch",
                                          current_conditions, "nb_of_visits",
-                                         divided_by="nb_of_patches", is_plot=is_plot)
+                                         divided_by="nb_of_patches", is_plot=is_plot,
+                                         full_list_of_conditions = curve_list)
 
             # Number of visits per VISITED patch
             if "number_of_visits_per_visited_patch" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
                 plots.plot_selected_data(result_table,
-                                         "OD=" + param.nb_to_density[current_conditions[0]],
+                                         "Number of visits per visited patch",
                                          current_conditions, "nb_of_visits",
-                                         hard_cut=True,
+                                         hard_cut=False,
                                          divided_by="nb_of_visited_patches", is_plot=is_plot,
                                          full_list_of_conditions = curve_list)
 
             # Average total time spent in each patch
             if "total_visit_time" in what_to_plot:
-                print("Pay attention, the title has the density of the first condition!")
-                plots.plot_selected_data(result_table, "OD=" + param.nb_to_density[current_conditions[0]],
+                plots.plot_selected_data(result_table, "Total time spent in each patch",
                                          current_conditions, "total_visit_time",
                                          divided_by="nb_of_visited_patches", plot_model=False,
-                                         is_plot=is_plot, hard_cut=True, remove_censored_events=False)
+                                         is_plot=is_plot, hard_cut=False, remove_censored_events=False,
+                                         full_list_of_conditions = curve_list)
 
             # Visits plots
             if "visit_duration" in what_to_plot:
-                print("Pay attention, the title has the density of the first condition!")
-                plots.plot_selected_data(result_table, "OD=" + param.nb_to_density[current_conditions[0]],
+                plots.plot_selected_data(result_table, "Average duration of visits",
                                          current_conditions, "total_visit_time",
                                          divided_by="nb_of_visits", plot_model=False,
-                                         is_plot=is_plot, remove_censored_events=True, soft_cut=True)
+                                         is_plot=is_plot, remove_censored_events=True, soft_cut=False,
+                                         full_list_of_conditions = curve_list)
 
             if "long_enough_visit_duration" in what_to_plot:
-                print("Pay attention, the title has the density of the first condition!")
-                plots.plot_selected_data(result_table, "OD=" + param.nb_to_density[current_conditions[0]],
+                plots.plot_selected_data(result_table, "Visits longer than 4 minutes",
                                          current_conditions, "total_visit_time",
                                          divided_by="nb_of_visits", plot_model=False,
                                          is_plot=is_plot, remove_censored_events=True, soft_cut=True,
-                                         visits_longer_than=240)
+                                         visits_longer_than=240,
+                                         full_list_of_conditions = curve_list)
 
             if "first_visit_duration_patch" in what_to_plot:
-                print("Pay attention, the title has the density of the first condition!")
                 plots.plot_selected_data(result_table,
-                                         "OD=" + param.nb_to_density[current_conditions[0]],
+                                         "First visit to each patch",
                                          current_conditions, "first_visit_duration",
                                          divided_by="", plot_model=False,
                                          is_plot=is_plot, remove_censored_patches=True,
-                                         only_first_visited_patch=False)
+                                         only_first_visited_patch=False,
+                                         full_list_of_conditions = curve_list)
 
             if "first_visit_duration_video" in what_to_plot:
-                print("Pay attention, the title has the density of the first condition!")
                 plots.plot_selected_data(result_table,
-                                         "OD=" + param.nb_to_density[current_conditions[0]],
+                                         "First visit of each video",
                                          current_conditions, "first_visit_duration",
                                          divided_by="", plot_model=False, is_plot=is_plot,
-                                         remove_censored_patches=True, only_first_visited_patch=True)
+                                         remove_censored_patches=True, only_first_visited_patch=True,
+                                         full_list_of_conditions = curve_list)
 
             if "total_visit_time_first_patch" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
@@ -237,7 +239,8 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          "OD=" + param.nb_to_density[current_conditions[0]],
                                          current_conditions, "total_visit_time",
                                          divided_by="", plot_model=False, soft_cut=True,
-                                         is_plot=is_plot, remove_censored_patches=True, only_first_visited_patch=True)
+                                         is_plot=is_plot, remove_censored_patches=True, only_first_visited_patch=True,
+                                         full_list_of_conditions = curve_list)
 
             if "visit_duration_mvt" in what_to_plot:
                 plots.plot_selected_data(result_table, "Average duration of MVT visits in " + plot_name + " conditions",
@@ -362,7 +365,7 @@ if __name__ == "__main__":
     # NOTE: lists are stored as strings in the csv, so we retrieve the values with json loads function
 
     # Retrieve results from what generate_and_save has saved
-    # trajectories = pd.read_csv(path + "clean_trajectories.csv")
+    trajectories = pd.read_csv(path + "clean_trajectories.csv")
     results = pd.read_csv(path + "clean_results.csv")
     print("Finished retrieving stuff")
 
@@ -394,7 +397,7 @@ if __name__ == "__main__":
 
     # plots.trajectories_1condition(path, trajectories, [], plate_list=["/media/admin/T7 Shield/Results_minipatches_retracked_shortened/20221126T114423_SmallPatches_C5-CAM1/traj.csv"], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=False)
     #
-    # plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=False, plot_in_patch=True, plot_speed=False, is_plot=True, save_fig=False, plot_lines=True)
+    plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=False, plot_in_patch=True, plot_speed=False, is_plot=True, save_fig=False, plot_lines=True)
     # plots.trajectories_1condition(path, trajectories, [1], show_composite=False, is_plot_patches=True, plot_continuity=True,  plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [2], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [3], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
@@ -416,45 +419,40 @@ if __name__ == "__main__":
     # plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
 
-    # plot_graphs(results, "first_visit_duration_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "first_visit_duration_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "first_visit_duration_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "first_visit_duration_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
     # plot_graphs(results, "total_visit_time_first_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
     # plot_graphs(results, "total_visit_time_first_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
     # plot_graphs(results, "total_visit_time_first_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
     # plot_graphs(results, "total_visit_time_first_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    # plot_graphs(results, "first_visit_duration_video", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "first_visit_duration_video", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "first_visit_duration_video", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "first_visit_duration_video", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    # plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
     #
-    # plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "total_visit_time", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "total_visit_time", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "total_visit_time", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
     #
-    # plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "visit_duration", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "visit_duration", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "visit_duration", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"],
-                                                                                  ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-                                                                                  ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-                                                                                  ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    # plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
     #
-    # plot_graphs(results, "number_of_visits_per_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "number_of_visits_per_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "number_of_visits_per_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "number_of_visits_per_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #
+    # plot_graphs(results, "first_visit_duration_video", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #
+    #
+    # plot_graphs(results, "first_visit_duration_patch", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #
+    #
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #
 
     # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
     # plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
