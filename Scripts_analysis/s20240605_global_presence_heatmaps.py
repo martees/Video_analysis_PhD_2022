@@ -1,6 +1,6 @@
 # A script to plot a heatmap of the duration of visit to each pixel
 # But munching all the conditions together mouahahahaha
-
+from numpy.core.defchararray import capitalize
 from scipy import ndimage
 import pandas as pd
 import datatable as dt
@@ -8,6 +8,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import datetime
 import matplotlib as mpl
 import random
 mpl.use("TkAgg")
@@ -179,7 +180,7 @@ def generate_average_patch_radius_each_condition(results_path, full_plate_list):
     return np.mean(average_radius["avg_patch_radius"])
 
 
-def compute_average_ref_points_distance(results_path, full_plate_list):
+def compute_average_ref_points_distance(results_path, full_plate_list, is_plot=False):
     """
     Will compute the average distance between reference points in all conditions.
     Will save it in a csv, in path/average_ref_points_distance_each_condition.csv.
@@ -195,12 +196,24 @@ def compute_average_ref_points_distance(results_path, full_plate_list):
     if not os.path.isdir(results_path + "perfect_heatmaps"):
         os.mkdir(results_path + "perfect_heatmaps")
 
-    average_distance = {"condition": [], "avg_ref_points_distance": []}
+    average_distance = {"condition": [], "avg_ref_points_distance": [],
+                        "point_1_x": [], "point_1_y": [],
+                        "point_2_x": [], "point_2_y": [],
+                        "point_3_x": [], "point_3_y": [],
+                        "point_4_x": [], "point_4_y": []}
     distances_each_condition = [[] for _ in range(len(all_conditions_list))]
     distances_each_condition_top = []
     distances_each_condition_left = []
     distances_each_condition_right = []
     distances_each_condition_bottom = []
+    position_each_condition_1_x = []
+    position_each_condition_1_y = []
+    position_each_condition_2_x = []
+    position_each_condition_2_y = []
+    position_each_condition_3_x = []
+    position_each_condition_3_y = []
+    position_each_condition_4_x = []
+    position_each_condition_4_y = []
 
     condition_names = []
     condition_colors = []
@@ -227,23 +240,40 @@ def compute_average_ref_points_distance(results_path, full_plate_list):
                 distances_each_condition_left.append(left_dist)
                 distances_each_condition_right.append(right_dist)
                 distances_each_condition_bottom.append(bottom_dist)
+                position_each_condition_1_x.append(point1[0])
+                position_each_condition_1_y.append(point1[1])
+                position_each_condition_2_x.append(point2[0])
+                position_each_condition_2_y.append(point2[1])
+                position_each_condition_3_x.append(point3[0])
+                position_each_condition_3_y.append(point3[1])
+                position_each_condition_4_x.append(point4[0])
+                position_each_condition_4_y.append(point4[1])
         average_distance["condition"].append(condition)
         average_distance["avg_ref_points_distance"].append(np.nanmean(distances_each_condition[i_condition]))
+        average_distance["point_1_x"].append(np.nanmean(position_each_condition_1_x))
+        average_distance["point_1_y"].append(np.nanmean(position_each_condition_1_y))
+        average_distance["point_2_x"].append(np.nanmean(position_each_condition_2_x))
+        average_distance["point_2_y"].append(np.nanmean(position_each_condition_2_y))
+        average_distance["point_3_x"].append(np.nanmean(position_each_condition_3_x))
+        average_distance["point_3_y"].append(np.nanmean(position_each_condition_3_y))
+        average_distance["point_4_x"].append(np.nanmean(position_each_condition_4_x))
+        average_distance["point_4_y"].append(np.nanmean(position_each_condition_4_y))
         condition_names.append(param.nb_to_name[condition])
         condition_colors.append(param.name_to_color[param.nb_to_name[condition]])
 
-    fig, [ax0, ax1] = plt.subplots(1, 2)
-    # Boxplot with values for each condition
-    ax0.boxplot(distances_each_condition)
-    ax0.set_xticks(range(1, len(all_conditions_list) + 1), condition_names, rotation=45)
-    ax0.set_title("Reference point distance for each condition")
+    if is_plot:
+        fig, [ax0, ax1] = plt.subplots(1, 2)
+        # Boxplot with values for each condition
+        ax0.boxplot(distances_each_condition)
+        ax0.set_xticks(range(1, len(all_conditions_list) + 1), condition_names, rotation=45)
+        ax0.set_title("Reference point distance for each condition")
 
-    # Boxplot with one box for top edge, left edge, etc.
-    ax1.boxplot([distances_each_condition_left, distances_each_condition_top, distances_each_condition_right,
-                 distances_each_condition_bottom])
-    ax1.set_xticks([1, 2, 3, 4], ["Left", "Top", "Right", "Bottom"])
-    ax1.set_title("Reference point distance for each edge")
-    plt.show()
+        # Boxplot with one box for top edge, left edge, etc.
+        ax1.boxplot([distances_each_condition_left, distances_each_condition_top, distances_each_condition_right,
+                     distances_each_condition_bottom])
+        ax1.set_xticks([1, 2, 3, 4], ["Left", "Top", "Right", "Bottom"])
+        ax1.set_title("Reference point distance for each edge")
+        plt.show()
     pd.DataFrame(average_distance).to_csv(
         results_path + "perfect_heatmaps/average_reference_points_distance_each_condition.csv")
 
@@ -273,20 +303,16 @@ def idealized_patch_centers_mm(results_path, full_plate_list, output_frame_size)
     patch_centers_each_cond = {}
     robot_xy_each_cond = param.distance_to_xy
     for i_condition, condition in enumerate(all_conditions_list):
-        small_ref_points = ReferencePoints.ReferencePoints([[-20, 20], [20, 20], [20, -20], [-20, -20]])
+        # Reference points coordinates for the robot
+        small_ref_points = ReferencePoints.ReferencePoints([[-16, 16], [16, 16], [16, -16], [-16, -16]])
+        # Centered square with sides = average distance between reference points
         big_ref_points = ReferencePoints.ReferencePoints([bottom_left, bottom_right, top_left, top_right])
+        # Load patch centers according to robot, and mirror them on x and y axis
+        # (x axis because plates are recorded from below, y axis because images are plotted with y reversed)
         robot_xy = np.array(robot_xy_each_cond[param.nb_to_distance[condition]])
         robot_xy[:, 0] = - robot_xy[:, 0]
+        robot_xy[:, 1] = - robot_xy[:, 1]
         patch_centers_each_cond[condition] = big_ref_points.mm_to_pixel(small_ref_points.pixel_to_mm(robot_xy))
-        # For superfar distance patches are mirrored on the x-axis??? idk why but fix that
-        if len(patch_centers_each_cond[condition]) == 3:
-            patch_centers_to_fix = patch_centers_each_cond[condition]
-            y_max = np.max([patch_centers_to_fix[0][1], patch_centers_to_fix[1][1], patch_centers_to_fix[2][1]])
-            y_min = np.min([patch_centers_to_fix[0][1], patch_centers_to_fix[1][1], patch_centers_to_fix[2][1]])
-            y_extent = y_max - y_min
-            for i_patch in range(len(patch_centers_to_fix)):
-                patch_centers_to_fix[i_patch][1] = y_min + (y_extent - (patch_centers_to_fix[i_patch][1] - y_min))
-            patch_centers_each_cond[condition] = patch_centers_to_fix
     return patch_centers_each_cond
 
 
@@ -380,7 +406,11 @@ def load_pixel_visits(list_of_time_stamps, plate, regenerate=False, return_durat
     # If it's not already done, or has to be redone, compute the pixel visit durations
     pixelwise_visits_path = plate[:-len("traj.csv")] + "pixelwise_visits.npy"
     if (not os.path.isfile(pixelwise_visits_path) or regenerate) and len(list_of_time_stamps) > 0:
-        gr.generate_pixelwise_visits(list_of_time_stamps.to_list()[0], plate)
+        if type(list_of_time_stamps) is list:
+            gr.generate_pixelwise_visits(list_of_time_stamps, plate)
+        else:
+            print("Not list")
+            gr.generate_pixelwise_visits(list_of_time_stamps.to_list()[0], plate)
 
     # In all cases, load it from the .npy file, so that the format is always the same (recalculated or loaded)
     pixel_wise_visits = np.load(pixelwise_visits_path, allow_pickle=True)
@@ -475,6 +505,8 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
     @param collapse_patches:
     @return:
     """
+    print("====== CONDITIONS " + str(curve_list) + " " + variable + "=======")
+    print(datetime.datetime.now())
     # Plot initialization
     fig, axes = plt.subplots(1, len(curve_list))
     curve_names = [param.nb_list_to_name[str(curve)] for curve in curve_list]
@@ -607,7 +639,7 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1.0):
         if variable == "pixel_visits":
             heatmap = np.ma.masked_where(heatmap == np.nan, heatmap)
             cmap = plt.get_cmap("plasma")
-            cmap.set_bad('white', 1.)
+            cmap.set_bad('black', 1.)
             scale_bar_color = "white"
 
         # Set the cells without values to white
@@ -617,6 +649,12 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1.0):
             cmap.set_bad('white', 1.)
             scale_bar_color = "black"
 
+        # Add circle for tracking area
+        heatmap_size = len(heatmap)
+        plate_radius = (np.sqrt(2)/2)*987.21
+        plate = plt.Circle((heatmap_size/2, heatmap_size/2), radius=plate_radius, color=scale_bar_color, fill=False)
+        plt.gcf().gca().add_patch(plate)
+
         # Plot the heatmap
         plt.imshow(heatmap, vmin=v_min, vmax=v_max, cmap=cmap)
 
@@ -624,9 +662,30 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1.0):
         plt.plot([300, 300 + 5*(1/param.one_pixel_in_mm)], [300, 300], color=scale_bar_color, linewidth=4)
         plt.text(300, 320, "5 mm", color=scale_bar_color)
 
+        # # Plot the perfect food patches
+        # # Compute the idealized patch positions by converting the robot xy data to mm in a "perfect" reference frame
+        # ideal_patch_centers_each_cond = idealized_patch_centers_mm(path,
+        #                                                            pd.read_csv(path+"clean_results.csv")["folder"],
+        #                                                            1847)
+        # Load the average patch radius
+        # average_patch_radius_each_cond = pd.read_csv(
+        #     path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
+        # average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
+        # for i_cond, cond in enumerate(condition_list):
+        #     ideal_patch_centers = ideal_patch_centers_each_cond[cond]
+        #     plt.scatter(ideal_patch_centers[:, 0], ideal_patch_centers[:, 1],
+        #                 color=scale_bar_color,
+        #                 label="ideal patches")
+        #     for i_patch in range(len(ideal_patch_centers)):
+        #         circle = plt.Circle(ideal_patch_centers[i_patch], average_radius,
+        #                             color=scale_bar_color,
+        #                             fill=False)
+        #         plt.gca().add_patch(circle)
+
+
         plt.title(heatmap_path[-13:-4])
-        plt.xlim(250, 1600)
-        plt.ylim(250, 1600)
+        plt.xlim(200, 1650)
+        plt.ylim(200, 1650)
         plt.title(str([param.nb_to_name[c] for c in condition_list]) + ", v_max=" + str(v_max))
         plt.xticks([])
         plt.yticks([])
@@ -642,19 +701,19 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1.0):
 
 
 if __name__ == "__main__":
-    path = gen.generate(starting_from="", test_pipeline=False)
+    path = gen.generate(starting_from="trajectories", test_pipeline=False)
 
-    # # 0
+    # 0
     # plot_existing_heatmap(path, [17], "speed", v_max=.2)
     # plot_existing_heatmap(path, [18], "speed", v_max=0.2)
     # plot_existing_heatmap(path, [19], "speed", v_max=0.2)
     # plot_existing_heatmap(path, [20], "speed", v_max=0.2)
-    # # # 0.2
+    # # 0.2
     # plot_existing_heatmap(path, [0], "speed", v_max=0.2)
     # plot_existing_heatmap(path, [1], "speed", v_max=0.2)
     # plot_existing_heatmap(path, [2], "speed", v_max=0.2)
     # plot_existing_heatmap(path, [14], "speed", v_max=0.2)
-    # # # 0.5
+    # # 0.5
     # plot_existing_heatmap(path, [4], "speed", v_max=0.2)
     # plot_existing_heatmap(path, [5], "speed", v_max=0.2)
     # plot_existing_heatmap(path, [6], "speed", v_max=0.2)
@@ -719,35 +778,33 @@ if __name__ == "__main__":
 
 
     # Speeds
-    # plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20]], variable="speed",
-    #              regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-    #              collapse_patches=False, show_plot=True)
+    plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20]], variable="speed",
+                 regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                 collapse_patches=False, show_plot=False)
     # plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14]], variable="speed",
-    #              regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-    #              collapse_patches=False, show_plot=True)
+    #              regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+    #              collapse_patches=False, show_plot=False)
     # plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15]], variable="speed",
-    #              regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-    #              collapse_patches=False, show_plot=True)
+    #              regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+    #              collapse_patches=False, show_plot=False)
     # plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="speed",
-    #              regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-    #              collapse_patches=False, show_plot=True)
+    #              regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+    #              collapse_patches=False, show_plot=False)
 
-    # Ran until here on 8-9 of March
 
-    # Rerunning the following part on March 31 (NaN fix)
     # Pixel visits
     plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20]], variable="pixel_visits",
-                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=True)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14]], variable="pixel_visits",
-                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=True)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15]], variable="pixel_visits",
-                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=True)
-    plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="pixel_visits",
-                 regenerate_pixel_values=False, regenerate_polar_maps=False, regenerate_perfect_map=False,
-                 collapse_patches=False, show_plot=True)
+                 regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                 collapse_patches=False, show_plot=False)
+    # plot_heatmap(path, trajectories, full_list_of_folders, [[0], [1], [2], [14]], variable="pixel_visits",
+    #              regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+    #              collapse_patches=False, show_plot=False)
+    # plot_heatmap(path, trajectories, full_list_of_folders, [[4], [5], [6], [15]], variable="pixel_visits",
+    #              regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+    #              collapse_patches=False, show_plot=False)
+    # plot_heatmap(path, trajectories, full_list_of_folders, [[12], [8], [13], [16]], variable="pixel_visits",
+    #              regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+    #              collapse_patches=False, show_plot=False)
 
 
 #profiler.disable()
