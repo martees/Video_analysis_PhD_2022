@@ -1,14 +1,14 @@
 import os
 import shutil
 import pandas as pd
-import random
+import numpy as np
 import ReferencePoints
+import matplotlib.pyplot as plt
 
-from Parameters import parameters
 # My code
+from Parameters import parameters
 import find_data as fd
 from Generating_data_tables import generate_trajectories as gt
-# import plots
 
 # Originally, our controls are saved in some folder. In order to have one control per inter-patch distance, we create
 #     subfolders inside of those original folders, containing the name of the corresponding distance. Eg : inside the folder
@@ -89,36 +89,27 @@ def steal_metadata_from_another_plate(path, parent_folder, distance):
     Output:
         A foodpatches dataframe with all the info about the patches (condition, patch centers, densities, spline breaks, spline coefs)
     What it does:
-        - Chooses a random folder with condition :condition:
-        - Takes the foodpatches_new.mat from there
+        - Uses a folder with perfect, theoretical food patches in robot coordinates
+        - Takes the foodpatches.mat from there
         - Converts that to the current reference points, and changes condition
     """
 
-    # Find the folders of the experiments with the same distance between the patches, without controls because they are crappy
-    # all_folders = fd.path_finding_traj(path, include_fake_control_folders=False)
-    folder_each_distance = {"close": path + "20221011T112304_SmallPatches_C4-CAM5/traj.csv",
-                            "med": path + "20221011T191616_SmallPatches_C1-CAM5/traj.csv",
-                            "far": path + "20221012T202949_SmallPatches_C4-CAM4/traj.csv",
-                            "superfar": path + "20221116T194409_SmallPatches_C5-CAM6/traj.csv",
-                            "cluster": path + "20221013T115441_SmallPatches_C6-CAM1/traj.csv"
+    # Folders with files prepared by Alfonso, containing perfect food patches (robot coordinates, average radius)
+    folder_each_distance = {"close": path + "perfect_plates_for_ctrl/close/traj.csv",
+                            "med": path + "perfect_plates_for_ctrl/med/traj.csv",
+                            "far": path + "perfect_plates_for_ctrl/far/traj.csv",
+                            "superfar": path + "perfect_plates_for_ctrl/superfar/traj.csv",
+                            "cluster": path + "perfect_plates_for_ctrl/cluster/traj.csv"
                             }
-
-    # CHECK: DO THEY HAVE THE RIGHT CONDITION (adding this after 2 mistakes lol)
-    for condition, folder in folder_each_distance.items():
-        actual_condition = parameters.nb_to_distance[fd.load_condition(folder)]
-        if condition != actual_condition:
-            print("You have imputed a folder with the wrong condition in the controls you fool.")
-            print("Condition: ", condition)
 
     the_chosen_one = folder_each_distance[distance]
     # Load patch information for source folder
     source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
-    source_xy_holes = source_folder_metadata["holes"][0]
-    source_reference_points = ReferencePoints.ReferencePoints(source_xy_holes)
+    source_reference_points = ReferencePoints.ReferencePoints([[-16, -16], [-16, 16], [16, 16], [16, -16]])
 
     # Load holes info from parent folder of the current sub-folder
     parent_folder_metadata = fd.folder_to_metadata(parent_folder)
-    # Load patch_centers from source folder, and convert them to mm
+    # Load patch_centers from source folder, already in robot (mm) coordinates
     patch_centers = source_folder_metadata["patch_centers"]
     patch_centers = source_reference_points.pixel_to_mm([patch_centers[i].tolist() for i in range(len(patch_centers))])
     # We load the holes of the parent_folder (the control_folder traj.csv is a copy from the parent_folder's, so same ref)
@@ -127,9 +118,8 @@ def steal_metadata_from_another_plate(path, parent_folder, distance):
     target_reference_points = ReferencePoints.ReferencePoints(target_xy_holes)
     patch_centers = target_reference_points.mm_to_pixel([patch_centers[i].tolist() for i in range(len(patch_centers))])
 
-    # Convert the spline guides to mm in first reference and back to pixels in new reference system
+    # Convert the spline guides to pixels in new reference system
     spline_guides = source_folder_metadata["spline_guides"]
-    spline_guides = [source_reference_points.pixel_to_mm(spline_guides[i]) for i in range(len(spline_guides))]
     spline_guides = [target_reference_points.mm_to_pixel(spline_guides[i]) for i in range(len(spline_guides))]
 
     # Store it all in a metadata dataframe

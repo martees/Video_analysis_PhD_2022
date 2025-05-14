@@ -177,7 +177,9 @@ def folder_to_metadata(path):
             metadata["spline_breaks"] = [list(spline_objects[i][0][0][1][0]) for i in range(len(spline_objects))]
             metadata["spline_coefs"] = [[list(spline_objects[j][0][0][2][i]) for i in range(len(spline_objects[j][0][0][2]))] for j in range(len(spline_objects))]
 
-            metadata["patch_densities"] = list(infomat.get("densities_patches"))
+            # Special case for fake patches used for controls (see generate_controls.py)
+            if "ctrl" not in path:
+                metadata["patch_densities"] = list(infomat.get("densities_patches"))
             metadata["condition"] = list(infomat.get("num_condition"))[0][0]
             metadata["holes"] = [[hole[0:2] for hole in holesmat.get("pointList").tolist() if hole[2] == 2] for i_patch in range(len(metadata["patch_centers"]))]
 
