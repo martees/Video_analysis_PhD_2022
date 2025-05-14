@@ -666,15 +666,14 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         #     - each point has their own marker based on distance
         #     - distance legend is displayed as tiny images in the x axis
         if len(np.unique(density_each_condition)) == 1:
-            plt.errorbar(range(len(condition_list)), average_per_condition, errorbars, capsize=5,
-                         color=param.name_to_color[density_each_condition[0]],
-                         label=param.name_to_color[density_each_condition[0]], linewidth=2.3, elinewidth=1.2)
+            plt.errorbar(range(len(condition_list)), average_per_condition, errorbars, capsize=6,
+                         color=param.name_to_color[density_each_condition[0]], linewidth=4, elinewidth=2)
             # Scatter points one by one because matplotlib cannot handle marker lists???
             for c in range(len(condition_list)):
                 plt.scatter(c, average_per_condition[c],
                             color=param.name_to_color[density_each_condition[c]],
                             marker=param.distance_to_marker[distance_each_condition[c]],
-                            s=86)
+                            s=100)
 
             # Set the x labels to the distance icons!
             # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
@@ -725,7 +724,14 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     curve_index = full_list_of_conditions.index([param.nb_to_name[c] for c in condition_list])
     stats_to_show = ""
     if len(list_of_avg_each_plate) >= 4:
-        stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0], list_of_avg_each_plate[1], list_of_avg_each_plate[2], list_of_avg_each_plate[3], nan_policy="omit")
+        # Remove nans beforehand because alexandergovern has a bug when first value is nan in the
+        # version of scipy I'm using, and I don't want to change versions because of numpy dependencies
+        for i_avg in range(len(list_of_avg_each_plate)):
+            list_of_avg_each_plate[i_avg] = [l for l in list_of_avg_each_plate[i_avg] if not np.isnan(l)]
+        stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0],
+                                                list_of_avg_each_plate[1],
+                                                list_of_avg_each_plate[2],
+                                                list_of_avg_each_plate[3], nan_policy="omit")
         if not np.isnan(stat_test.pvalue):
             # If the p_value is less than 0.01, write in scientific notation
             if int(stat_test.pvalue*1000) == 0:
@@ -738,14 +744,21 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     else:
         stats_to_show = "not enough data for stats"
 
-    plt.text(0.46 * x_axis_limits[1], (0.8 + 0.05 * curve_index) * y_axis_limits[1],
-             stats_to_show, fontsize=16,
-             color=param.name_to_color[param.nb_to_density[condition_list[0]]],
-             path_effects=[pe.SimplePatchShadow(offset=(0,-1), alpha=0.6, shadow_rgbFace="black"), pe.Normal()])
+    print(stats_to_show)
+    #plt.text(0.46 * x_axis_limits[1], (0.8 + 0.05 * curve_index) * y_axis_limits[1],
+    #         stats_to_show, fontsize=16,
+    #         color=param.name_to_color[param.nb_to_density[condition_list[0]]],
+    #         path_effects=[pe.SimplePatchShadow(offset=(0,-1), alpha=0.6, shadow_rgbFace="black"), pe.Normal()])
 
     if save_fig:
         plt.savefig(column_name + "_div_" + divided_by + "_" + str(condition_names) + ".png", transparent=True)
     if is_plot:
+        # Make fake lines for the OD legend
+        lines = []
+        for density in ["1.25", "0.5", "0.2", "0"]:
+            l, = plt.plot([], [], color=param.name_to_color[density], linewidth=4, label="OD="+density)
+            lines.append(l)
+        plt.legend(fontsize=16)
         plt.show()
     else:
         return average_per_condition, list_of_avg_each_plate, errorbars
