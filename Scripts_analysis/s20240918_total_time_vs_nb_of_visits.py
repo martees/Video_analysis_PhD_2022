@@ -11,7 +11,8 @@ import analysis as ana
 from Parameters import custom_legends
 
 # Script to return new stuff that Alfonso wants for his model
-# He now wants the average total time spent in patch as a function of the number of visits already made for the food patch
+# He now wants the average total time spent in patch as a function of the number of visits already made
+# for the food patch
 # In bin x of the plot, have the average total time spent in the patches that have at least x visits
 
 
