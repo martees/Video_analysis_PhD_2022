@@ -7,7 +7,7 @@ import datatable as dt
 from scipy import ndimage
 import time
 
-import Parameters.parameters
+from Parameters import parameters as param
 from main import *
 import find_data as fd
 from Generating_data_tables import main as gen
@@ -55,15 +55,18 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
             avg_time_each_bin_each_plate[:] = np.nan
             nb_of_points_each_bin_each_plate = np.empty((nb_of_bins, len(folder_list)))
             nb_of_points_each_bin_each_plate[:] = np.nan
+            total_uninterrupted_transits_each_bin_each_plate = np.empty((nb_of_bins, len(folder_list)))
+            total_uninterrupted_transits_each_bin_each_plate[:] = 0
             nb_of_transits_each_plate = np.empty(len(folder_list))
             nb_of_transits_each_plate[:] = np.nan
             for i_folder, current_folder in enumerate(folder_list):
                 if i_folder % 1 == 0:
                     print(int((time.time() - tic) // 60), "min: Folder ", i_folder, " / ", len(folder_list))
-                # Load visits
+                # Load transits
                 current_results = results[results["folder"] == current_folder].reset_index(drop=True)
                 current_traj = trajectories[dt.f.folder == current_folder, :]
                 list_of_transits = fd.load_list(current_results, "aggregated_raw_transits")
+                current_traj_times = current_traj[:, dt.f.time].to_numpy().T[0]
                 # Load the matrix with patch to which each pixel belongs
                 in_patch_matrix_path = current_folder[:-len("traj.csv")] + "in_patch_matrix.csv"
                 if not os.path.isfile(in_patch_matrix_path):
@@ -88,62 +91,91 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
                 end_frames = [long_enough_transits[i][1] for i in range(len(long_enough_transits))]
                 print(int((time.time() - tic) // 60), "min: Starting to fill lists...")
                 # Init
-                current_folder_times = [[] for _ in range(nb_of_bins + 1)]
+                current_folder_delays = [[] for _ in range(nb_of_bins + 1)]
                 # Fill time list
                 for i_exit, current_exit_time in enumerate(exit_frames):
-                    current_end_time = end_frames[i_exit]
+                    end_time = end_frames[i_exit]
                     exit_index = fd.load_index(current_traj.to_pandas(), current_folder, current_exit_time)
-                    end_index = fd.load_index(current_traj.to_pandas(), current_folder, current_end_time)
+                    end_index = fd.load_index(current_traj.to_pandas(), current_folder, end_time)
                     exit_from = current_traj[exit_index, dt.f.patch_silhouette][0, 0]
-                    if exit_from != -1:  # only for the case where the video starts with a transit
+                    # We will use this variable to differentiate transits that do not reach further radii
+                    # because they turned back, vs. transits that reached plate edge or a patch.
+                    if end_index >= current_traj.shape[0] - 1:
+                        end_in = -2  # -2 represents the outside of the plate
+                    else:
+                        end_in = current_traj[end_index + 1, dt.f.patch_silhouette][0, 0]
+                    # Actually, artificially stop the transits at the first >10s tracking hole (defined as more than 10s
+                    # between two tracked points). This is a way to keep only the relevant part of discontinuous
+                    # transits (when worms reach plate border for instance). However, this probably excludes transits
+                    # that shouldn't be, like if tracking is lost in the middle of the plate.
+                    tracked_time = (end_index - exit_index) * param.one_frame_in_seconds
+                    tracked_time = tracked_time + 10
+                    # If there's more time than tracked points + 10, AND if there's at least 2 tracked points
+                    if end_time - current_exit_time > tracked_time and exit_index - end_index > 1:
+                        # Stop the transit at the first tracking hole > 10s (Note: there might not be one, e.g. 10 x 1s holes)
+                        this_transit_times = current_traj_times[exit_index:end_index]
+                        inter_frame_times = this_transit_times[1:] - this_transit_times[:-1]
+                        if np.max(inter_frame_times) > 10:
+                            end_index = exit_index + int(np.where(inter_frame_times > 10)[0][0])
+                            end_in = -2  # set it as worm ending out of plate
+                    # Then, fill the lists!
+                    if exit_from != -1:  # Check this in case the video starts with a transit
                         distance_map_this_patch = distance_map_each_patch[exit_from]
-                        # Check if frames are continuous around exit: otherwise, exclude it completely (for now because I'm tired)
-                        if end_index - exit_index >= current_end_time - current_exit_time:
-                            x_list = current_traj[exit_index:end_index, dt.f.x].to_list()[0]
-                            y_list = current_traj[exit_index:end_index, dt.f.y].to_list()[0]
-                            xy_list = np.stack((x_list, y_list), axis=1)
-                            distance_function: Callable[[Any], int] = lambda xy: distance_map_this_patch[int(xy[1])][int(xy[0])]
-                            displacement_list = np.array(list(map(distance_function, xy_list)))
-                            # Find the index of where the displacement matches each bin
-                            index_each_bin = np.zeros(len(displacement_bin_list))
-                            index_each_bin[:] = np.nan
-                            i_bin = 0
-                            i_point = 0
-                            while i_point < len(displacement_list) and i_bin < len(displacement_bin_list):
-                                current_bin = displacement_bin_list[i_bin]
-                                while i_point < len(displacement_list) and displacement_list[i_point] < current_bin:
-                                    i_point += 1
-                                # At this point, either the condition was met before i_point reached the end, or
-                                # the condition was met exactly at the last point
-                                if i_point < len(displacement_list) or displacement_list[-1] >= current_bin :
-                                    index_each_bin[i_bin] = i_point
-                                i_bin += 1
-                            # Handle NaN values: if there is any gap in index_each_bin (NaN values between numeric
-                            # values), it means that the worm has jumped two bins at once. Then put fill this bin
-                            # with the same time as the subsequent bin
-                            # To test for that we go through index_each_bin backwards, so that we can change the
-                            # algorithm once the first value has been encountered.
-                            first_value_encountered = False
-                            for k_bin in range(0, len(index_each_bin), -1):
-                                if not first_value_encountered:
-                                    if not np.isnan(index_each_bin[i_bin]):
-                                        first_value_encountered = True
-                                else:
-                                    if np.isnan(index_each_bin[i_bin]):
-                                        index_each_bin[i_bin] = index_each_bin[i_bin + 1]
-                            # Then convert those indices to times post exit and invite them to the party
-                            time_function = lambda i: np.round(fd.load_time(current_traj.to_pandas(), current_folder,
-                                                                   exit_index + i) - current_exit_time, 2)
-                            for j_bin, index in enumerate(index_each_bin):
-                                if not np.isnan(index):
-                                    current_folder_times[j_bin].append(time_function(index))
+                        x_list = current_traj[exit_index:end_index, dt.f.x].to_list()[0]
+                        y_list = current_traj[exit_index:end_index, dt.f.y].to_list()[0]
+                        xy_list = np.stack((x_list, y_list), axis=1)
+                        distance_function: Callable[[Any], int] = lambda xy: distance_map_this_patch[int(xy[1])][int(xy[0])]
+                        displacement_list = np.array(list(map(distance_function, xy_list)))
+                        # Find the index of where the displacement matches each bin
+                        index_each_bin = np.zeros(len(displacement_bin_list))
+                        index_each_bin[:] = np.nan
+                        i_bin = 0
+                        i_point = 0
+                        while i_point < len(displacement_list) and i_bin < len(displacement_bin_list):
+                            current_bin = displacement_bin_list[i_bin]
+                            while i_point < len(displacement_list) and displacement_list[i_point] < current_bin:
+                                i_point += 1
+                            # At this point, either the condition was met before i_point reached the end, or
+                            # the condition was met exactly at the last point
+                            if i_point < len(displacement_list) or displacement_list[-1] >= current_bin :
+                                index_each_bin[i_bin] = i_point
+                            i_bin += 1
+                        # Handle NaN values: if there is any gap in index_each_bin (NaN values between numeric
+                        # values), it means that the worm has jumped two bins at once. Then put fill this bin
+                        # with the same time as the subsequent bin
+                        # To test for that we go through index_each_bin backwards, so that we can change the
+                        # algorithm once the first value has been encountered.
+                        first_value_encountered = False
+                        for k_bin in range(0, len(index_each_bin), -1):
+                            if not first_value_encountered:
+                                if not np.isnan(index_each_bin[i_bin]):
+                                    first_value_encountered = True
+                            else:
+                                if np.isnan(index_each_bin[i_bin]):
+                                    index_each_bin[i_bin] = index_each_bin[i_bin + 1]
+                        # Then convert those indices to times post exit and invite them to the party
+                        # time_function = lambda i: np.round(fd.load_time(current_traj.to_pandas(), current_folder,
+                        #                                        exit_index + i) - current_exit_time, 2)
+                        time_function = lambda i: np.round(current_traj_times[exit_index + int(i)] - current_exit_time, 2)
+                        for j_bin, index in enumerate(index_each_bin):
+                            if not np.isnan(index):
+                                current_folder_delays[j_bin].append(time_function(index))
 
-                # At this point, displacement_bin_list is filled with one sublist per bin
-                # and each sublist contains the worms' time post-exit at that displacement. Now we average for each bin
+                        # THEN
+                        # In order to exclude from "probability of reaching radius i" the transits that have been
+                        # interrupted either by plate edge, or by a different patch than the one they exited from,
+                        # while at the previous radius:
+                        if end_in == exit_from:
+                            total_uninterrupted_transits_each_bin_each_plate[:, i_folder] += 1
+                        else:  # This is for when end_in is another patch, or -2 (tracking hole)
+                            total_uninterrupted_transits_each_bin_each_plate[0:i_bin-1, i_folder] += 1
+
+                # At this point, current_folder_delays is filled with one sublist per bin
+                # and each sublist contains the worm's time post-exit at that displacement. Now we average for each bin
                 for i_bin in range(nb_of_bins):
-                    if len(current_folder_times[i_bin]) > 0:
-                        avg_time_each_bin_each_plate[i_bin][i_folder] = np.nanmean(current_folder_times[i_bin])
-                        nb_of_points_each_bin_each_plate[i_bin][i_folder] = len(current_folder_times[i_bin])
+                    if len(current_folder_delays[i_bin]) > 0:
+                        avg_time_each_bin_each_plate[i_bin, i_folder] = np.nanmean(current_folder_delays[i_bin])
+                        nb_of_points_each_bin_each_plate[i_bin, i_folder] = len(current_folder_delays[i_bin])
                 nb_of_transits_each_plate[i_folder] = len(long_enough_transits)
 
             # Save it to a csv table
@@ -151,10 +183,12 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
                 os.mkdir(analysis_subfolder)
             np.save(analysis_subfolder + "conditions_"+curve_name+"_avg_time_each_bin.npy", avg_time_each_bin_each_plate)
             np.save(analysis_subfolder + "conditions_"+curve_name+"_nb_of_points_each_bin.npy", nb_of_points_each_bin_each_plate)
+            np.save(analysis_subfolder + "conditions_"+curve_name+"_uninterrupted_total_each_bin.npy", total_uninterrupted_transits_each_bin_each_plate)
             np.save(analysis_subfolder + "conditions_"+curve_name+"_nb_of_transits_each_plate.npy", nb_of_transits_each_plate)
 
         avg_time_each_bin_each_plate = np.load(analysis_subfolder + "conditions_" + curve_name + "_avg_time_each_bin.npy")
         nb_of_points_each_bin_each_plate = np.load(analysis_subfolder + "conditions_" + curve_name + "_nb_of_points_each_bin.npy")
+        nb_uninterrupted_transits_each_bin_each_plate = np.load(analysis_subfolder + "conditions_" + curve_name + "_uninterrupted_total_each_bin.npy")
         nb_of_transits_each_plate = np.load(analysis_subfolder + "conditions_" + curve_name + "_nb_of_transits_each_plate.npy")
 
         # Now that we have the full list of averages for each distance reached after exit, average and bootstrap all that
@@ -171,7 +205,7 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
             if time_or_probability == "time":
                 values_this_distance = avg_time_each_bin_each_plate[i_bin]
             else:
-                values_this_distance = np.divide(nb_of_points_each_bin_each_plate[i_bin], nb_of_transits_each_plate)
+                values_this_distance = np.divide(nb_of_points_each_bin_each_plate[i_bin], nb_uninterrupted_transits_each_bin_each_plate[i_bin])
             # Remove nan values for bootstrapping
             values_this_distance = [values_this_distance[i] for i in range(len(values_this_distance)) if
                                     not np.isnan(values_this_distance[i])]
@@ -212,7 +246,7 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
             path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
         average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
         inter_patch_distances_names = inter_patch_distances_table["distance"]
-        inter_patch_distances = inter_patch_distances_table["interpatch_distance"] - 2*average_radius*Parameters.parameters.one_pixel_in_mm
+        inter_patch_distances = inter_patch_distances_table["interpatch_distance"] - 2*average_radius*param.one_pixel_in_mm
         _, _, img_ymin, img_ymax = plt.axis()
         plt.vlines(inter_patch_distances, ymin=img_ymin, ymax=img_ymax,
                    colors=[param.name_to_color[d] for d in inter_patch_distances_names],
@@ -236,34 +270,36 @@ bin_list = [10, 20, 35, 55, 75, 100, 200, 400, 800]
 
 # msd_analysis(clean_results, clean_trajectories, ["close 0"], bin_list, 1, 10, True, "probability")
 
+# msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
+#             bin_list, 1, 4, False, time_or_probability="probability", is_plot=True)
 msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
-            bin_list, 1, 10, False, time_or_probability="probability", is_plot=True)
-msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
-            bin_list, 1, 10, False, time_or_probability="time", is_plot=True)
+            bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
+#
+# msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
+#             bin_list, 1, 4, False, time_or_probability="probability", is_plot=True)
+msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
+            bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
 
-msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
-            bin_list, 1, 10, False, time_or_probability="probability", is_plot=True)
-msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
-            bin_list, 1, 10, False, time_or_probability="time", is_plot=True)
+# print("Finished recomputing MSD analysis for all conditions grouped by distance / density !!!")
 
 # Probability to reach radius
-msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, True, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, True, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, True, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, True, "probability", True)
 
-msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
 
 # Time to reach radius
-msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
-
-msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, True, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, True, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, True, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, True, "time", True)
+#
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, True, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, True, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, True, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, True, "time", True)
