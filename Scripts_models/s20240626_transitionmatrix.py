@@ -102,14 +102,14 @@ def generate_transition_matrices(results_path, condition_list, plot_everything=F
             ax0.set_title("Euclidian distance", fontsize=18)
             fig.colorbar(im, ax=ax0)
             # Transition probability
-            # Find the maximal non-diagonal value to normalize edges with that
+            # Sum the non-diagonal values to normalize edges with that
             mask = np.zeros(np.array(transition_probability_matrix).shape, dtype=bool)
             np.fill_diagonal(mask, 1)
             non_diagonal = np.ma.masked_array(transition_probability_matrix, mask)
-            max_each_line = np.max(non_diagonal, axis=1)
+            sum_each_line = np.sum(non_diagonal, axis=1)
             cmap = plt.get_cmap('plasma')
             cmap.set_bad('white', 1.)
-            im = ax1.imshow(non_diagonal/np.transpose(np.atleast_2d(max_each_line)), cmap=cmap)
+            im = ax1.imshow(non_diagonal/np.transpose(np.atleast_2d(sum_each_line)), cmap=cmap)
             ax1.set_title("Transition probabilities", fontsize=18)
             #ax1.set_xticks([0, 1, 2], labels=["0", "1", "2"])
             #ax1.set_yticks([0, 1, 2], labels=["0", "1", "2"])
@@ -128,11 +128,11 @@ def generate_transition_matrices(results_path, condition_list, plot_everything=F
 
         if plot_transition_matrix:
             # Transition probability
-            # Find the maximal non-diagonal value to normalize edges with that
+            # Sum the non-diagonal values to normalize the line with that
             mask = np.ones(np.array(transition_probability_matrix).shape, dtype=bool)
             np.fill_diagonal(mask, 0)
-            max_value = transition_probability_matrix[mask].max()
-            transition_probability_matrix = np.clip(np.rint(transition_probability_matrix / max_value * 100) / 100, 0, 1)
+            line_sum = transition_probability_matrix[mask].sum()
+            transition_probability_matrix = np.clip(np.rint(transition_probability_matrix / line_sum * 100) / 100, 0, 1)
             # Plot
             plt.imshow(transition_probability_matrix)
             plt.title("Transition probability " + param.nb_to_name[condition])
@@ -772,10 +772,10 @@ if __name__ == "__main__":
     #    full_list_of_folders.remove(
     #        "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp/20221011T191711_SmallPatches_C2-CAM7/traj.csv")
 
-    # generate_transition_matrices(path, [0, 1, 2, 14], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
-    # generate_transition_matrices(path, [4, 5, 6, 15], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
-    # generate_transition_matrices(path, [12, 8, 13, 16], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
-    # generate_transition_matrices(path, [17, 18, 19, 20], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
+    generate_transition_matrices(path, [0, 1, 2, 14], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
+    generate_transition_matrices(path, [4, 5, 6, 15], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
+    generate_transition_matrices(path, [12, 8, 13, 16], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
+    generate_transition_matrices(path, [17, 18, 19, 20], plot_everything=True, plot_transition_matrix=False, is_recompute=True)
     #
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="probability")
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
