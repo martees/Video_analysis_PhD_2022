@@ -7,7 +7,7 @@ plate_list = results["folder"]
 
 frame_size = 1847
 
-condition_list = param.name_to_nb_list["superfar"]
+condition_list = param.name_to_nb_list["close 0"]
 condition_plates = fd.return_folders_condition_list(plate_list, condition_list)
 
 # Plot a heatmap of experimental patch coverage
@@ -43,7 +43,7 @@ for i_cond, cond in enumerate(condition_list):
         plt.gca().add_patch(circle)
 
 # Plot the original food patches from the robot script
-plt.scatter([-20, -20, 20, 20], [-20, 20, -20, 20], color="gray", marker="x")
+plt.scatter([-16, -16, 16, 16], [-16, 16, -16, 16], color="gray", marker="x")
 coord = param.patch_coordinates.xy_patches_super_far
 plt.scatter([xy[0] for xy in coord], [xy[1] for xy in coord], color="gray")
 
