@@ -83,7 +83,7 @@ def plot_matrix(condition_list, value_matrix, parameter_to_exchange, nb_of_draws
     # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
     for i in range(len(condition_list)):
         # Image to use
-        arr_img = plt.imread(os.getcwd().replace("\\", "/")[:-len("Scripts_analysis/")] +
+        arr_img = plt.imread(os.getcwd().replace("\\", "/")[:-len("Scripts_models/")] +
                              "/Parameters/icon_" + param.nb_to_distance[condition_list[i]] + '.png')
 
         # Image box to draw it!
