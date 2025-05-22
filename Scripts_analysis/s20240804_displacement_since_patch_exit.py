@@ -42,6 +42,7 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
     #Init
     tic = time.time()
     nb_of_bins = len(displacement_bin_list)
+    print("Computing msd analysis for conditions ", curve_list)
     for i_curve in range(len(curve_list)):
         curve_name = curve_list[i_curve]
         current_condition_list = param.name_to_nb_list[curve_name]
@@ -111,7 +112,7 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
                     tracked_time = (end_index - exit_index) * param.one_frame_in_seconds
                     tracked_time = tracked_time + 10
                     # If there's more time than tracked points + 10, AND if there's at least 2 tracked points
-                    if end_time - current_exit_time > tracked_time and exit_index - end_index > 1:
+                    if end_time - current_exit_time > tracked_time and end_index - exit_index > 1:
                         # Stop the transit at the first tracking hole > 10s (Note: there might not be one, e.g. 10 x 1s holes)
                         this_transit_times = current_traj_times[exit_index:end_index]
                         inter_frame_times = this_transit_times[1:] - this_transit_times[:-1]
@@ -261,45 +262,47 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
 
 path = gen.generate("", test_pipeline=False)
 clean_results = pd.read_csv(path + "clean_results.csv")
+# clean_results = pd.read_csv(path + "results_per_plate.csv")
 # clean_trajectories = dt.fread(path + "clean traj/clean_trajectories.csv")
 clean_trajectories = dt.fread(path + "clean_trajectories.csv")
+# clean_trajectories = dt.fread(path + "trajectories.csv")
 print("Finished retrieving tables")
 
 # Parameters
 bin_list = [10, 20, 35, 55, 75, 100, 200, 400, 800]
 
-# msd_analysis(clean_results, clean_trajectories, ["close 0"], bin_list, 1, 10, True, "probability")
+# msd_analysis(clean_results, clean_trajectories, ["far 0.2"], bin_list, 1, 4, True, "time", True)
 
 # msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
 #             bin_list, 1, 4, False, time_or_probability="probability", is_plot=True)
-msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
-            bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
-#
+# msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
+#             bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
+# #
 # msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
 #             bin_list, 1, 4, False, time_or_probability="probability", is_plot=True)
-msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
-            bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
+# msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
+#             bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
 
 # print("Finished recomputing MSD analysis for all conditions grouped by distance / density !!!")
 
 # Probability to reach radius
-# msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, True, "probability", True)
-# msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, True, "probability", True)
-# msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, True, "probability", True)
-# msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, True, "probability", True)
-
+msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
+#
 # msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "probability", True)
 # msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "probability", True)
 # msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "probability", True)
 # msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
-
-# Time to reach radius
-# msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, True, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, True, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, True, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, True, "time", True)
 #
-# msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, True, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, True, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, True, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, True, "time", True)
+# # Time to reach radius
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
+#
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
