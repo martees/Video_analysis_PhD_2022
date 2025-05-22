@@ -105,7 +105,12 @@ def steal_metadata_from_another_plate(path, parent_folder, distance):
     the_chosen_one = folder_each_distance[distance]
     # Load patch information for source folder
     source_folder_metadata = fd.folder_to_metadata(the_chosen_one)
-    source_reference_points = ReferencePoints.ReferencePoints([[-16, -16], [-16, 16], [16, 16], [16, -16]])
+    robot_ref = 16  # in the robot script (in mm), refpoints are 16mm apart from the plate center
+    px_ref = (1/parameters.one_pixel_in_mm)*robot_ref
+    source_reference_points = ReferencePoints.ReferencePoints([[-px_ref, -px_ref],
+                                                               [-px_ref, px_ref],
+                                                               [px_ref, px_ref],
+                                                               [px_ref, -px_ref]])
 
     # Load holes info from parent folder of the current sub-folder
     parent_folder_metadata = fd.folder_to_metadata(parent_folder)
