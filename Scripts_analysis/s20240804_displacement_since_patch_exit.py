@@ -160,7 +160,8 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
                         time_function = lambda i: np.round(current_traj_times[exit_index + int(i)] - current_exit_time, 2)
                         for j_bin, index in enumerate(index_each_bin):
                             if not np.isnan(index):
-                                current_folder_delays[j_bin].append(time_function(index))
+                                delay = time_function(index)
+                                current_folder_delays[j_bin].append(delay)
 
                         # THEN
                         # In order to exclude from "probability of reaching radius i" the transits that have been
@@ -286,11 +287,12 @@ bin_list = [10, 20, 35, 55, 75, 100, 200, 400, 800]
 # print("Finished recomputing MSD analysis for all conditions grouped by distance / density !!!")
 
 # Probability to reach radius
-msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "probability", True)
 # msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "probability", True)
 # msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "probability", True)
 # msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
 #
+msd_analysis(clean_results, clean_trajectories, ["close 0.5"], bin_list, 1, 4, True, "time", True)
 # msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "probability", True)
 # msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "probability", True)
 # msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "probability", True)
