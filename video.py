@@ -194,11 +194,11 @@ def update_frame(trajectories, folder, index, pixels, centers_of_mass, patch_lis
 
 
 if __name__ == "__main__":
-    path = gr.generate(starting_from="", test_pipeline=False, shorten_traj=True)
+    path = gr.generate(starting_from="", test_pipeline=False)
     traj = dt.fread(path + "clean_trajectories.csv")
     #plate = path + "20221013T201332_SmallPatches_C2-CAM1/traj.csv"
     #indices_of_bad_speed = np.where(current_traj["speeds"] > 100)[0]
     #print(indices_of_bad_speed)
     #show_frames(path + '20221011T191645_SmallPatches_C3-CAM7/traj.csv', traj, 2627)
-    show_frames(path + '20221126T114423_SmallPatches_C5-CAM1/traj.csv', traj, 5387)
+    show_frames('E:/Results_minipatches_retracked/20221120T191908_SmallPatches_C6-CAM7/traj.csv', traj, 6082)
 
