@@ -332,7 +332,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                 plots.plot_selected_data(result_table,
                                          "Total video time in " + plot_name + "conditions",
                                          current_conditions, "total_video_time",
-                                         divided_by="", is_plot=is_plot)
+                                         divided_by="", plot_model=False,
+                                         is_plot=is_plot, hard_cut=False, remove_censored_events=False,
+                                         full_list_of_conditions = curve_list)
 
             # Transits plot
             if "transit_duration" in what_to_plot:
@@ -414,7 +416,7 @@ if __name__ == "__main__":
     # plots.trajectories_1condition(path, trajectories, [15], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [16], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [17], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
-    plots.trajectories_1condition(path, trajectories, [17, 18, 19, 20, 21], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=False)
+    # plots.trajectories_1condition(path, trajectories, [17, 18, 19, 20, 21], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=True, save_fig=False)
     # plots.trajectories_1condition(path, trajectories, [19], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [20], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
     # plots.trajectories_1condition(path, trajectories, [21], show_composite=False, is_plot_patches=True, plot_continuity=True, plot_in_patch=False, plot_speed=True, is_plot=False, save_fig=True)
@@ -428,7 +430,12 @@ if __name__ == "__main__":
     #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
     #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
     #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-    #
+
+    plot_graphs(results, "total_video_time", [["close 0", "med 0", "far 0", "superfar 0"],
+                                                                  ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+                                                                  ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+                                                                  ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
     #
     # plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"],
     #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
