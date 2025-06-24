@@ -251,9 +251,6 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             if normalize_by_video_length:
                 list_of_values[i_plate] /= current_plate["total_tracked_time"]
 
-            if list_of_values[i_plate] > 1000:
-                print('h')
-
         # Keep in memory the full list of averages
         full_list_of_values[i_condition] = list_of_values
 
