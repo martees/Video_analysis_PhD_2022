@@ -393,12 +393,11 @@ def load_file_path(folder, file_name):
         return folder[:-len(parse_path[-1])] + file_name  # remove last folder to get to parent, then add composite
 
 
-def scale_bar_length(folder, length_in_mm):
-    """
-    Function that will return the nb of pixels corresponding to length_in_mm in the plate folder.
-    @param folder: a string for the path leading to a traj.csv file in our results
-    @param length_in_mm: a number
-    @return: a number
-    """
+def return_icon_path(distance):
+    # Takes a distance string and returns the path to the icon of that distance for plots
+    path = os.getcwd().replace("\\", "/")
+    for i in range(len(path)):
+        while path[-4:] != '2022':
+            path = path[:-1]
+    return path + "/Parameters/icon_"+distance+".png"
 
-    return 0
