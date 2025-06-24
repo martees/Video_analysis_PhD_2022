@@ -551,7 +551,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                        plot_model=False, is_plot=True, normalize_by_video_length=False,
                        remove_censored_events=False, remove_censored_patches=False, soft_cut=False, hard_cut=False,
                        only_first_visited_patch=False, visits_longer_than=0, save_fig=True, old_plot=False,
-                       full_list_of_conditions=None):
+                       full_list_of_conditions=None, show_stats=True):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -682,9 +682,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                 ax.set_xticks([])
 
                 # Image to use
-                arr_img = plt.imread(
-                    os.getcwd().replace("\\", "/") + "/Parameters/icon_" +
-                    param.nb_to_distance[condition_list[i]] + '.png')
+                arr_img = plt.imread(fd.return_icon_path(param.nb_to_distance[condition_list[i]]))
 
                 # Image box to draw it!
                 imagebox = OffsetImage(arr_img, zoom=0.8)
@@ -719,36 +717,37 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                 print("(The data is normal.)")
 
     # Statistical tests
-    y_axis_limits = plt.gca().get_ylim()
-    x_axis_limits = plt.gca().get_xlim()
-    curve_index = full_list_of_conditions.index([param.nb_to_name[c] for c in condition_list])
-    stats_to_show = ""
-    if len(list_of_avg_each_plate) >= 4:
-        # Remove nans beforehand because alexandergovern has a bug when first value is nan in the
-        # version of scipy I'm using, and I don't want to change versions because of numpy dependencies
-        for i_avg in range(len(list_of_avg_each_plate)):
-            list_of_avg_each_plate[i_avg] = [l for l in list_of_avg_each_plate[i_avg] if not np.isnan(l)]
-        stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0],
-                                                list_of_avg_each_plate[1],
-                                                list_of_avg_each_plate[2],
-                                                list_of_avg_each_plate[3], nan_policy="omit")
-        if not np.isnan(stat_test.pvalue):
-            # If the p_value is less than 0.01, write in scientific notation
-            if int(stat_test.pvalue*1000) == 0:
-                stats_to_show = "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3))
-            # Else write it normally
+    if show_stats:
+        y_axis_limits = plt.gca().get_ylim()
+        x_axis_limits = plt.gca().get_xlim()
+        curve_index = full_list_of_conditions.index([param.nb_to_name[c] for c in condition_list])
+        stats_to_show = ""
+        if len(list_of_avg_each_plate) >= 4:
+            # Remove nans beforehand because alexandergovern has a bug when first value is nan in the
+            # version of scipy I'm using, and I don't want to change versions because of numpy dependencies
+            for i_avg in range(len(list_of_avg_each_plate)):
+                list_of_avg_each_plate[i_avg] = [l for l in list_of_avg_each_plate[i_avg] if not np.isnan(l)]
+            stat_test = scipy.stats.alexandergovern(list_of_avg_each_plate[0],
+                                                    list_of_avg_each_plate[1],
+                                                    list_of_avg_each_plate[2],
+                                                    list_of_avg_each_plate[3], nan_policy="omit")
+            if not np.isnan(stat_test.pvalue):
+                # If the p_value is less than 0.01, write in scientific notation
+                if int(stat_test.pvalue*1000) == 0:
+                    stats_to_show = "p-value = "+str(np.format_float_scientific(stat_test.pvalue, 3))
+                # Else write it normally
+                else:
+                    stats_to_show = "p-value = "+str(np.round(stat_test.pvalue, 3))
             else:
-                stats_to_show = "p-value = "+str(np.round(stat_test.pvalue, 3))
+                stats_to_show = "p-value is np.nan"
         else:
-            stats_to_show = "p-value is np.nan"
-    else:
-        stats_to_show = "not enough data for stats"
+            stats_to_show = "not enough data for stats"
 
-    print(stats_to_show)
-    #plt.text(0.46 * x_axis_limits[1], (0.8 + 0.05 * curve_index) * y_axis_limits[1],
-    #         stats_to_show, fontsize=16,
-    #         color=param.name_to_color[param.nb_to_density[condition_list[0]]],
-    #         path_effects=[pe.SimplePatchShadow(offset=(0,-1), alpha=0.6, shadow_rgbFace="black"), pe.Normal()])
+        print(stats_to_show)
+        #plt.text(0.46 * x_axis_limits[1], (0.8 + 0.05 * curve_index) * y_axis_limits[1],
+        #         stats_to_show, fontsize=16,
+        #         color=param.name_to_color[param.nb_to_density[condition_list[0]]],
+        #         path_effects=[pe.SimplePatchShadow(offset=(0,-1), alpha=0.6, shadow_rgbFace="black"), pe.Normal()])
 
     if save_fig:
         plt.savefig(column_name + "_div_" + divided_by + "_" + str(condition_names) + ".png", transparent=True)
