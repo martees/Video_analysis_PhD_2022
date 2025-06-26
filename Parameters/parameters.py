@@ -21,7 +21,7 @@ time_threshold = 1
 invalid_silhouette_threshold = 150
 
 # Time at which to cut video on the "shortened" path
-times_to_cut_videos = [0, 16000]
+times_to_cut_videos = 25000
 
 # Ratio for conversion between seconds and frames
 # (for now measured on just one plate)
