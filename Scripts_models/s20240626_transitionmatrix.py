@@ -14,6 +14,7 @@ import random
 import matplotlib.patches as patches
 import matplotlib.patheffects as pe
 from matplotlib.offsetbox import (OffsetImage, AnnotationBbox)
+import time
 
 import plots
 from Generating_data_tables import main as gen
@@ -55,26 +56,41 @@ def generate_transition_matrices(results_path, results_table, condition_list, pl
             for i_plate, plate in enumerate(plates):
                 current_results = results_table[results["folder"] == plate]
                 current_visits = np.array(ana.return_value_list(current_results, "visits",
-                                                                         [condition], convert_to_duration=False))
-                if np.max(current_visits[:, 2]) > nb_of_patches:
-                    print("There's a plate with bad patch numbers!!!")
-                    nb_of_patches = 0
-                for i_patch in range(nb_of_patches):
-                    # print(">>> Patch ", i_patch, " / ", nb_of_patches)
-                    # Look for the outgoing transits, and then look at next visits to see which patch they went to
-                    outgoing_transits_indices = np.where(current_visits[:, 2] == i_patch)
-                    next_patch_indices = outgoing_transits_indices[0] + 1
-                    next_patch_indices = next_patch_indices[next_patch_indices < len(current_visits)]
-                    next_patches = current_visits[next_patch_indices, 2]
-                    # Fill in the matrices for this patch
-                    for i_transit in range(len(next_patch_indices)):
-                        next_patch = next_patches[i_transit]
-                        next_patch_index = next_patch_indices[i_transit]
-                        previous_visit = current_visits[next_patch_index - 1]
-                        next_visit = current_visits[next_patch_index]
-                        travel_time = next_visit[0] - previous_visit[1] + 1
-                        transition_times_matrix[i_patch][int(next_patch)].append(travel_time)
-                        transition_counts_matrix[int(i_patch), int(next_patch)] += 1
+                                                                [condition], convert_to_duration=False))
+                current_transits = np.array(ana.return_value_list(current_results, "transits",
+                                                                  [condition], convert_to_duration=False))
+
+                if len(current_visits) > 0:
+                    if np.max(current_visits[:, 2]) > nb_of_patches:
+                        print("There's a plate with bad patch numbers!!!")
+                        nb_of_patches = 0
+                    for i_patch in range(nb_of_patches):
+                        # print(">>> Patch ", i_patch, " / ", nb_of_patches)
+                        # Look for the outgoing transits, and then look at next visits to see which patch they went to
+                        visit_end_indices = np.where(current_visits[:, 2] == i_patch)
+                        next_patch_indices = visit_end_indices[0] + 1
+                        next_patch_indices = next_patch_indices[next_patch_indices < len(current_visits)]
+                        next_patches = current_visits[next_patch_indices, 2]
+                        # Fill in the matrices for this patch
+                        # NOTE: For each transit, there are three cases:
+                        #   1. there is actually a transit from end of visit to start of next visit
+                        #   2. there is a transit but separated by a hole: in this case, do not count it!
+                        #   (Note: there cannot be more than one hole, as any hole in the middle of the
+                        #       transit would have been filled) (Note 2: I think the best thing would be to count those
+                        #       for probabilities but not duration, BUT doing this can mean having non-null transition
+                        #       probabilities without the corresponding transit durations)
+                        #   3. there is no transit (between the two visits is just a tracking hole)
+                        for i_transit in range(len(next_patch_indices)):
+                            next_patch = next_patches[i_transit]
+                            next_patch_index = next_patch_indices[i_transit]
+                            previous_visit_end = current_visits[next_patch_index - 1][1]
+                            next_visit_start = current_visits[next_patch_index][0]
+                            # Check in which case we are!!! (see above)
+                            if previous_visit_end in current_transits[:,0] and next_visit_start in current_transits[:, 1]:
+                                transition_counts_matrix[int(i_patch), int(next_patch)] += 1
+                                travel_time = next_visit_start - previous_visit_end + 1
+                                transition_times_matrix[i_patch][int(next_patch)].append(travel_time)
+
             # Then after going through all the plates, one more loop on patches
             for i_patch in range(nb_of_patches):
                 # Divide counts by sum of the row to get the probability of reaching patch j from patch i in [i, j]
@@ -438,14 +454,6 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
                 print("Problem in the simulate_visit_list() function! Mismatch between visit list "
                       "format and value of conserve_visit_order! The output will be only with first visits, probably"
                       "not what you want!!!")
-            # Choose among the visits that correspond to the number of visits already made to the patch
-            # (so first visit if nb_of_visits is 1, etc.)
-            visits_current_rank = xp_visit_list[min(nb_of_visits_each_patch[current_patch], len(xp_visit_list) - 1)]
-            visit_end = random.choice(visits_current_rank)
-        else:
-            visit_end = random.choice(xp_visit_list)
-        visit_list[i_exp].append([i_time, visit_end, current_patch])
-        i_time = visit_end
         while i_time < xp_length:
             # Memorize where we came from
             previous_patch = current_patch
@@ -619,7 +627,19 @@ def parameter_exchange_matrix(results_path, results_table, condition_list, varia
         xp_visit_duration[i_condition] = ana.return_value_list(results_table, "visits", [condition],
                                                                convert_to_duration=True, conserve_visit_order=True)
     # To use as simulation length
-    _, xp_total_video_time, _ = ana.results_per_condition(results, condition_list,"total_tracked_time", "")
+    if type(xp_length) is str:
+        if "length" in xp_length:
+            # (sum visit and transit times, because other values like "total_tracked_time" are pre-hole filling
+            _, xp_total_visit, _ = ana.results_per_condition(results, condition_list,"total_visit_time", "")
+            _, xp_total_transit, _ = ana.results_per_condition(results, condition_list,"total_transit_time", "")
+            xp_total_video_time = xp_total_visit * 3600 + xp_total_transit
+            if xp_length == "use_basal_length":
+                xp_total_video_time = [xp_total_video_time[0] for _ in range(len(condition_list))]
+        else:
+            _, xp_total_video_time, _ = ana.results_per_condition(results, condition_list, "total_tracked_time", "")
+
+    else:
+        xp_total_video_time = [xp_length for _ in range(len(condition_list))]
 
     value_matrix = np.zeros((len(condition_list), len(condition_list)))
     for i_line in range(len(condition_list)):
@@ -697,7 +717,8 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
     @param results_table:
     @param baseline_condition: a string corresponding to a condition (eg "close 0")
     @param nb_of_exp:
-    @param xp_length:
+    @param xp_length: can be int (used as is as simulation length), or equal to "use_basal_length", and then all
+                      the points are computed using the length from the basal condition
     @return:
     """
     baseline_condition_nb = param.name_to_nb[baseline_condition]
@@ -724,19 +745,19 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
 
     # Plot simulated data
     plt.ylabel("Total time per patch (hours)", fontsize=18)
-    plt.title("Effect of distance vs. behavior for " + baseline_condition)
+    plt.title("OD = "+baseline_density, fontsize=21)
     plt.plot([visit_exchange_matrix[i][i]/3600 for i in range(len(visit_exchange_matrix))], color="black", linewidth=4,
-             label="Simulation: all parameters change with distance")
+             label="All parameters \n change with distance")
     plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[i][i]/3600 for i in range(len(visit_exchange_matrix))], color="black", s=67)
 
     # In order to plot the effect of changing parameters with baseline as an actual baseline, need to find
     # at what index it sits in the matrices
     baseline_index = np.where(np.array(condition_names_this_density) == baseline_condition)[0][0]
     plt.plot([probability_exchange_matrix[baseline_index][i]/3600 for i in range(len(probability_exchange_matrix))], color="cornflowerblue", linewidth=4,
-             label="Simulation: only revisit probability changes with distance")
+             label="Only revisit probability \n changes with distance")
     plt.scatter(range(len(probability_exchange_matrix)), [probability_exchange_matrix[baseline_index][i]/3600 for i in range(len(probability_exchange_matrix))], color="cornflowerblue", s=67)
     plt.plot([visit_exchange_matrix[baseline_index][i]/3600 for i in range(len(visit_exchange_matrix))], color="goldenrod", linewidth=4,
-             label="Simulation: only visit time changes with distance")
+             label="Only visit time changes \n with distance")
     plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[baseline_index][i]/3600 for i in range(len(visit_exchange_matrix))], color="goldenrod", s=67)
     plt.legend(fontsize=14)
     #plt.ylim(100, 2800)
@@ -767,6 +788,75 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
     plt.show()
 
 
+def plot_simulated_timeline(results_path, results_table, condition_transits,
+                            condition_revisit_probability, condition_visit_duration,
+                            nb_of_exp, xp_length):
+    # Generate transition time + probability matrix
+    transition_probability, transition_duration = generate_transition_matrices(results_path, results_table,
+                                                                      [condition_transits])
+    # Generate transition probability matrix (the one we'll take revisit prob from)
+    revisit_probability, _ = generate_transition_matrices(results_path, results_table,
+                                                                      [condition_revisit_probability])
+    # Get visit list from right condition
+    current_visits = ana.return_value_list(results_table, "visits", [condition_visit_duration],
+                                        convert_to_duration=True, conserve_visit_order=True)
+
+    # Transform the matrix to match the correct revisit_probability
+    # (same-patch transitions are set to be the average revisit probability of the matrix we steal from, and
+    # cross-patch transitions are normalized so that the sum of a line is still 1)
+    original_revisit_probability = np.mean([transition_probability[i][i] for i in range(len(transition_probability))])
+    target_revisit_probability = np.mean([revisit_probability[i][i] for i in range(len(revisit_probability))])
+    for i_patch in range(len(transition_probability)):
+        for j_patch in range(len(transition_probability[i_patch])):
+            if i_patch == j_patch and transition_probability[i_patch][j_patch] != 0:
+                transition_probability[i_patch][j_patch] = target_revisit_probability
+            else:
+                transition_probability[i_patch][j_patch] *= (1 - target_revisit_probability) / (
+                        1 - original_revisit_probability)
+
+    # SIMULATION BABY
+    list_of_visits = simulate_visit_list(condition_transits, transition_probability, transition_duration,
+                                         current_visits, nb_of_exp,
+                                         xp_length=xp_length,
+                                         conserve_visit_order=True)
+
+    # TIME TO DRAWWWWWWWWWWW
+    current_timeline = np.zeros((200*nb_of_exp, xp_length))
+    current_timeline[:] = np.nan
+    for i_exp in range(nb_of_exp):
+        print(i_exp)
+        current_visits = list_of_visits[i_exp]
+        # All simulations start with a transit, so always plot 1st transit
+        # And then visit + transit pairs
+        first_visit_start = current_visits[0][0]
+        current_timeline[200 * i_exp:200 * (i_exp + 1), 0:int(np.rint(first_visit_start))] = -1
+        i_visit = 0
+        i_time = 0
+        while i_visit < len(current_visits):
+            visit = current_visits[i_visit]
+            current_timeline[200 * i_exp:200 * (i_exp + 1), int(np.rint(visit[0])):int(np.rint(visit[1]+1))] = visit[2]
+            i_time += visit[1] - visit[0] + 1
+            i_visit += 1
+            if i_time < xp_length:  # if this visit was not the last ibento
+                # if there is a next visit, transit is between current visit end and next visit start
+                if i_visit < len(current_visits) - 1:
+                    next_visit = current_visits[i_visit + 1]
+                    current_timeline[200 * i_exp:200 * (i_exp + 1), int(np.rint(visit[1])):int(np.rint(next_visit[0] + 1))] = -1
+                # if there is no next visit, transit is between current visit end and xp end
+                else:
+                    current_timeline[200 * i_exp:200 * (i_exp + 1), int(np.rint(visit[1])):xp_length] = -1
+
+    # Set the NaN's to white
+    masked_array = np.ma.array(current_timeline, mask=np.isnan(current_timeline))
+    cmap = plt.get_cmap('rainbow')
+    cmap.set_bad('white', 1.)
+    # Then plot it
+    plt.imshow(masked_array, cmap=cmap)
+    plt.colorbar()
+    plt.show()
+
+
+
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     path = gen.generate()
@@ -785,10 +875,12 @@ if __name__ == "__main__":
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="probability")
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
 
+    plot_simulated_timeline(path, results, 15, 15, 15, 50, 30000)
+
     # behavior_vs_geometry(path, results, "close 0", 2000, 27000)
-    behavior_vs_geometry(path, results, "close 0.2", 2000, 30000)
-    behavior_vs_geometry(path, results, "close 0.5", 2000, 30000)
-    behavior_vs_geometry(path, results, "close 1.25", 2000, 30000)
+    # behavior_vs_geometry(path, results, "close 0.2", 2000, "use_condition_length")
+    # behavior_vs_geometry(path, results, "close 0.5", 2000, "use_condition_length")
+    # behavior_vs_geometry(path, results, "close 1.25", 2000, "use_condition_length")
 
     # list_of_conditions = list(param.nb_to_name.keys())
     # show_patch_numbers(list_of_conditions)
