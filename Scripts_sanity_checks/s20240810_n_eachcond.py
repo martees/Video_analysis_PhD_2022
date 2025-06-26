@@ -5,7 +5,8 @@ import find_data as fd
 from Parameters import parameters as param
 
 path = gen.generate("")
-results = dt.fread(path + "clean_results.csv")
+#results = dt.fread(path + "clean_results.csv")
+results = dt.fread(path + "results_per_plate.csv")
 full_list_of_folders = results[:, "folder"].to_list()[0]
 print("Finished loading tables!")
 

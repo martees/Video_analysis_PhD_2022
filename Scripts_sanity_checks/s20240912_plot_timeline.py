@@ -39,13 +39,13 @@ def plot_timeline_with_holes(results_path, full_folder_list, traj, curve_names, 
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        current_timeline = np.zeros((300*len(folder_list), param.times_to_cut_videos))
+        current_timeline = np.zeros((200*len(folder_list), param.times_to_cut_videos))
         current_timeline[:] = np.nan
         for i_folder, folder in enumerate(folder_list):
             current_trajectory = traj[dt.f.folder == folder, :]
             patch_list_this_folder = current_trajectory[:, "patch_silhouette"].to_numpy().astype(int)
             timestamp_list_this_folder = current_trajectory[:, "time"].to_numpy().astype(int)
-            current_timeline[300*i_folder:300*(i_folder + 1), timestamp_list_this_folder] = patch_list_this_folder
+            current_timeline[200*i_folder:200*(i_folder + 1), timestamp_list_this_folder] = patch_list_this_folder
         # Set the NaN's to white
         masked_array = np.ma.array(current_timeline, mask=np.isnan(current_timeline))
         cmap = plt.get_cmap('rainbow')
@@ -64,11 +64,12 @@ def plot_timeline_with_holes(results_path, full_folder_list, traj, curve_names, 
     else:
         if not os.path.isdir(results_path + "timeline_plots/"):
             os.mkdir(results_path + "timeline_plots/")
-        plt.savefig(results_path + "timeline_plots/timeline_condition_" + curve_names[i_curve] + ".png")
+        plt.savefig(results_path + "timeline_plots/timeline_condition_" + curve_names[i_curve] + "_with_holes.png", dpi=2000)
         plt.clf()
 
 
-def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_list, curve_names, is_plot, plot_only_uncensored=False):
+def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_list,
+                                 curve_names, is_plot, line_height=200, plot_only_uncensored=False):
     """
     A function that will plot a matrix with one line per folder in full_folder_list, and one column per frame
     in the videos, until the time point "time_to_cut_videos" defined in parameters.py.
@@ -98,7 +99,7 @@ def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_lis
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
         # current_timeline = np.zeros((200*len(folder_list), param.time_to_cut_videos))
-        current_timeline = np.zeros((200*len(folder_list), 30000))
+        current_timeline = np.zeros((line_height*len(folder_list), 30000))
         current_timeline[:] = np.nan
         for i_folder, folder in enumerate(folder_list):
             current_results = result_datatable[dt.f.folder == folder, :]
@@ -111,9 +112,9 @@ def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_lis
             i = 0
             while i < len(visit_list) or i < len(transit_list):
                 if i < len(visit_list):
-                    current_timeline[200 * i_folder:200 * (i_folder + 1), int(np.rint(visit_list[i][0])):int(np.rint(visit_list[i][1]+1))] = visit_list[i][2]
+                    current_timeline[line_height * i_folder:line_height * (i_folder + 1), int(np.rint(visit_list[i][0])):int(np.rint(visit_list[i][1]+1))] = visit_list[i][2]
                 if i < len(transit_list):
-                    current_timeline[200 * i_folder:200 * (i_folder + 1), int(np.rint(transit_list[i][0])):int(np.rint(transit_list[i][1]+1))] = -1
+                    current_timeline[line_height * i_folder:line_height * (i_folder + 1), int(np.rint(transit_list[i][0])):int(np.rint(transit_list[i][1]+1))] = -1
                 i += 1
         # Set the NaN's to white
         masked_array = np.ma.array(current_timeline, mask=np.isnan(current_timeline))
@@ -133,7 +134,7 @@ def plot_timeline_with_bad_holes(results_path, result_datatable, full_folder_lis
     else:
         if not os.path.isdir(results_path + "timeline_plots/"):
             os.mkdir(results_path + "timeline_plots/")
-        plt.savefig(results_path + "timeline_plots/timeline_condition_" + curve_names[i_curve] + ".png", dpi=2000)
+        plt.savefig(results_path + "timeline_plots/timeline_condition_" + curve_names[i_curve] + "_holes_filled.png", dpi=2000)
         # Calculate mean and STD
         #mean = np.nanmean(current_timeline)
         #std = np.nanstd(current_timeline)
@@ -270,7 +271,6 @@ def plot_overlap_timelines(results_path, result_datatable, full_folder_list, cur
     for i_curve, curve in enumerate(curve_list):
         print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
         folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        print(folder_list)
         # current_timeline = np.zeros((200*len(folder_list), param.times_to_cut_videos))
         current_timeline = np.zeros((200*len(folder_list), 30000))
         for i_folder, folder in enumerate(folder_list):
@@ -319,11 +319,13 @@ def plot_overlap_timelines(results_path, result_datatable, full_folder_list, cur
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(starting_from="smoothing", test_pipeline=True)
+    path = gen.generate(starting_from="", test_pipeline=False)
 
     results = dt.fread(path + "clean_results.csv")
-    # trajectories = dt.fread(path + "clean_trajectories.csv")
+    trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = results[:, "folder"].to_list()[0]
+    print("Finished loading tables!")
+
     # list_of_bad_folders = ["E:/Results_minipatches_retracked/20221014T103022_SmallPatches_C4-CAM3/traj.csv",
     #                       "E:/Results_minipatches_retracked/20221015T112001_SmallPatches_C2-CAM7/traj.csv",
     #                       "E:/Results_minipatches_retracked/20221015T113417_SmallPatches_C5-CAM2/traj.csv",
@@ -342,6 +344,13 @@ if __name__ == "__main__":
     # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.2"], is_plot=True, plot_only_uncensored=False)
     # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 0.5"], is_plot=True, plot_only_uncensored=False)
     # plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["close 1.25"], is_plot=True, plot_only_uncensored=False)
+
+    #plot_timeline_with_holes(path, full_list_of_folders, trajectories, ["superfar 0.2"], is_plot=False)
+    #plot_timeline_with_bad_holes(path, results, full_list_of_folders, ["far 0.5"],
+    #                             plot_only_uncensored=False, is_plot=True, line_height=100)
+    plot_timeline_with_censorship(path, results, full_list_of_folders, ["far 0.5"], is_plot=True)
+
+    print("OVERRRRRRRRRRRR")
 
     # Sanity check: check that events do not overlap
     plot_overlap_timelines(path, results, full_list_of_folders, ["close 0"], plot_only_uncensored=False, is_plot=False)
