@@ -327,11 +327,20 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = ana.transit_properties(
                     result_table, conditions_each_curve[0], split_conditions=True, is_print=True)
 
-            # Proportion of time spent in patches
+            # Duration between last and first tracked frame
             if "total_video_time" in what_to_plot:
                 plots.plot_selected_data(result_table,
                                          "Total video time in " + plot_name + "conditions",
                                          current_conditions, "total_video_time",
+                                         divided_by="", plot_model=False,
+                                         is_plot=is_plot, hard_cut=False, remove_censored_events=False,
+                                         full_list_of_conditions = curve_list)
+
+            # Sum of transit + visit events
+            if "total_event_time" in what_to_plot:
+                plots.plot_selected_data(result_table,
+                                         "Total event time in " + plot_name + "conditions",
+                                         current_conditions, "total_event_time",
                                          divided_by="", plot_model=False,
                                          is_plot=is_plot, hard_cut=False, remove_censored_events=False,
                                          full_list_of_conditions = curve_list)
@@ -431,7 +440,7 @@ if __name__ == "__main__":
     #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
     #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
-    plot_graphs(results, "total_video_time", [["close 0", "med 0", "far 0", "superfar 0"],
+    plot_graphs(results, "total_event_time", [["close 0", "med 0", "far 0", "superfar 0"],
                                                                   ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
                                                                   ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
                                                                   ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])

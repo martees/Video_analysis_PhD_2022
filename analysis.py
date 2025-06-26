@@ -198,7 +198,7 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                             print("Negative visit aaaaaaaaaaaaaaaaaaaa")
 
             if column_name == "total_visit_time":
-                # Recompute total time with updated visit list
+                # Compute total time with updated visit list
                 current_plate["total_visit_time"] = np.sum([pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0], axis=1)])
                 # Convert to hours
                 current_plate["total_visit_time"] /= 3600
@@ -245,6 +245,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                             i_condition]
                 elif column_name == "furthest_patch_distance":  # in this case we want the maximal value and not the average
                     list_of_values[i_plate] = np.max(current_plate[column_name])
+                elif column_name == "total_event_time":
+                    list_of_values[i_plate] = np.sum(current_plate["total_visit_time"]) + np.sum(current_plate["total_transit_time"])
                 else:  # in any other case
                     list_of_values[i_plate] = np.sum(current_plate[column_name])
 
