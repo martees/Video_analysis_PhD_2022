@@ -104,7 +104,7 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
     return visit_values_each_bin_each_plate
 
 
-def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_list, variable, only_show_density=False):
+def plot_variable_vs_distance(full_folder_list, traj, curve_names, bin_list, variable, only_show_density=False):
     """
     Function that will make a plot with the duration of visits as a function of distance to the closest patch boundary
     (negative distance => worm is inside the patch). Average is made over all pixels pooled together for each curve.
@@ -115,6 +115,7 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
     @param variable:
     @return:
     """
+    print("CONDITIONS ", curve_names, "VARIABLE ", variable)
     tic = time.time()
     curve_list = [param.name_to_nb_list[curve] for curve in curve_names]
     for i_curve, curve in enumerate(curve_list):
@@ -151,9 +152,10 @@ def plot_visit_duration_vs_distance(full_folder_list, traj, curve_names, bin_lis
                     # For speeds, convert to mm / s
                     if variable == "speed":
                         values_this_time_bin[i_plate] = values_this_time_bin[i_plate] * param.one_pixel_in_mm
-                    # For probability of presence, multiply by the proportion of time steps in this bin
+                    # For probability of presence, divide by the total number of time steps for the plate
                     if variable == "probability_of_presence":
                         values_this_time_bin[i_plate] /= total_time_steps_each_plate[i_plate]
+                    # For pixel visits (total time spent in each pixel), just leave the list as is.
                 # Compute avg and confidence interval
                 current_avg = np.nanmean(values_this_time_bin)
                 avg_each_bin[i_bin] = current_avg
@@ -215,17 +217,48 @@ if __name__ == "__main__":
     # probability_of_presence
     # speed
 
-    #plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
-    #                                 ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-    #                                 variable="pixel_visits", only_show_density=True)
-    #plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
-    #                                 ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-    #                                 variable="speed", only_show_density=True)
+    # MAIN FIGURE PLOTS: Total visit time and speed in med conditions
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                           ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+    #                           variable="total_visit_each_pixel", only_show_density=True)
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                           ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+    #                           variable="speed", only_show_density=True)
 
-    #plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
-    #                                ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
-    #                                 variable="pixel_visits")
-    plot_visit_duration_vs_distance(full_list_of_folders, trajectories,
-                                    ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
-                                    variable="pixel_visits")
+    # SUPPLEMENTARIES
+    # Total visit times
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                           ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+    #                           variable="total_visit_each_pixel")
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                           ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+    #                           variable="total_visit_each_pixel")
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
+                              variable="total_visit_each_pixel")
+
+    # Speed
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+                              variable="speed")
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+                              variable="speed")
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
+                              variable="speed")
+
+    # Probability of presence
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+                              variable="probability_of_presence")
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+                              variable="probability_of_presence")
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+                              variable="probability_of_presence")
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
+                              variable="probability_of_presence")
 
