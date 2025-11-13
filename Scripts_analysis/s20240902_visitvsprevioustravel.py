@@ -164,31 +164,30 @@ def visit_versus_previous_travel(results, curve_list, travel_time_bins, only_fir
     # plt.ylim(0, 4)
     plt.show()
 
-
 path = gen.generate("", test_pipeline=False, shorten_traj=False)
 clean_results = pd.read_csv(path + "clean_results.csv")
 bin_list = [0, 200, 600, 1200, 2000, 3600, 7200, 10800, 14400, 18000]
 only_first_visit = False
-
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
-            [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=30)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
-             [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
-             [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
-             [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
+#
+# visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
+#             [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+# visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
+#              [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+# visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
+#              [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+# visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
+#              [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
 
 only_first_visit = True
 
 visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
-            [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=30)
+            [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
 visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
-             [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
+             [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
 visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
-             [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
+             [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
 visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
-             [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
+             [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
 
 # visit_versus_previous_travel(clean_results, [[param.name_to_nb["far 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
 # visit_versus_previous_travel(clean_results, [[param.name_to_nb["far 1.25"]], [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)

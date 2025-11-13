@@ -639,7 +639,7 @@ def generate_pixelwise_visits(time_stamp_list, folder):
 
     # If the trajectories should be shortened to some time point, also shorten the silhouettes
     if "shortened" in folder:
-        pixels = pixels[:fd.find_closest(time_stamp_list[0], param.times_to_cut_videos)]
+        pixels = pixels[:fd.find_closest(time_stamp_list[0], param.times_to_cut_videos[1])]
 
     # Create a table with a list containing, for each pixel in the image, a sublist with the [start, end] of the visits
     # to this pixel. In the following algorithm, when the last element of a sublist is -1, it means that the pixel

@@ -875,7 +875,7 @@ if __name__ == "__main__":
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="probability")
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
 
-    plot_simulated_timeline(path, results, 15, 15, 15, 50, 30000)
+    #plot_simulated_timeline(path, results, 15, 15, 15, 50, 30000)
 
     # behavior_vs_geometry(path, results, "close 0", 2000, 27000)
     # behavior_vs_geometry(path, results, "close 0.2", 2000, "use_condition_length")
