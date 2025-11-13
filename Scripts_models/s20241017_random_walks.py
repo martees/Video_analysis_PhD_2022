@@ -62,7 +62,7 @@ def generate_environment_matrices(results_path, xp_plate_list):
         top_right = [plate_size - margin, plate_size - margin]
         # Then use these perfect reference points to convert the patch centers using the ReferencePoints class
         robot_xy = np.array(param.distance_to_xy[distance])
-        small_ref_points = ReferencePoints.ReferencePoints([[-20, 20], [20, 20], [20, -20], [-20, -20]])
+        small_ref_points = ReferencePoints.ReferencePoints([[-16, 16], [16, 16], [16, -16], [-16, -16]])
         big_ref_points = ReferencePoints.ReferencePoints([bottom_left, bottom_right, top_left, top_right])
         robot_xy[:, 0] = - robot_xy[:, 0]
         patch_centers = big_ref_points.mm_to_pixel(small_ref_points.pixel_to_mm(robot_xy))
@@ -937,7 +937,9 @@ def effect_of_speed_in(length, speed_out):
     plt.show()
 
 
-def effect_of_walk_type(distance_list, length, nb_of_walkers, speed_in, speed_out, half_life_speed, max_turning_angle, sharp_angle_probability, turn_probability_factor, xp_path, xp_table, list_xp_folders):
+def effect_of_walk_type(distance_list, length, nb_of_walkers, speed_in, speed_out, half_life_speed,
+                        max_turning_angle, sharp_angle_probability, turn_probability_factor, xp_path, xp_table, list_xp_folders,
+                        what_to_plot=None):
     # Plots on the left a comparison of our three walk types in the toy model of Alfonso, with
     # effective time outside (time outside per patch) and number of visits per patch
     # On the right, two plots, one with the avg visit time for all walks + xp, and one with the time inside per patch
@@ -1006,14 +1008,15 @@ def effect_of_walk_type(distance_list, length, nb_of_walkers, speed_in, speed_ou
     time_out, nb_of_visits, time_in, avg_visit, time_out_errors, nb_of_visits_errors, time_in_errors, avg_visit_errors = (
         values_one_type_of_walk(envt_matrices, nb_of_walkers, "random", length, [speed_in, speed_out]))
     ax0.errorbar(nb_of_visits, np.array(time_out)/3600, xerr=nb_of_visits_errors, yerr=np.array(time_out_errors)/3600, color="yellow", capsize=5, linewidth=3, label="Random walk", marker="o")
-    #ax1.errorbar(range(len(avg_visit)), np.array(avg_visit)/3600, yerr=np.array(avg_visit_errors)/3600, color="gold", capsize=5, linewidth=3, label="Random walk", marker="o")
-    ax1.errorbar(range(len(time_in)), np.array(time_in)/3600, yerr=np.array(time_in_errors)/3600, color="gold", capsize=5, linewidth=3, label="Random walk", marker="o")
+    if what_to_plot == "nb_of_visits":
+        ax1.errorbar(range(len(nb_of_visits)), np.array(nb_of_visits), yerr=np.array(nb_of_visits_errors), color="gold", capsize=5, linewidth=3, label="Random walk", marker="o")
+    if what_to_plot == "total_time":
+        ax1.errorbar(range(len(time_in)), np.array(time_in)/3600, yerr=np.array(time_in_errors)/3600, color="gold", capsize=5, linewidth=3, label="Random walk", marker="o")
+    if what_to_plot == "avg_visit_time":
+        ax1.errorbar(range(len(avg_visit)), np.array(avg_visit)/3600, yerr=np.array(avg_visit)/3600, color="gold", capsize=5, linewidth=3, label="Random walk", marker="o")
     # Plot the last point of each line (most distant) as a star
     ax0.scatter(nb_of_visits[-1], np.array(time_out)[-1]/3600, color="goldenrod", marker="*", s=200, zorder=10)
-    #ax1.scatter(range(len(avg_visit))[-1], np.array(avg_visit)[-1]/3600, color="goldenrod", marker="*", s=200, zorder=10)
-    ax1.scatter(range(len(time_in))[-1], np.array(time_in)[-1]/3600, color="goldenrod", marker="*", s=200, zorder=10)
-    #x_extent_points = np.linspace(np.min(visit_values_list), np.max(visit_values_list), 10)
-    #plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="yellow", linewidth=2)
+    # ax1.scatter(range(len(time_in))[-1], np.array(time_in)[-1]/3600, color="goldenrod", marker="*", s=200, zorder=10)
 
     # Walk that speeds up when leaving the patch
     # time_out, nb_of_visits, time_in, avg_visit, time_out_errors, nb_of_visits_errors, time_in_errors, avg_visit_errors = (
@@ -1030,23 +1033,35 @@ def effect_of_walk_type(distance_list, length, nb_of_walkers, speed_in, speed_ou
     time_out, nb_of_visits, time_in, avg_visit, time_out_errors, nb_of_visits_errors, time_in_errors, avg_visit_errors = (
         values_one_type_of_walk(envt_matrices, nb_of_walkers, "auto_correlated", length, [speed_in, speed_out, max_turning_angle]))
     ax0.errorbar(nb_of_visits, np.array(time_out)/3600, xerr=nb_of_visits_errors, yerr=np.array(time_out_errors)/3600, color="chartreuse", capsize=5, linewidth=3, label="Correlated walk", marker="o")
-    #ax1.errorbar(range(len(avg_visit)), np.array(avg_visit)/3600, yerr=np.array(avg_visit_errors)/3600, color="chartreuse", capsize=5, linewidth=3, label="Correlated walk", marker="o")
-    ax1.errorbar(range(len(time_in)), np.array(time_in)/3600, yerr=np.array(time_in_errors)/3600, color="chartreuse", capsize=5, linewidth=3, label="Correlated walk", marker="o")
+    if what_to_plot == "nb_of_visits":
+        ax1.errorbar(range(len(nb_of_visits)), np.array(nb_of_visits), yerr=np.array(nb_of_visits_errors), color="chartreuse",
+                     capsize=5, linewidth=3, label="Correlated walk", marker="o")
+    if what_to_plot == "total_time":
+        ax1.errorbar(range(len(time_in)), np.array(time_in) / 3600, yerr=np.array(time_in_errors) / 3600, color="chartreuse",
+                     capsize=5, linewidth=3, label="Correlated walk", marker="o")
+    if what_to_plot == "avg_visit_time":
+        ax1.errorbar(range(len(avg_visit)), np.array(avg_visit) / 3600, yerr=np.array(avg_visit) / 3600, color="chartreuse",
+                     capsize=5, linewidth=3, label="Correlated walk", marker="o")
     # Plot the last point of each line (most distant) as a star
     ax0.scatter(nb_of_visits[-1], np.array(time_out)[-1]/3600, color="limegreen", marker="*", s=200, zorder=10)
-    #ax1.scatter(range(len(avg_visit))[-1], np.array(avg_visit)[-1]/3600, color="limegreen", marker="*", s=200, zorder=10)
-    ax1.scatter(range(len(time_in))[-1], np.array(time_in)[-1]/3600, color="limegreen", marker="*", s=200, zorder=10)
+    # ax1.scatter(range(len(time_in))[-1], np.array(time_in)[-1]/3600, color="limegreen", marker="*", s=200, zorder=10)
 
     # Correlated walk that sometimes does sharp turns
     time_out, nb_of_visits, time_in, avg_visit, time_out_errors, nb_of_visits_errors, time_in_errors, avg_visit_errors = (
         values_one_type_of_walk(envt_matrices, nb_of_walkers, "correlated_sharp_turns", length, [speed_in, speed_out, max_turning_angle, sharp_angle_probability, turn_probability_factor]))
     ax0.errorbar(nb_of_visits, np.array(time_out)/3600, xerr=nb_of_visits_errors, yerr=np.array(time_out_errors)/3600, color="turquoise", capsize=5, linewidth=3, label="Correlated walk + sharp turns", marker="o")
-    #ax1.errorbar(range(len(avg_visit)), np.array(avg_visit)/3600, yerr=np.array(avg_visit_errors)/3600, color="turquoise", capsize=5, linewidth=3, label="Correlated walk + sharp turns", marker="o")
-    ax1.errorbar(range(len(time_in)), np.array(time_in)/3600, yerr=np.array(time_in_errors)/3600, color="turquoise", capsize=5, linewidth=3, label="Correlated walk + sharp turns", marker="o")
+    if what_to_plot == "nb_of_visits":
+        ax1.errorbar(range(len(nb_of_visits)), np.array(nb_of_visits), yerr=np.array(nb_of_visits_errors), color="turquoise",
+                     capsize=5, linewidth=3, label="Correlated walk + sharp turns", marker="o")
+    if what_to_plot == "total_time":
+        ax1.errorbar(range(len(time_in)), np.array(time_in) / 3600, yerr=np.array(time_in_errors) / 3600, color="turquoise",
+                     capsize=5, linewidth=3, label="Correlated walk + sharp turns", marker="o")
+    if what_to_plot == "avg_visit_time":
+        ax1.errorbar(range(len(avg_visit)), np.array(avg_visit) / 3600, yerr=np.array(avg_visit) / 3600, color="turquoise",
+                     capsize=5, linewidth=3, label="Correlated walk + sharp turns", marker="o")
     # Plot the last point of each line (most distant) as a star
     ax0.scatter(nb_of_visits[-1], np.array(time_out)[-1]/3600, color="lightseagreen", marker="*", s=200, zorder=10)
-    #ax1.scatter(range(len(avg_visit))[-1], np.array(avg_visit)[-1]/3600, color="lightseagreen", marker="*", s=200, zorder=10)
-    ax1.scatter(range(len(time_in))[-1], np.array(time_in)[-1]/3600, color="lightseagreen", marker="*", s=200, zorder=10)
+    # ax1.scatter(range(len(time_in))[-1], np.array(time_in)[-1]/3600, color="lightseagreen", marker="*", s=200, zorder=10)
 
     # # Autocorrelated walk
     # time_out, nb_of_visits, time_in, avg_visit, time_out_errors, nb_of_visits_errors, time_in_errors, avg_visit_errors = (
@@ -1061,19 +1076,23 @@ def effect_of_walk_type(distance_list, length, nb_of_walkers, speed_in, speed_ou
 
     # Plot C. elegans values
     time_out, nb_of_visits, time_in, avg_visit, time_out_errors, nb_of_visits_errors, time_in_errors, avg_visit_errors = experimental_values(distance_list, xp_table, list_xp_folders)
-    #ax0.scatter(nb_of_visits_avg, time_out_avg, color="black", label="Experimental values")
     ax0.errorbar(nb_of_visits, np.array(time_out)/3600, xerr=nb_of_visits_errors, yerr=np.array(time_out_errors)/3600, color="black", capsize=5, linewidth=3, label="Experimental data", marker="o")
-    #ax1.errorbar(range(len(avg_visit)), np.array(avg_visit)/3600, yerr=np.array(avg_visit_errors)/3600, color="black", capsize=5, linewidth=3, label="Experimental data", marker="o")
-    ax1.errorbar(range(len(time_in)), np.array(time_in)/3600, yerr=np.array(time_in_errors)/3600, color="black", capsize=5, linewidth=3, label="Experimental data", marker="o")
+    if what_to_plot == "nb_of_visits":
+        ax1.errorbar(range(len(nb_of_visits)), np.array(nb_of_visits), yerr=np.array(nb_of_visits_errors), color="black",
+                     capsize=5, linewidth=3, label="Experimental data", marker="o")
+    if what_to_plot == "total_time":
+        ax1.errorbar(range(len(time_in)), np.array(time_in) / 3600, yerr=np.array(time_in_errors) / 3600, color="black",
+                     capsize=5, linewidth=3, label="Experimental data", marker="o")
+    if what_to_plot == "avg_visit_time":
+        ax1.errorbar(range(len(avg_visit)), np.array(avg_visit) / 3600, yerr=np.array(avg_visit) / 3600, color="black",
+                     capsize=5, linewidth=3, label="Experimental data", marker="o")
     # Plot the last point of each line (most distant) as a star
     ax0.scatter(nb_of_visits[-1], np.array(time_out)[-1]/3600, color="grey", marker="*", s=200, zorder=10)
-    #ax1.scatter(range(len(avg_visit))[-1], np.array(avg_visit)[-1]/3600, color="grey", marker="*", s=200, zorder=10)
-    ax1.scatter(range(len(time_in))[-1], np.array(time_in)[-1]/3600, color="grey", marker="*", s=200, zorder=10)
+    # ax1.scatter(range(len(time_in))[-1], np.array(time_in)[-1]/3600, color="grey", marker="*", s=200, zorder=10)
 
     # Plot empty stars to add it to the legend
     ax0.scatter([], [], color="black", marker="*", label="Highest inter-patch distance", s=200)
-    #ax1.scatter([], [], color="black", marker="*", label="Highest inter-patch distance", s=200)
-    ax1.scatter([], [], color="black", marker="*", label="Highest inter-patch distance", s=200)
+    # ax1.scatter([], [], color="black", marker="*", label="Highest inter-patch distance", s=200)
 
     ax1.legend(fontsize=11)
 
@@ -1104,8 +1123,8 @@ def show_each_walk_type(length, speed_in, speed_out, half_life_speed, max_turnin
     ax0.set_title("Random walk", fontsize=20)
     ax0.set_xlabel("Parameters = "+str([length, speed_in, speed_out]))
     if zoom_in:
-        ax0.set_xlim(720, 1030)
-        ax0.set_ylim(720, 1030)
+        ax0.set_xlim(380, 740)
+        ax0.set_ylim(600, 960)
 
     # # Dynamic speed walk
     # speed_table = dynamic_speed_table(speed_in, speed_out, half_life_speed, length)
@@ -1128,8 +1147,8 @@ def show_each_walk_type(length, speed_in, speed_out, half_life_speed, max_turnin
     ax1.set_title("Correlated walk", fontsize=20)
     ax1.set_xlabel("Parameters = "+str([length, speed_in, speed_out, max_turning_angle]))
     if zoom_in:
-        ax1.set_xlim(720, 1030)
-        ax1.set_ylim(720, 1030)
+        ax1.set_xlim(380, 740)
+        ax1.set_ylim(600, 960)
 
     # Correlated walk with sharp turns
     t, x, y, speeds, time_in, time_out, nb_visited, nb_visits = correlated_walk(length, speed_in, speed_out, max_turning_angle, envt_matrices[1], sharp_turn_probability=sharp_turn_probability, turn_probability_factor=turn_probability_factor)
@@ -1138,8 +1157,8 @@ def show_each_walk_type(length, speed_in, speed_out, half_life_speed, max_turnin
     ax2.set_title("Correlated walk + sharp turns", fontsize=20)
     ax2.set_xlabel("Parameters = "+str([length, speed_in, speed_out, max_turning_angle, sharp_turn_probability, turn_prob_factor]))
     if zoom_in:
-        ax2.set_xlim(720, 1030)
-        ax2.set_ylim(720, 1030)
+        ax2.set_xlim(380, 740)
+        ax2.set_ylim(600, 960)
 
     # Autocorrelated walk
     #t, x, y, speeds, time_in, time_out, nb_visited, nb_visits = auto_correlated_walk(length, speed_in, speed_out, max_turning_angle, envt_matrices[1])
@@ -1294,15 +1313,18 @@ print("From literature values, it looks like the speed should be ", speed_inside
 
 path = gen.generate("")
 results = pd.read_csv(path + "clean_results.csv")
-# speed_in = 1.5
-# speed_out = 11
-speed_in = 6
-speed_out = 6
+speed_in = 1.5
+speed_out = 11
+# speed_in = 6
+# speed_out = 6
 max_turn = np.pi/4
 turn_prob = 0.01
 turn_prob_factor = 50
-sim_length = 32000
+sim_length = 25000
 # show_one_walk_type(sim_length, speed_in, speed_out, 1000, max_turn, turn_prob, turn_prob_factor, zoom_in=False)
-effect_of_walk_type(["close", "med", "far", "superfar"], sim_length, 100, speed_in, speed_out, 1000, max_turn, turn_prob, turn_prob_factor, path, results, results["folder"])
+
+# effect_of_walk_type(["close", "med", "far", "superfar"], sim_length, 100, speed_in, speed_out,
+#                     1000, max_turn, turn_prob, turn_prob_factor, path, results, results["folder"],
+#                     "nb_of_visits")
 show_each_walk_type(sim_length, speed_in, speed_out, 1000, max_turn, turn_prob, turn_prob_factor, zoom_in=True)
 
