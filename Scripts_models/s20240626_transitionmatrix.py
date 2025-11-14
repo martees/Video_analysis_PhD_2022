@@ -732,7 +732,7 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
                                                                                         "total_visit_time",
                                                                                         divided_by="nb_of_visited_patches",
                                                                                         is_plot=False, show_stats=False)
-    plt.clf()  # Clear the plot because the previous function plots stuff even though it does not show them
+    plt.clf()  # Clear the plot because the previous function plots stuff even when it does not show them
 
     # Plot the experimental data
     plt.gcf().set_size_inches(7, 9)
@@ -740,8 +740,12 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
     plt.errorbar(range(len(average_per_condition)), average_per_condition, errorbars, color="orange", capsize=5, linewidth=0, elinewidth=3, markeredgewidth=3, zorder=10)
 
     # Compute the matrices for the simulated data
-    visit_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density, "visit_times", "total_visit_time", nb_of_exp, xp_length, False)
-    probability_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density, "revisit_probability", "total_visit_time", nb_of_exp, xp_length, False)
+    visit_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density,
+                                                      "visit_times", "total_visit_time",
+                                                      nb_of_exp, xp_length, False)
+    probability_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density,
+                                                            "revisit_probability", "total_visit_time",
+                                                            nb_of_exp, xp_length, False)
 
     # Plot simulated data
     plt.ylabel("Total time per patch (hours)", fontsize=18)
@@ -877,10 +881,10 @@ if __name__ == "__main__":
 
     #plot_simulated_timeline(path, results, 15, 15, 15, 50, 30000)
 
-    # behavior_vs_geometry(path, results, "close 0", 2000, 27000)
-    # behavior_vs_geometry(path, results, "close 0.2", 2000, "use_condition_length")
-    # behavior_vs_geometry(path, results, "close 0.5", 2000, "use_condition_length")
-    # behavior_vs_geometry(path, results, "close 1.25", 2000, "use_condition_length")
+    behavior_vs_geometry(path, results, "close 0", 2000, "use_condition_length")
+    behavior_vs_geometry(path, results, "close 0.2", 2000, "use_condition_length")
+    behavior_vs_geometry(path, results, "close 0.5", 2000, "use_condition_length")
+    behavior_vs_geometry(path, results, "close 1.25", 2000, "use_condition_length")
 
     # list_of_conditions = list(param.nb_to_name.keys())
     # show_patch_numbers(list_of_conditions)
