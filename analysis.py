@@ -598,7 +598,7 @@ def array_division_ignoring_zeros(a, b):
 
 
 def return_value_list(results, column_name, condition_list=None, convert_to_duration=True, only_first=False,
-                      end_time=False, conserve_visit_order=False):
+                      end_time=False, conserve_visit_order=False, removed_censored=False):
     """
     Will return a list of values of column_name in results, pooled for all conditions in condition_list.
     For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
@@ -620,13 +620,18 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             condition_list = [condition_list]
         folder_list = fd.return_folders_condition_list(np.unique(results["folder"]), condition_list)
 
+
     list_of_values = []
     if column_name == "same transits" or column_name == "cross transits":
         for i_plate in range(len(folder_list)):
             plate_name = folder_list[i_plate]
             plate_results = results[results["folder"] == plate_name].reset_index()
-            current_transit_list = fd.load_list(plate_results, "aggregated_raw_transits")
-            current_visit_list = fd.load_list(plate_results, "no_hole_visits")
+            if removed_censored:
+                current_transit_list = fd.load_list(plate_results, "uncensored_visits")
+                current_visit_list = fd.load_list(plate_results, "uncensored_transits")
+            else:
+                current_transit_list = fd.load_list(plate_results, "aggregated_raw_transits")
+                current_visit_list = fd.load_list(plate_results, "no_hole_visits")
             if column_name == "same transits":
                 current_transit_list = select_transits(current_transit_list, current_visit_list, to_same_patch=True)
             if column_name == "cross transits":
@@ -645,7 +650,10 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
             current_results = results[results["folder"] == current_plate].reset_index()
-            current_visits = fd.load_list(current_results, "no_hole_visits")
+            if removed_censored:
+                current_visits = fd.load_list(current_results, "uncensored_visits")
+            else:
+                current_visits = fd.load_list(current_results, "no_hole_visits")
             if current_visits:
                 patch_sequence = np.array(current_visits)[:, 2]
                 # patch_sequence = [i[0] for i in groupby(np.array(current_visits)[:, 2])]
@@ -657,9 +665,15 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
 
     else:
         if column_name == "visits":
-            column_name = "no_hole_visits"
+            if removed_censored:
+                column_name = "uncensored_visits"
+            else:
+                column_name = "no_hole_visits"
         if column_name == "transits":
-            column_name = "aggregated_raw_transits"
+            if removed_censored:
+                column_name = "uncensored_transits"
+            else:
+                column_name = "aggregated_raw_transits"
         if conserve_visit_order:
             # In case visit order should be conserved, return a list with in each sublist the i-th visits to a patch
             list_of_values = [[]]
