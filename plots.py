@@ -159,6 +159,7 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
         current_list_x = current_traj.reset_index()["x"]
         current_list_y = current_traj.reset_index()["y"]
         metadata = fd.folder_to_metadata(current_folder)
+        current_condition = metadata["condition"][0]
         plt.suptitle("Trajectories for condition " + str(condition_list))
 
         # If we just changed plate or if it's the 1st, plot the background elements
@@ -184,15 +185,12 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
             if show_composite:  # show composite with real patches
                 composite = plt.imread(fd.load_file_path(current_folder, "composite_patches.tif"))
                 ax.imshow(composite)
-                # White scale bar
-                plt.plot([100, 100 + 5 * (1 / param.one_pixel_in_mm)], [1800, 1800], color="white", linewidth=4)
-                plt.text(110, 1750, "5 mm", color="white")
-            else:  # show cleaner background without the patches
+            else:  # show cleaner background without the patches (inverted bcs it looks cooler)
                 background = plt.imread(fd.load_file_path(current_folder, "background.tif"))
-                ax.imshow(background, cmap='gray')
-                # Black scale bar
-                plt.plot([100, 100 + 5 * (1 / param.one_pixel_in_mm)], [1800, 1800], color="black", linewidth=4)
-                plt.text(110, 1750, "5 mm")
+                ax.imshow(1 - background, cmap='gray')
+            # White scale bar
+            plt.plot([100, 100 + 10 * (1 / param.one_pixel_in_mm)], [1800, 1800], color="white", linewidth=4)
+            plt.text(110, 1750, "10 mm", color="white", fontsize=22)
 
             if zoom_in:
                 plt.xlim(670, 1080)
@@ -208,12 +206,12 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
                 if plot_speed:
                     color = param.name_to_color[param.nb_to_distance[condition_list[0]]]
                 else:
-                    color = "black"
+                    color = "white"
                 patch_densities = metadata["patch_densities"]
                 patch_centers = metadata["patch_centers"]
                 x_list, y_list = patches([current_folder], is_plot=False)
                 for i_patch in range(len(patch_centers)):
-                    ax.plot(x_list[i_patch], y_list[i_patch], color=color, zorder=0, linewidth=4)
+                    ax.plot(x_list[i_patch], y_list[i_patch], color=color, zorder=1, linewidth=3.4)
                     #ax.plot(x_list[i_patch], y_list[i_patch], color="black", alpha=0.5, zorder=10, linewidth=4)
                     # to show density, add this to previous call: , alpha=patch_densities[i_patch][0]
                     # ax.annotate(str(i_patch), xy=(patch_centers[i_patch][0] + 80, patch_centers[i_patch][1] + 80), color='white')
@@ -280,10 +278,10 @@ def trajectories_1condition(path, traj, condition_list, n_max=4, is_plot_patches
             if previous_folder != current_folder or previous_folder == 0:  # if we just changed plate or if it's the 1st
                 plt.scatter(current_list_x[0], current_list_y[0], marker='*', color="black", s=200)
 
-        # Plot the trajectory, one color per worm
+        # Plot the trajectory, one color per condition
         else:
             plt.scatter(current_list_x, current_list_y,
-                        color=param.name_to_color[param.nb_to_distance[condition_list[0]]], s=1.6)
+                        color=param.name_to_color[param.nb_to_density[current_condition]], s=4, zorder=0)
             if plot_lines:
                 plt.plot(np.array(current_list_x), np.array(current_list_y),
                          color=param.name_to_color[param.nb_to_distance[condition_list[0]]], linewidth=3)
@@ -674,6 +672,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                             color=param.name_to_color[density_each_condition[c]],
                             marker=param.distance_to_marker[distance_each_condition[c]],
                             s=100)
+                # plt.text(c, average_per_condition[c] + 0.1, "N="+str(len([i for i in list_of_avg_each_plate[c] if not np.isnan(i)])))
 
             # Set the x labels to the distance icons!
             # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
@@ -704,20 +703,21 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             print("You did not implement this feature yet.")
 
     # Print statistical test results
-    print("Variable = ", column_name, ", divided_by = ", divided_by)
-    for i in range(len(condition_list)):
-        if len(list_of_avg_each_plate[i]) < 8:
-            print("For condition ", condition_list[i], " there are only ", len(list_of_avg_each_plate[i]), ", not enough for statistics!")
-        else:
-            normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
-            print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
-            if normality_test.pvalue < 0.05:
-                print("(The data is not normal.)")
-            else:
-                print("(The data is normal.)")
-
-    # Statistical tests
     if show_stats:
+        print("Variable = ", column_name, ", divided_by = ", divided_by)
+        for i in range(len(condition_list)):
+            list_of_avg_each_plate[i] = [j for j in list_of_avg_each_plate[i] if not np.isnan(j)]
+            if len(list_of_avg_each_plate[i]) < 8:
+                print("For condition ", condition_list[i], " there are only ", len(list_of_avg_each_plate[i]),
+                      ", not enough for statistics!")
+            else:
+                normality_test = scipy.stats.normaltest(list_of_avg_each_plate[i], nan_policy="omit")
+                print("Condition: ", param.nb_to_name[condition_list[i]], ", pvalue = ", normality_test.pvalue)
+                if normality_test.pvalue < 0.05:
+                    print("(The data is not normal.)")
+                else:
+                    print("(The data is normal.)")
+
         y_axis_limits = plt.gca().get_ylim()
         x_axis_limits = plt.gca().get_xlim()
         curve_index = full_list_of_conditions.index([param.nb_to_name[c] for c in condition_list])
@@ -764,7 +764,8 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
 
 
 def plot_visit_time(results, trajectory, plot_title, condition_list, variable, condition_names, split_conditions=True,
-                    is_plot=True, patch_or_pixel="patch", only_first=False, min_nb_data_points=10, custom_bins=None):
+                    is_plot=True, patch_or_pixel="patch", only_first=False, min_nb_data_points=10, custom_bins=None,
+                    dynamic_binning=False):
     # Call function to obtain list of visit lengths and corresponding list of variable values (one sublist per condition)
     full_visit_list, full_variable_list = ana.visit_time_as_a_function_of(results, trajectory, condition_list, variable,
                                                                           patch_or_pixel, only_first, remove_censored=True)
@@ -815,7 +816,7 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
         # Bin them, bin value in the middle of the bin
         variable_values_bins, average_visit_duration, [errors_inf, errors_sup], binned_current_visits = ana.xy_to_bins(
             full_variable_list, full_visit_list, bin_size=None, print_progress=False,
-            custom_bins=custom_bins, bins_in_middle=True, dynamic_bins=True)
+            custom_bins=custom_bins, bins_in_middle=True, dynamic_bins=dynamic_binning)
         # Counts in each bin
         counts_each_bin = [len(visits_this_bin) for visits_this_bin in binned_current_visits]
 
