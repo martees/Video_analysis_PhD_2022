@@ -1,5 +1,7 @@
 import numpy as np
 import random
+
+from pandas.core.dtypes.common import is_complex_dtype
 from scipy import stats
 import time
 import copy
@@ -71,6 +73,67 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
     return [np.percentile(bootstrapped_stat, 5), np.percentile(bootstrapped_stat, 95)]
 
 
+def hard_cut_events(visit_list, transit_list):
+    # Negative transit check
+    original_length = len(transit_list)
+    current_transits = [transit for transit in transit_list if (transit[1] - transit[0]) >= 0]
+    if len(current_transits) != original_length:
+        print("WARNING: removed negative transits... there were ", original_length - len(current_transits), "!!")
+
+    # Mix visits and transits and sort them by beginning
+    current_events = copy.deepcopy(visit_list) + copy.deepcopy(current_transits)
+    current_events = sorted(current_events, key=lambda x: x[0])
+    # Load times to cut
+    cut_start = param.times_to_cut_videos[0]
+    cut_end = param.times_to_cut_videos[1]
+
+    # Loop through them and stop when it's reached time to cut!!!
+    cumulated_duration_of_events = 0
+    i_event = 0
+    new_list_of_events = []
+    first_event_found = False
+    while i_event < len(current_events) and cumulated_duration_of_events < (cut_end - cut_start):
+        current_event = current_events[i_event]
+        if current_event[0] >= cut_start:
+            if not first_event_found:
+                first_event_found = True
+                # If this is the first event that starts after time_to_cut[0] and not the first of the video, add the previous one
+                if i_event > 0:
+                    previous_event = current_events[i_event - 1]
+                    previous_event[0] = cut_start  # but set it to start at time_to_cut[0]
+                    cumulated_duration_of_events += previous_event[1] - previous_event[0]
+                    new_list_of_events.append(previous_event)
+                    # If this previous event does not exceed time_to_cut[1], then you can add the current one
+                    if cumulated_duration_of_events < cut_end - cut_start:
+                        cumulated_duration_of_events += current_event[1] - current_event[0]
+                        new_list_of_events.append(current_event)
+                # If this is the first event, just add it! and start it at time_to_cut[0]
+                else:
+                    current_event[0] = cut_start  # but set it to start at time_to_cut[0]
+                    cumulated_duration_of_events += current_event[1] - current_event[0]
+                    new_list_of_events.append(current_event)
+
+            else:
+                cumulated_duration_of_events += current_event[1] - current_event[0]
+                new_list_of_events.append(current_event)
+        i_event += 1
+    # In the end of the loop, if we have reached the cut parameter, cut the last event
+    if cumulated_duration_of_events > cut_end - cut_start:
+        new_list_of_events[-1][1] -= cumulated_duration_of_events - (cut_end - cut_start)
+    # Then, if the cumulated duration was reached, keep the visits
+    if cumulated_duration_of_events >= cut_end - cut_start:
+        current_visits = [event for event in new_list_of_events if event[2] != -1]
+        current_transits = [event for event in new_list_of_events if event[2] == -1]
+        for i in current_visits:
+            if i[1] - i[0] < 0:
+                print("Negative visit aaaaaaaaaaaaaaaaaaaa")
+    else:
+        current_visits = np.nan  # Else flag the plate to exclude it
+        current_transits = np.nan
+
+    return current_visits, current_transits
+
+
 def results_per_condition(result_table, list_of_conditions, column_name, divided_by="",
                           remove_censored_events=False, remove_censored_patches=False, normalize_by_video_length=False,
                           only_first_visited_patch=False, soft_cut=False, hard_cut=False, visits_longer_than=0):
@@ -102,6 +165,9 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
         list_of_values = np.zeros(len(list_of_plates))
         list_of_values[:] = np.nan
 
+        if column_name == "no_hole_visits" or "aggregated_raw_transits":
+            list_of_values = [[] for _ in range(len(list_of_plates))]
+
         for i_plate in range(len(list_of_plates)):
             # Take only one plate
             current_plate = copy.deepcopy(current_data[current_data["folder"] == list_of_plates[i_plate]])
@@ -109,10 +175,13 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             # Apply censorship rules
             if remove_censored_patches:
                 current_visits = fd.load_list(current_plate, "visits_to_uncensored_patches")
+                current_transits = fd.load_list(current_plate, "uncensored_transits")
             elif remove_censored_events:
                 current_visits = fd.load_list(current_plate, "uncensored_visits")
+                current_transits = fd.load_list(current_plate, "uncensored_transits")
             else:
                 current_visits = fd.load_list(current_plate, "no_hole_visits")
+                current_transits = fd.load_list(current_plate, "aggregated_raw_transits")
 
             # If there are any (uncensored) visits, apply other exclusion criteria to the list
             if "visit" in column_name and len(current_visits) > 0:
@@ -138,76 +207,30 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                             current_visits.remove(visit)
 
                 # HARD CUT: only take the visits as long as the cumulated length of visits+transits is < time to cut
+                #           AND exclude any video that has less than time to cut
                 if hard_cut:
-                    if remove_censored_events:
-                        current_transits = fd.load_list(current_plate, "uncensored_transits")
-                    else:
-                        current_transits = fd.load_list(current_plate, "aggregated_raw_transits")
+                    current_visits, current_transits = hard_cut_events(current_visits, current_transits)
 
-                    original_length = len(current_transits)
-                    current_transits = [visit for visit in current_transits if (visit[1] - visit[0]) >= 0]
-                    if len(current_transits) != original_length:
-                        print("TEMPORARY FIX: removed negative transits... there were ", original_length - len(current_transits), "!!")
-
-                    # Mix visits and transits and sort them by beginning
-                    current_events = copy.deepcopy(current_visits) + copy.deepcopy(current_transits)
-                    current_events = sorted(current_events, key=lambda x: x[0])
-                    # Load times to cut
-                    cut_start = param.times_to_cut_videos[0]
-                    cut_end = param.times_to_cut_videos[1]
-                    if only_first_visited_patch:
-                        print("Pay attention, for total time first patch, hard cut ends at ", cut_end/4)
-                        cut_end = cut_end/4
-                    # Loop through them and stop when it's reached time to cut!!!
-                    cumulated_duration_of_events = 0
-                    i_event = 0
-                    new_list_of_events = []
-                    first_event_found = False
-                    while i_event < len(current_events) and cumulated_duration_of_events < (cut_end - cut_start):
-                        current_event = current_events[i_event]
-                        if current_event[0] >= cut_start:
-                            if not first_event_found:
-                                first_event_found = True
-                                # If this is the first event that starts after time_to_cut[0] and not the first of the video, add the previous one
-                                if i_event > 0:
-                                    previous_event = current_events[i_event - 1]
-                                    previous_event[0] = cut_start  # but set it to start at time_to_cut[0]
-                                    cumulated_duration_of_events += previous_event[1] - previous_event[0]
-                                    new_list_of_events.append(previous_event)
-                                    # If this previous event does not exceed time_to_cut[1], then you can add the current one
-                                    if cumulated_duration_of_events < cut_end - cut_start:
-                                        cumulated_duration_of_events += current_event[1] - current_event[0]
-                                        new_list_of_events.append(current_event)
-                                # If this is the first event, just add it! and start it at time_to_cut[0]
-                                else:
-                                    current_event[0] = cut_start  # but set it to start at time_to_cut[0]
-                                    cumulated_duration_of_events += current_event[1] - current_event[0]
-                                    new_list_of_events.append(current_event)
-
-                            else:
-                                cumulated_duration_of_events += current_event[1] - current_event[0]
-                                new_list_of_events.append(current_event)
-                        i_event += 1
-                    # In the end of the loop, if we have reached the cut parameter, cut the last event
-                    if cumulated_duration_of_events > cut_end - cut_start:
-                        new_list_of_events[-1][1] -= cumulated_duration_of_events - (cut_end - cut_start)
-                    # Then, sort the events back to visits!
-                    current_visits = [event for event in new_list_of_events if event[2] != -1]
-                    for i in current_visits:
-                        if i[1] - i[0] < 0:
-                            print("Negative visit aaaaaaaaaaaaaaaaaaaa")
-
-            if column_name == "total_visit_time":
-                # Compute total time with updated visit list
-                current_plate["total_visit_time"] = np.sum([pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0], axis=1)])
-                # Convert to hours
-                current_plate["total_visit_time"] /= 3600
+            dont_divide = False  # argument to flag nan values and not try to divide them later (that could replace them by 0's)
+            if column_name in ["total_visit_time", "no_hole_visits", "aggregated_raw_transits"]:
+                if type(current_visits) is not list and np.isnan(current_visits):  # 1st statement to not do np.isnan on list
+                    current_plate[column_name] = np.nan
+                    dont_divide = True
+                elif column_name == "total_visit_time":
+                    # Compute total time with updated visit list
+                    current_plate["total_visit_time"] = np.sum([pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0], axis=1)])
+                    # Convert to hours
+                    current_plate["total_visit_time"] /= 3600
             if column_name == "nb_of_visits":
-                # Recompute total time with updated visit list
-                current_plate["nb_of_visits"] = len(current_visits)
+                if type(current_visits) is not list and np.isnan(current_visits):  # 1st statement to not do np.isnan on list
+                    current_plate["nb_of_visits"] = np.nan
+                    dont_divide = True
+                else:
+                    # Recompute nb of visits with updated visit list
+                    current_plate["nb_of_visits"] = len(current_visits)
 
             # When we want to divide column name by another one
-            if divided_by != "":
+            if divided_by != "" and not dont_divide:
                 if divided_by == "nb_of_patches":
                     nb_of_patches = param.nb_to_nb_of_patches[current_condition]  # total nb of patches for each cond
                     list_of_values[i_plate] = np.sum(current_plate[column_name]) / nb_of_patches
@@ -216,9 +239,13 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     visited_patches_list = list_of_visited_patches(current_visits)
                     if len(visited_patches_list) > 0:
                         list_of_values[i_plate] = np.sum(current_plate[column_name]) / len(visited_patches_list)
+                    elif np.sum(current_plate[column_name]) == 0 and len(visited_patches_list) == 0:
+                        list_of_values[i_plate] = 0
                 elif divided_by == "nb_of_visits":
                     if len(current_visits) > 0:
                         list_of_values[i_plate] = np.sum(current_plate[column_name]) / len(current_visits)
+                    else:
+                        list_of_values[i_plate] = np.nan
                 elif np.sum(current_plate[divided_by]) != 0:  # Non zero check for division
                     if np.sum(current_plate[column_name]) < 0:
                         print("Negative ", column_name, " for plate: ", current_plate["folder"].iloc[0])
@@ -247,11 +274,22 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                     list_of_values[i_plate] = np.max(current_plate[column_name])
                 elif column_name == "total_event_time":
                     list_of_values[i_plate] = np.sum(current_plate["total_visit_time"]) + np.sum(current_plate["total_transit_time"])
+                elif column_name == "no_hole_visits":
+                    list_of_values[i_plate] = current_visits
+                elif column_name == "aggregated_raw_transits":
+                    list_of_values[i_plate] = current_transits
                 else:  # in any other case
-                    list_of_values[i_plate] = np.sum(current_plate[column_name])
+                    if not np.isnan(current_plate[column_name].iloc[0]):
+                        list_of_values[i_plate] = np.sum(current_plate[column_name])
+                    else:
+                        list_of_values[i_plate] = np.nan
 
             if normalize_by_video_length:
                 list_of_values[i_plate] /= current_plate["total_tracked_time"]
+
+        # This is a very cursed line I am so sorry please don't read it too hard T-T
+        if column_name in ["no_hole_visits", "aggregated_raw_transits"]:
+            return list_of_values
 
         # Keep in memory the full list of averages
         full_list_of_values[i_condition] = list_of_values
@@ -598,7 +636,8 @@ def array_division_ignoring_zeros(a, b):
 
 
 def return_value_list(results, column_name, condition_list=None, convert_to_duration=True, only_first=False,
-                      end_time=False, conserve_visit_order=False, removed_censored=False):
+                      end_time=False, conserve_visit_order=False, remove_censored=False,
+                      only_first_of_plate=False):
     """
     Will return a list of values of column_name in results, pooled for all conditions in condition_list.
     For transits, can return only_same_patch_transits or only_cross_patch_transits if they're set to True.
@@ -626,7 +665,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
         for i_plate in range(len(folder_list)):
             plate_name = folder_list[i_plate]
             plate_results = results[results["folder"] == plate_name].reset_index()
-            if removed_censored:
+            if remove_censored:
                 current_transit_list = fd.load_list(plate_results, "uncensored_visits")
                 current_visit_list = fd.load_list(plate_results, "uncensored_transits")
             else:
@@ -650,7 +689,7 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
         for i_plate in range(len(folder_list)):
             current_plate = folder_list[i_plate]
             current_results = results[results["folder"] == current_plate].reset_index()
-            if removed_censored:
+            if remove_censored:
                 current_visits = fd.load_list(current_results, "uncensored_visits")
             else:
                 current_visits = fd.load_list(current_results, "no_hole_visits")
@@ -665,12 +704,12 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
 
     else:
         if column_name == "visits":
-            if removed_censored:
+            if remove_censored:
                 column_name = "uncensored_visits"
             else:
                 column_name = "no_hole_visits"
         if column_name == "transits":
-            if removed_censored:
+            if remove_censored:
                 column_name = "uncensored_transits"
             else:
                 column_name = "aggregated_raw_transits"
@@ -705,8 +744,11 @@ def return_value_list(results, column_name, condition_list=None, convert_to_dura
             if end_time and current_values:
                 current_values = [current_values[i] for i in range(len(current_values)) if
                                   current_values[i][0] <= end_time]
+
             if convert_to_duration and not conserve_visit_order:
                 list_of_values += convert_to_durations(current_values)
+            elif only_first_of_plate and current_values:
+                list_of_values.append(current_values[0])
             elif not conserve_visit_order:
                 list_of_values += current_values
     return list_of_values
