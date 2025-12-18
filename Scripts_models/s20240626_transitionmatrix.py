@@ -25,9 +25,9 @@ from Scripts_analysis import s20240605_global_presence_heatmaps as heatmap_scrip
 from Scripts_models import s202406_exchange_experimental_parameters as exchange_script
 
 
-def generate_transition_matrices(results_path, results_table, condition_list, plot_everything=False,
-                                 plot_transition_matrix=False,
-                                 is_recompute=False):
+def generate_transition_matrices(results_path, results_table, xp_visits_each_plate, xp_transits_each_plate,
+                                 condition_list, plot_everything=False,
+                                 plot_transition_matrix=False, is_recompute=False):
     if not os.path.isdir(results_path + "transition_matrices"):
         os.mkdir(results_path + "transition_matrices")
 
@@ -54,17 +54,10 @@ def generate_transition_matrices(results_path, results_table, condition_list, pl
             transition_times_matrix = [[[] for _ in range(nb_of_patches)] for _ in range(nb_of_patches)]
             distance_matrix = [[[] for _ in range(nb_of_patches)] for _ in range(nb_of_patches)]
             for i_plate, plate in enumerate(plates):
-                current_results = results_table[results["folder"] == plate]
-                # In this case, I don't remove censored visits, because later in the code it would prevent us from
-                # seeing some transits. We only use them for checking purposes, so it does not matter.
-                current_visits = np.array(ana.return_value_list(current_results, "visits",
-                                                                [condition], convert_to_duration=False,
-                                                                removed_censored=False))
-                current_transits = np.array(ana.return_value_list(current_results, "transits",
-                                                                  [condition], convert_to_duration=False,
-                                                                  removed_censored=True))
+                current_visits = np.array(xp_visits_each_plate[i_plate])
+                current_transits = np.array(xp_transits_each_plate[i_plate])
 
-                if len(current_visits) > 0:
+                if type(current_visits) is list and len(current_visits) > 0:
                     if np.max(current_visits[:, 2]) > nb_of_patches:
                         print("There's a plate with bad patch numbers!!!")
                         nb_of_patches = 0
@@ -78,7 +71,7 @@ def generate_transition_matrices(results_path, results_table, condition_list, pl
                         # Fill in the matrices for this patch
                         # NOTE: For each transit, there are three cases:
                         #   1. there is actually a transit from end of visit to start of next visit
-                        #   2. there is a transit but separated by a hole: in this case, do not count it!
+                        #   2. there is a transit but separated by a (bad) hole: in this case, do not count it!
                         #   (Note: there cannot be more than one hole, as any hole in the middle of the
                         #       transit would have been filled) (Note 2: I think the best thing would be to count those
                         #       for probabilities but not duration, BUT doing this would mean having non-null transition
@@ -96,7 +89,13 @@ def generate_transition_matrices(results_path, results_table, condition_list, pl
                             if previous_visit_end in current_transits[:,0] and next_visit_start in current_transits[:, 1]:
                                 transition_counts_matrix[int(i_patch), int(next_patch)] += 1
                                 travel_time = next_visit_start - previous_visit_end + 1
-                                transition_times_matrix[i_patch][int(next_patch)].append(travel_time)
+                            else:
+                                if previous_visit_end in current_transits[:,0]:  # hole between transit end and next visit
+                                    i_where = np.where(current_transits[:, 0] == previous_visit_end)
+                                else:  # hole between visit end and transit start
+                                    i_where = np.where(current_transits[:, 1] == next_visit_start)
+                                travel_time = current_transits[i_where, 1] - current_transits[i_where, 0] + 1
+                            transition_times_matrix[i_patch][int(next_patch)].append(travel_time)
 
             # Then after going through all the plates, one more loop on patches
             for i_patch in range(nb_of_patches):
@@ -440,7 +439,7 @@ def central_patches(distance):
 
 
 def simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list, nb_of_exp,
-                        xp_length=5000, conserve_visit_order=False):
+                        first_transit_length, xp_length=5000, conserve_visit_order=False):
     """
     Will output a list with, for each experiment, a list of visits in the format [start time, end time, patch index].
     - conserve_visit_order: if set to True, then xp_visit_list should have one sublist per rank of visits to the food
@@ -468,7 +467,10 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
             current_patch = random.choices(range(len(transition_probability[current_patch])),
                                            weights=transition_probability[current_patch])[0]
             # Add a transit between the two
-            visit_start = i_time + random.choice(transition_durations[previous_patch][current_patch])
+            if i_time == 0:
+                visit_start = random.choice(first_transit_length)
+            else:
+                visit_start = i_time + random.choice(transition_durations[previous_patch][current_patch])
             if visit_start < xp_length:
                 if conserve_visit_order:
                     # If the visit does happen, add a visit to the patch
@@ -479,14 +481,20 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
                     visit_end = visit_start + random.choice(visits_current_rank)
                 else:
                     # If visit order does not matter, randomly choose a visit duration
-                    visit_end = visit_start + random.choice(xp_visit_list)
+                    visit_end = visit_start + random.choice(xp_visit_list[0])
                 # Add it to the list and update timer
                 visit_list[i_exp].append([visit_start, visit_end, current_patch])
                 i_time = visit_end
             else:
                 i_time = xp_length
-        # If end time is > xp_length, cut the last visit
-        if visit_list[i_exp][-1][1] > xp_length:
+
+            if not type(i_time) in [np.float64, int]:
+                print("ayayay")
+        # If there is no visit, add a fake one so that this xp is considered to have total time of 0 in one patch
+        if len(visit_list[i_exp]) == 0:
+            visit_list[i_exp].append([0, 0, 0])
+        # If there is at least one visit, and the last visit's end time is > xp_length, cut it
+        elif visit_list[i_exp][-1][1] > xp_length:
             visit_list[i_exp][-1][1] = xp_length
 
         if any([visit[1] > xp_length for visit in visit_list[i_exp]]):
@@ -495,154 +503,75 @@ def simulate_visit_list(condition, transition_probability, transition_durations,
     return visit_list
 
 
-def simulate_total_visit_time(results_table, condition_list, nb_of_exp):
-    # Model
-    average_per_condition = np.zeros(len(condition_list))
-    errors_inf = np.zeros(len(condition_list))
-    errors_sup = np.zeros(len(condition_list))
-    average_per_plate_per_condition = [[] for _ in range(len(condition_list))]
-    for i_condition, condition in enumerate(condition_list):
-        print("Loading visits from results...")
-        xp_visit_list = ana.return_value_list(results_table, "visits", [condition], True)
-        print("Generating transition matrix...")
-        transition_probability, transition_durations = generate_transition_matrices([condition])
-        print("Running simulations...")
-        visit_list = simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list,
-                                         nb_of_exp)
-        average_per_plate_per_condition[i_condition] += [
-            np.sum(ana.convert_to_durations(visits)) / len(np.unique(np.array(visits)[:, 2])) for visits in visit_list]
-        average_per_condition[i_condition] = np.mean(average_per_plate_per_condition[i_condition])
-        errors = ana.bottestrop_ci(average_per_plate_per_condition[i_condition], 1000)
-        errors_inf[i_condition], errors_sup[i_condition] = [average_per_condition[i_condition] - errors[0],
-                                                            errors[1] - average_per_condition[i_condition]]
-
-    # Experiments
-    xp_average_per_plate_per_condition, xp_average_per_condition, xp_errorbars = ana.results_per_condition(
-        results_table, condition_list, "total_visit_time", "nb_of_visited_patches")
-
-    # Plot experiments vs model
-    fig, axs = plt.subplots(1, 2, sharey=True)
-    fig.set_size_inches(10, 6)
-    condition_names = [param.nb_to_name[cond] for cond in condition_list]
-
-    # DATA
-    axs[0].set_title("Experimental results")
-    axs[0].set_ylabel("Total time per patch")
-    # Bar plot
-    axs[0].bar(range(len(condition_list)), xp_average_per_condition,
-               color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
-    axs[0].set_xticks(range(len(condition_list)))
-    axs[0].set_xticklabels(condition_names, rotation=45)
-    axs[0].set(xlabel="Condition number")
-    # Plate averages as scatter on top
-    for i in range(len(condition_list)):
-        axs[0].scatter([range(len(condition_list))[i] for _ in range(len(xp_average_per_plate_per_condition[i]))],
-                       xp_average_per_plate_per_condition[i], color="red", zorder=2)
-    # Error bars
-    axs[0].errorbar(range(len(condition_list)), xp_average_per_condition, xp_errorbars, fmt='.k', capsize=5)
-
-    # MODEL
-    axs[1].set_title("Simulated results")
-    # Bar plot
-    axs[1].bar(range(len(condition_list)), average_per_condition,
-               color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
-    axs[1].set_xticks(range(len(condition_list)))
-    axs[1].set_xticklabels(condition_names, rotation=45)
-    axs[1].set(xlabel="Condition number")
-    # Plate averages as scatter on top
-    for i in range(len(condition_list)):
-        axs[1].scatter([range(len(condition_list))[i] for _ in range(len(average_per_plate_per_condition[i]))],
-                       average_per_plate_per_condition[i], color="red", zorder=2)
-    # Error bars
-    axs[1].errorbar(range(len(condition_list)), average_per_condition, [errors_inf, errors_sup], fmt='.k', capsize=5)
-
-    plt.show()
-
-
-def simulate_nb_of_visits(results_table, condition_list, nb_of_exp):
-    # Model
-    average_per_condition = np.zeros(len(condition_list))
-    errors_inf = np.zeros(len(condition_list))
-    errors_sup = np.zeros(len(condition_list))
-    average_per_plate_per_condition = [[] for _ in range(len(condition_list))]
-    for i_condition, condition in enumerate(condition_list):
-        print("Loading visits from results...")
-        xp_visit_list = ana.return_value_list(results_table, "visits", [condition], True)
-        print("Generating transition matrix...")
-        transition_probability, transition_durations = generate_transition_matrices([condition])
-        print("Running simulations...")
-        visit_list = simulate_visit_list(condition, transition_probability, transition_durations, xp_visit_list,
-                                         nb_of_exp)
-        average_per_plate_per_condition[i_condition] += [len(visits) for visits in visit_list]
-        average_per_condition[i_condition] = np.mean(average_per_plate_per_condition[i_condition])
-        errors = ana.bottestrop_ci(average_per_plate_per_condition[i_condition], 1000)
-        errors_inf[i_condition], errors_sup[i_condition] = [average_per_condition[i_condition] - errors[0],
-                                                            errors[1] - average_per_condition[i_condition]]
-
-    # Experiments
-    xp_average_per_plate_per_condition, xp_average_per_condition, xp_errorbars = ana.results_per_condition(
-        results_table, condition_list, "nb_of_visits")
-
-    # Plot experiments vs model
-    fig, axs = plt.subplots(1, 2, sharey=True)
-    fig.set_size_inches(10, 6)
-    condition_names = [param.nb_to_name[cond] for cond in condition_list]
-
-    # DATA
-    axs[0].set_title("Experimental results")
-    axs[0].set_ylabel("Number of visits")
-    # Bar plot
-    axs[0].bar(range(len(condition_list)), xp_average_per_condition,
-               color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
-    axs[0].set_xticks(range(len(condition_list)))
-    axs[0].set_xticklabels(condition_names, rotation=45)
-    axs[0].set(xlabel="Condition number")
-    # Plate averages as scatter on top
-    for i in range(len(condition_list)):
-        axs[0].scatter([range(len(condition_list))[i] for _ in range(len(xp_average_per_plate_per_condition[i]))],
-                       xp_average_per_plate_per_condition[i], color="red", zorder=2)
-    # Error bars
-    axs[0].errorbar(range(len(condition_list)), xp_average_per_condition, xp_errorbars, fmt='.k', capsize=5)
-
-    # MODEL
-    axs[1].set_title("Simulated results")
-    # Bar plot
-    axs[1].bar(range(len(condition_list)), average_per_condition,
-               color=[param.name_to_color[condition_names[i]] for i in range(len(condition_names))])
-    axs[1].set_xticks(range(len(condition_list)))
-    axs[1].set_xticklabels(condition_names, rotation=45)
-    axs[1].set(xlabel="Condition number")
-    # Plate averages as scatter on top
-    for i in range(len(condition_list)):
-        axs[1].scatter([range(len(condition_list))[i] for _ in range(len(average_per_plate_per_condition[i]))],
-                       average_per_plate_per_condition[i], color="red", zorder=2)
-    # Error bars
-    axs[1].errorbar(range(len(condition_list)), average_per_condition, [errors_inf, errors_sup], fmt='.k', capsize=5)
-
-    plt.show()
-
-
 def parameter_exchange_matrix(results_path, results_table, condition_list, variable_to_exchange, what_to_plot,
-                              nb_of_exp, xp_length, plot_matrix=True, conserve_visit_order=False):
+                              nb_of_exp, xp_length, plot_matrix=True, conserve_visit_order=False,
+                              plot_variable_distributions=False):
     # First, load the parameters / distributions for each condition in condition_list
     transition_probability_matrices = [[] for _ in range(len(condition_list))]
     transition_duration_matrices = [[] for _ in range(len(condition_list))]
-    xp_visit_duration = [[] for _ in range(len(condition_list))]
+    first_visits = [[] for _ in range(len(condition_list))]
+    xp_visits = [[] for _ in range(len(condition_list))]
+    xp_transits = [[] for _ in range(len(condition_list))]
+    xp_visit_durations = [[] for _ in range(len(condition_list))]
+    if conserve_visit_order:
+        xp_visits = [[[]] for _ in range(len(condition_list))]
     for i_condition, condition in enumerate(condition_list):
+        xp_visits[i_condition] = ana.results_per_condition(results_table, [condition],
+                                                                   "no_hole_visits", "",
+                                                                   remove_censored_events=False, hard_cut=True)
+        xp_transits[i_condition] = ana.results_per_condition(results_table, [condition],
+                                                                   "aggregated_raw_transits", "",
+                                                                   remove_censored_events=False, hard_cut=True)
+        for i_plate in range(len(xp_visits[i_condition])):
+            v = xp_visits[i_condition][i_plate]
+
+            if type(v) is list and len(v) > 0:
+                first_visits[i_condition].append(v[0][0])
+
+                if not conserve_visit_order:
+                    xp_visit_durations[i_condition] += ana.convert_to_durations(v)
+
+                if conserve_visit_order:
+                    v = np.array(v)
+                    for i_patch in np.unique(v[:,2]):
+                        visits_this_patch = v[v[:,2] == i_patch]
+                        for i_visit in range(len(visits_this_patch)):
+                            visit = visits_this_patch[i_visit]
+                            if len(xp_visit_durations[i_condition]) <= i_visit:
+                                xp_visit_durations[i_condition].append([visit[1] - visit[0] + 1])
+                            else:
+                                xp_visit_durations[i_condition][i_visit].append(visit[1] - visit[0] + 1)
+
         transition_probability_matrices[i_condition], transition_duration_matrices[
-            i_condition] = generate_transition_matrices(results_path, results_table, [condition])
-        xp_visit_duration[i_condition] = ana.return_value_list(results_table, "visits", [condition],
-                                                               convert_to_duration=True,
-                                                               conserve_visit_order=conserve_visit_order,
-                                                               removed_censored=True)
+            i_condition] = generate_transition_matrices(results_path, results_table, xp_visits, xp_transits,
+                                                        [condition])
+
+        if not conserve_visit_order:
+            xp_visit_durations[i_condition] = [xp_visit_durations[i_condition]]  # putting it in a list for compatibility with conserve_order=TRUE case
+
+    # avg=[[] for _ in range(len(condition_list))]
+    # for i_condition in range(len(condition_list)):
+    #     current_visits = xp_visits[i_condition]
+    #     plates=[]
+    #     for i_plate in range(len(current_visits)):
+    #         if type(current_visits[i_plate]) is list and len(current_visits[i_plate]) > 0:
+    #             total_duration = np.sum(ana.convert_to_durations(current_visits[i_plate]))
+    #             nb_of_patches = len(np.unique(np.array(current_visits[i_plate])[:, 2]))
+    #             plates.append(total_duration/nb_of_patches)
+    #     avg[i_condition].append(np.mean(plates))
+    # plt.plot([i for i in range(len(condition_list))],
+    #          [np.mean(avg[i])/3600 for i in range(len(condition_list))])
+    # plt.show()
+
+
     # To use as simulation length
     if type(xp_length) is str:
         if "length" in xp_length:  # Any expression, including "use_condition_length", will produce this
             # (sum visit and transit times, because other values like "total_tracked_time" are pre-hole filling
             _, xp_total_visit, _ = ana.results_per_condition(results, condition_list,
-                                                             "total_visit_time", "", remove_censored_events=True)
+                                                             "total_visit_time", "", remove_censored_events=False)
             _, xp_total_transit, _ = ana.results_per_condition(results, condition_list,
-                                                               "total_transit_time", "", remove_censored_events=True)
+                                                               "total_transit_time", "", remove_censored_events=False)
             xp_total_video_time = xp_total_visit * 3600 + xp_total_transit
             if xp_length == "use_basal_length":
                 xp_total_video_time = [xp_total_video_time[0] for _ in range(len(condition_list))]
@@ -652,25 +581,27 @@ def parameter_exchange_matrix(results_path, results_table, condition_list, varia
     else:
         xp_total_video_time = [xp_length for _ in range(len(condition_list))]
 
-    value_matrix = np.zeros((len(condition_list), len(condition_list)))
+    avg_value_matrix = np.zeros((len(condition_list), len(condition_list)))
+    error_inf_matrix = np.zeros((len(condition_list), len(condition_list)))
+    error_sup_matrix = np.zeros((len(condition_list), len(condition_list)))
     for i_line in range(len(condition_list)):
-
-        plt.suptitle("Condition " + str(param.nb_to_name[condition_list[i_line]]) + ", changing "+ variable_to_exchange)
-        fig = plt.gcf()
-        fig.set_size_inches(8, 5)
-        ax0, ax1 = fig.subplots(1, 2)
-        ax1.set_yscale("log")
-        ax0.set_yscale("log")
-        ax0.set_title("Visits")
-        ax1.set_title("Transits")
-        # Experimental values
-        xp_visits = [x[i] for x in xp_visit_duration[i_line] for i in range(len(x))]
-        ax0.hist(xp_visits, color="k", bins=100, histtype="step", cumulative=True, density=True, label="Xp values",
-                 linestyle=('dashed'), linewidth=2)
-        xp_transits = ana.return_value_list(results_table, "transits", [condition_list[i_line]],
-                                                               convert_to_duration=True, removed_censored=True)
-        ax1.hist(xp_transits, color="k", bins=100, histtype="step", cumulative=True, density=True, label="Xp values",
-                 linestyle=('dashed'), linewidth=2)
+        if plot_variable_distributions:
+            plt.suptitle("Condition " + str(param.nb_to_name[condition_list[i_line]]) + ", changing "+ variable_to_exchange)
+            fig = plt.gcf()
+            fig.set_size_inches(8, 5)
+            ax0, ax1 = fig.subplots(1, 2)
+            ax1.set_yscale("log")
+            ax0.set_yscale("log")
+            ax0.set_title("Visits")
+            ax1.set_title("Transits")
+            # Experimental values
+            xp_visits = [x[i] for x in xp_visit_durations[i_line] for i in range(len(x))]
+            ax0.hist(xp_visits, color="k", bins=100, histtype="step", cumulative=True, density=True, label="Xp values",
+                     linestyle=('dashed'), linewidth=2)
+            xp_transits = ana.return_value_list(results_table, "transits", [condition_list[i_line]],
+                                                convert_to_duration=True, remove_censored=False)
+            ax1.hist(xp_transits, color="k", bins=100, histtype="step", cumulative=True, density=True, label="Xp values",
+                     linestyle=('dashed'), linewidth=2)
 
         for i_col in range(len(condition_list)):
             where_to_take_each_parameter_from = {"transit_prob": i_line, "transit_times": i_line, "visit_times": i_line,
@@ -692,62 +623,72 @@ def parameter_exchange_matrix(results_path, results_table, condition_list, varia
                         transition_probability[i_patch][j_patch] = target_revisit_probability
                     else:
                         transition_probability[i_patch][j_patch] *= (1 - target_revisit_probability) / (
-                                1 - original_revisit_probability)
+                                1 - transition_probability[i_patch][i_patch])
 
             transition_durations = transition_duration_matrices[where_to_take_each_parameter_from["transit_times"]]
-            visit_durations = xp_visit_duration[where_to_take_each_parameter_from["visit_times"]]
+            visit_durations = xp_visit_durations[where_to_take_each_parameter_from["visit_times"]]
             print("For line of ", str(condition_list[i_line]), ", total sim time is ", xp_total_video_time[i_line])
             list_of_visits = simulate_visit_list(condition_list[i_line], transition_probability, transition_durations,
                                                  visit_durations, nb_of_exp,
                                                  xp_length=xp_total_video_time[i_line],
-                                                 conserve_visit_order=conserve_visit_order)
+                                                 conserve_visit_order=conserve_visit_order,
+                                                 first_transit_length = first_visits[where_to_take_each_parameter_from["transit_times"]])
 
+            if plot_variable_distributions:
+                sim_visit_durations = [ana.convert_to_durations(v) for v in list_of_visits]
+                ax0.hist([s[i] for s in sim_visit_durations for i in range(len(s))], bins=100, histtype="step", cumulative=True,
+                         density=True, color = param.name_to_color[param.nb_to_name[condition_list[i_col]]], label=param.nb_to_name[condition_list[i_col]])
 
-            sim_visit_durations = [ana.convert_to_durations(v) for v in list_of_visits]
-            ax0.hist([s[i] for s in sim_visit_durations for i in range(len(s))], bins=100, histtype="step", cumulative=True,
-                     density=True, color = param.name_to_color[param.nb_to_name[condition_list[i_col]]], label=param.nb_to_name[condition_list[i_col]])
+                list_of_transits = []
+                for i_xp in range(len(list_of_visits)):
+                    list_of_transits.append([0, list_of_visits[i_xp][0][0]])
+                    for i_visit in range(len(list_of_visits[i_xp]) - 1):
+                        list_of_transits.append([list_of_visits[i_xp][i_visit][1], list_of_visits[i_xp][i_visit+1][0]])
+                ax1.hist(ana.convert_to_durations(list_of_transits), bins=100, histtype="step", cumulative=True, density=True,
+                         color = param.name_to_color[param.nb_to_name[condition_list[i_col]]], label=param.nb_to_name[condition_list[i_col]])
 
-            list_of_transits = []
-            for i_xp in range(len(list_of_visits)):
-                list_of_transits.append([0, list_of_visits[i_xp][0][0]])
-                for i_visit in range(len(list_of_visits[i_xp]) - 1):
-                    list_of_transits.append([list_of_visits[i_xp][i_visit][1], list_of_visits[i_xp][i_visit+1][0]])
-            ax1.hist(ana.convert_to_durations(list_of_transits), bins=100, histtype="step", cumulative=True, density=True,
-                     color = param.name_to_color[param.nb_to_name[condition_list[i_col]]], label=param.nb_to_name[condition_list[i_col]])
-
+            list_of_values = []
             if what_to_plot == "total_visit_time":
                 # Total visit time / nb of visited patches
-                value_matrix[i_line][i_col] = np.mean(
-                    [np.sum(ana.convert_to_durations(visits)) / len(np.unique(np.array(visits)[:, 2])) for visits in
-                     list_of_visits])
+                list_of_values = [np.sum(ana.convert_to_durations(visits)) /
+                                              len(np.unique(np.array(visits)[:, 2]))
+                                              for visits in list_of_visits]
             if what_to_plot == "avg_visit_duration":
                 # Average visit length
-                value_matrix[i_line][i_col] = np.mean(
-                    [np.mean(ana.convert_to_durations(visits)) for visits in list_of_visits])
-            if what_to_plot == "avg_nb_of_visits_per_patch":
+                list_of_values = [np.mean(ana.convert_to_durations(visits)) for visits in list_of_visits]
+            if what_to_plot == "nb_of_visits_per_patch":
                 # Average number of visits
-                value_matrix[i_line][i_col] = np.mean(
-                    [len(visits) / len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
+                list_of_values = [len(visits) / len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits]
             if what_to_plot == "avg_nb_of_visits":
-                # Average number of visits
-                value_matrix[i_line][i_col] = np.mean([len(visits) for visits in list_of_visits])
+                # Average total number of visits
+                list_of_values = [len(visits) for visits in list_of_visits]
             if what_to_plot == "total_xp_time":
                 # Average total experimental time
-                value_matrix[i_line][i_col] = np.mean([visits[-1][1] for visits in list_of_visits])
-            if what_to_plot == "nb_of_explored_patches":
-                value_matrix[i_line][i_col] = np.mean(
-                    [len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits])
-        plt.legend()
-        plt.show()
+                list_of_values = [visits[-1][1] for visits in list_of_visits]
+            if what_to_plot == "nb_of_visited_patches":
+                list_of_values = [len(np.unique(np.array(visits)[:, 2])) for visits in list_of_visits]
+
+            # Average for the current condition
+            avg_value_matrix[i_line][i_col] = np.nanmean(list_of_values)
+
+            # Bootstrapping on the plate avg duration
+            bootstrap_ci = ana.bottestrop_ci(list_of_values, 1000)
+            error_inf_matrix[i_line][i_col] = avg_value_matrix[i_line][i_col] - bootstrap_ci[0]
+            error_sup_matrix[i_line][i_col] = bootstrap_ci[1] - avg_value_matrix[i_line][i_col]
+
+        if plot_variable_distributions:
+            plt.legend()
+            plt.show()
 
     if plot_matrix:
-        exchange_script.plot_matrix(condition_list, value_matrix, variable_to_exchange, what_to_plot)
+        exchange_script.plot_matrix(condition_list, avg_value_matrix, variable_to_exchange, what_to_plot)
 
     else:
-        return value_matrix
+        return avg_value_matrix, [error_inf_matrix, error_sup_matrix]
 
 
-def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_exp, xp_length):
+def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_exp, xp_length, plot_distrib=False, visit_order=False,
+                         variable_to_plot="total_time"):
     """
     Function that will plot three total time curves.
     The first one will be the effect of distance in our substitution model, with the experimental parameters that match
@@ -771,25 +712,51 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
     condition_names_this_density = ["close "+baseline_density, "med "+baseline_density, "far "+baseline_density, "superfar "+baseline_density]
     condition_list_this_density = [param.name_to_nb[cond] for cond in condition_names_this_density]
 
-    # Compute the experimental values of total time in patch
-    average_per_condition, list_of_avg_each_plate, errorbars = plots.plot_selected_data(results_table, "",
-                                                                                        condition_list_this_density,
-                                                                                        "total_visit_time",
-                                                                                        divided_by="nb_of_visited_patches",
-                                                                                        is_plot=False, show_stats=False,
-                                                                                        remove_censored_events=True)
+    if variable_to_plot == "total_visit_time":
+        # Compute the experimental values of total time in patch
+        average_per_condition, list_of_avg_each_plate, errorbars = plots.plot_selected_data(results_table, "",
+                                                                                            condition_list_this_density,
+                                                                                            "total_visit_time",
+                                                                                            divided_by="nb_of_visited_patches",
+                                                                                            is_plot=False, show_stats=False,
+                                                                                            remove_censored_events=False,
+                                                                                            hard_cut=True)
+    if variable_to_plot == "avg_visit_duration":
+        # Compute the experimental values of total time in patch
+        average_per_condition, list_of_avg_each_plate, errorbars = plots.plot_selected_data(results_table, "",
+                                                                                            condition_list_this_density,
+                                                                                            "total_visit_time",
+                                                                                            divided_by="nb_of_visits",
+                                                                                            is_plot=False, show_stats=False,
+                                                                                            remove_censored_events=False,
+                                                                                            hard_cut=True)
+    if variable_to_plot == "nb_of_visited_patches":
+        average_per_condition, list_of_avg_each_plate, errorbars = plots.plot_selected_data(results_table, "",
+                                                                                            condition_list_this_density,
+                                                                                            "nb_of_visited_patches",
+                                                                                            divided_by="",
+                                                                                            is_plot=False, show_stats=False,
+                                                                                            remove_censored_events=False,
+                                                                                            hard_cut=True)
+    if variable_to_plot == "nb_of_visits_per_patch":
+        average_per_condition, list_of_avg_each_plate, errorbars = plots.plot_selected_data(results_table, "",
+                                                                                            condition_list_this_density,
+                                                                                            "nb_of_visits",
+                                                                                            divided_by="nb_of_visited_patches",
+                                                                                            is_plot=False, show_stats=False,
+                                                                                            remove_censored_events=False,
+                                                                                            hard_cut=True)
     plt.clf()  # Clear the plot because the previous function plots stuff even when it does not show them
 
     # Compute the matrices for the simulated data
-    visit_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density,
-                                                      "visit_times", "total_visit_time",
-                                                      nb_of_exp, xp_length, False, conserve_visit_order=True)
-    probability_exchange_matrix = parameter_exchange_matrix(results_path, results_table, condition_list_this_density,
-                                                            "revisit_probability", "total_visit_time",
-                                                            nb_of_exp, xp_length, False, conserve_visit_order=True)
-
-
-
+    visit_exchange_matrix, visit_errors = parameter_exchange_matrix(results_path, results_table, condition_list_this_density,
+                                                      "visit_times", variable_to_plot,
+                                                      nb_of_exp, xp_length, False, conserve_visit_order=visit_order,
+                                                      plot_variable_distributions=plot_distrib)
+    probability_exchange_matrix, prob_errors = parameter_exchange_matrix(results_path, results_table, condition_list_this_density,
+                                                            "revisit_probability", variable_to_plot,
+                                                            nb_of_exp, xp_length, False, conserve_visit_order=visit_order,
+                                                            plot_variable_distributions=plot_distrib)
 
     # Plot the experimental data
     plt.gcf().set_size_inches(7, 9)
@@ -797,27 +764,51 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
     plt.errorbar(range(len(average_per_condition)), average_per_condition, errorbars, color="orange", capsize=5, linewidth=0, elinewidth=3, markeredgewidth=3, zorder=10)
 
     # Plot simulated data
-    plt.ylabel("Total time per patch (hours)", fontsize=18)
+    title = "?"
+    factor = 1
+    if variable_to_plot == "total_visit_time":
+        title="Total time per patch (hours)"
+        factor=3600
+    if variable_to_plot == "nb_of_visited_patches":
+        title = "Nb visited patches"
+        factor = 1
+    if variable_to_plot == "avg_visit_duration":
+        title = "Avg visit duration (hours)"
+        factor=3600
+    if variable_to_plot == "nb_of_visits_per_patch":
+        title = "Nb of visits in each patch"
+        factor = 1
+    plt.ylabel(title, fontsize=18)
     plt.title("OD = "+baseline_density, fontsize=21)
-    plt.plot([visit_exchange_matrix[i][i]/3600 for i in range(len(visit_exchange_matrix))], color="black", linewidth=4,
+    plt.plot([visit_exchange_matrix[i][i]/factor for i in range(len(visit_exchange_matrix))], color="black", linewidth=4,
              label="All parameters \n change with distance")
-    plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[i][i]/3600 for i in range(len(visit_exchange_matrix))], color="black", s=67)
+    plt.scatter(range(len(visit_exchange_matrix)), [visit_exchange_matrix[i][i]/factor for i in range(len(visit_exchange_matrix))], color="black", s=67)
+    plt.errorbar(range(len(visit_exchange_matrix)), [visit_exchange_matrix[i][i]/factor for i in range(len(visit_exchange_matrix))],
+                 [visit_errors[i][i]/factor for i in range(len(visit_errors))], color="black", capsize=5, linewidth=0, elinewidth=3, markeredgewidth=3, zorder=10)
+
 
     # In order to plot the effect of changing parameters with baseline as an actual baseline, need to find
     # at what index it sits in the matrices
     baseline_index = np.where(np.array(condition_names_this_density) == baseline_condition)[0][0]
-    plt.plot([probability_exchange_matrix[baseline_index][i]/3600 for i in range(len(probability_exchange_matrix))],
+    plt.plot([probability_exchange_matrix[baseline_index][i]/factor for i in range(len(probability_exchange_matrix))],
              color="cornflowerblue", linewidth=4,
              label="Only revisit probability \n changes with distance")
     plt.scatter(range(len(probability_exchange_matrix)),
-                [probability_exchange_matrix[baseline_index][i]/3600 for i in range(len(probability_exchange_matrix))],
+                [probability_exchange_matrix[baseline_index][i]/factor for i in range(len(probability_exchange_matrix))],
                 color="cornflowerblue", s=67)
-    plt.plot([visit_exchange_matrix[baseline_index][i]/3600 for i in range(len(visit_exchange_matrix))],
+    plt.errorbar(range(len(probability_exchange_matrix)), [probability_exchange_matrix[baseline_index][i]/factor for i in range(len(probability_exchange_matrix))],
+                 [prob_errors[baseline_index][i]/factor for i in range(len(prob_errors))], color="cornflowerblue", capsize=5, linewidth=0, elinewidth=3, markeredgewidth=3, zorder=10)
+
+    plt.plot([visit_exchange_matrix[baseline_index][i]/factor for i in range(len(visit_exchange_matrix))],
              color="goldenrod", linewidth=4,
              label="Only visit time changes \n with distance")
     plt.scatter(range(len(visit_exchange_matrix)),
-                [visit_exchange_matrix[baseline_index][i]/3600 for i in range(len(visit_exchange_matrix))],
+                [visit_exchange_matrix[baseline_index][i]/factor for i in range(len(visit_exchange_matrix))],
                 color="goldenrod", s=67)
+    plt.errorbar(range(len(visit_exchange_matrix)), [visit_exchange_matrix[baseline_index][i]/factor for i in range(len(visit_exchange_matrix))],
+                 [visit_errors[baseline_index][i]/factor for i in range(len(visit_errors))],
+                 color="goldenrod", capsize=5, linewidth=0, elinewidth=3, markeredgewidth=3, zorder=10)
+
     plt.legend(fontsize=14)
     #plt.ylim(100, 2800)
 
@@ -849,7 +840,7 @@ def behavior_vs_geometry(results_path, results_table, baseline_condition, nb_of_
 
 def plot_simulated_timeline(results_path, results_table, condition_transits,
                             condition_revisit_probability, condition_visit_duration,
-                            nb_of_exp, xp_length):
+                            nb_of_exp, xp_length, visit_order):
     # Generate transition time + probability matrix
     transition_probability, transition_duration = generate_transition_matrices(results_path, results_table,
                                                                       [condition_transits])
@@ -857,8 +848,19 @@ def plot_simulated_timeline(results_path, results_table, condition_transits,
     revisit_probability, _ = generate_transition_matrices(results_path, results_table,
                                                                       [condition_revisit_probability])
     # Get visit list from right condition
-    current_visits = ana.return_value_list(results_table, "visits", [condition_visit_duration],
-                                        convert_to_duration=True, conserve_visit_order=True)
+    if not visit_order:
+        current_visits = [ana.return_value_list(results_table, "visits", [condition_visit_duration],
+                                            convert_to_duration=True, conserve_visit_order=False)]
+    else:
+        current_visits = ana.return_value_list(results_table, "visits", [condition_visit_duration],
+                                            convert_to_duration=True, conserve_visit_order=True)
+    # current_visits = ana.return_value_list(results_table, "visits", [condition_visit_duration],
+    #                                     convert_to_duration=True, conserve_visit_order=True)
+    first_visits = ana.return_value_list(results_table, "visits", [condition_transits],
+                                         convert_to_duration=False,
+                                         conserve_visit_order=False,
+                                         remove_censored=False, only_first_of_plate=True)
+    first_visits = [first_visits[i][0] for i in range(len(first_visits))]
 
     # Transform the matrix to match the correct revisit_probability
     # (same-patch transitions are set to be the average revisit probability of the matrix we steal from, and
@@ -877,7 +879,7 @@ def plot_simulated_timeline(results_path, results_table, condition_transits,
     list_of_visits = simulate_visit_list(condition_transits, transition_probability, transition_duration,
                                          current_visits, nb_of_exp,
                                          xp_length=xp_length,
-                                         conserve_visit_order=True)
+                                         conserve_visit_order=visit_order, first_transit_length = first_visits)
 
     # TIME TO DRAWWWWWWWWWWW
     current_timeline = np.zeros((200*nb_of_exp, xp_length))
@@ -934,7 +936,25 @@ if __name__ == "__main__":
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="probability")
     # plot_transition_matrix_graph(path, full_list_of_folders, [14], probability_or_time="time")
 
-    # plot_simulated_timeline(path, results, 6, 6, 6, 50, 26756)
+    # plot_simulated_timeline(path, results, 15, 15, 15, 30, 25000, False)
+    # plot_simulated_timeline(path, results, 15, 15, 15, 30, 25000, True)
+
+    # behavior_vs_geometry(path, results, "close 0.5", 1000, 25000,
+    #                      plot_distrib=False, variable_to_plot="total_visit_time", visit_order=False)
+    behavior_vs_geometry(path, results, "close 0.5", 2000, 25000,
+                         plot_distrib=False, variable_to_plot="avg_visit_duration", visit_order=False)
+    # behavior_vs_geometry(path, results, "close 0.5", 2000, 25000,
+    #                      plot_distrib=False, variable_to_plot="nb_of_visited_patches", visit_order=False)
+    behavior_vs_geometry(path, results, "close 0.5", 2000, 25000,
+                         plot_distrib=False, variable_to_plot="nb_of_visits_per_patch", visit_order=False)
+    behavior_vs_geometry(path, results, "close 0.5", 100, 25000,
+                         plot_distrib=False, variable_to_plot="total_visit_time", visit_order=True)
+    # behavior_vs_geometry(path, results, "close 0.5", 2000, 25000,
+    #                      plot_distrib=False, variable_to_plot="avg_visit_duration", visit_order=True)
+    # behavior_vs_geometry(path, results, "close 0.5", 2000, 25000,
+    #                      plot_distrib=False, variable_to_plot="nb_of_visited_patches", visit_order=True)
+    # behavior_vs_geometry(path, results, "close 0.5", 2000, 25000,
+    #                      plot_distrib=False, variable_to_plot="nb_of_visits_per_patch", visit_order=True)
 
     # behavior_vs_geometry(path, results, "close 0", 2000, "use_basal_length")
     # behavior_vs_geometry(path, results, "close 0.2", 2000, "use_basal_length")
