@@ -120,7 +120,7 @@ results_path = gen.generate("", shorten_traj=False)
 clean_results = pd.read_csv(results_path + "clean_results.csv")
 bins = [100, 400, 1000, 1900, 3100, 4600, 6400, 8500, 10900, 13600]
 
-# plot_visit_duration_vs_time_in_patch(clean_results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bins, 20, only_show_density=True)
+plot_visit_duration_vs_time_in_patch(clean_results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bins, 20, only_show_density=True)
 
 plot_visit_duration_vs_time_in_patch(clean_results, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bins, 20)
 plot_visit_duration_vs_time_in_patch(clean_results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bins, 20)
