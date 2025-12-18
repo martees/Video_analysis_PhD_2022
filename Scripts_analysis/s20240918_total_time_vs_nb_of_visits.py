@@ -3,22 +3,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import (OffsetImage, AnnotationBbox)
+import matplotlib.patheffects as pe
 
 from Generating_data_tables import main as gen
 import find_data as fd
 from Parameters import parameters as param
 import analysis as ana
 from Parameters import custom_legends
+import plots
 
 # Script to return new stuff that Alfonso wants for his model
 # He now wants the average total time spent in patch as a function of the number of visits already made
 # for the food patch
 # In bin x of the plot, have the average total time spent in the patches that have at least x visits
 
-
-t_first_model = {"close 0.2": 0.1099, "med 0.2": 0.2021, "far 0.2": 0.2869, "superfar 0.2": 0.2477,
-                 "close 0.5": 0.2465, "med 0.5": 0.3513, "far 0.5": 0.4433, "superfar 0.5": 0.4627,
-                 "close 1.25": 0.3123, "med 1.25": 0.5296, "far 1.25": 0.5504, "superfar 1.25": 0.5635}
 
 
 def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
@@ -35,10 +33,31 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
     final_table_error_inf = []
     final_table_nb_of_points = []
 
-    nb_of_visit_bins = list(range(1, 300, 1))  # note: the code bugs if there's a value superior to the last bin
+    # nb_of_visit_bins = list(range(1, 300, 1))  # note: the code bugs if there's a value superior to the last bin
+    nb_of_visit_bins = list(np.logspace(0, 2.5, 20))  # note: the code bugs if there's a value superior to the last bin
     nb_of_bins = len(nb_of_visit_bins)
     for i_curve, current_curve_name in enumerate(curve_list):
         print("Condition ", current_curve_name, ", ", i_curve, " / ", len(curve_list))
+
+        # Load the average total time in patch and average number of visits to each patch
+        avg_total_time, _, avg_total_time_errors = plots.plot_selected_data(results, "",
+                                                                            [param.name_to_nb[current_curve_name]],
+                                                                            "total_visit_time",
+                                                                            divided_by="nb_of_visited_patches",
+                                                                            is_plot=False,
+                                                                            show_stats=False,
+                                                                            remove_censored_patches=True,
+                                                                            hard_cut=False)
+        avg_visit_per_patch, _, avg_visit_per_patch_errors = plots.plot_selected_data(results, "",
+                                                                            [param.name_to_nb[current_curve_name]],
+                                                                            "nb_of_visits",
+                                                                            divided_by="nb_of_visited_patches",
+                                                                            is_plot=False,
+                                                                            show_stats=False,
+                                                                            remove_censored_patches=True,
+                                                                            hard_cut=False)
+
+
         total_time_each_bin_each_plate_this_cond = [[] for _ in range(nb_of_bins)]
         nb_of_points_each_bin_each_plate_this_cond = [[] for _ in range(nb_of_bins)]
         current_curve_nb = param.name_to_nb_list[current_curve_name]
@@ -108,22 +127,36 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
 
         # Convert to hours
         average_each_bin_this_cond = np.array(average_each_bin_this_cond) / 3600
-        error_inf_each_bin_this_cond = np.array(error_inf_each_bin_this_cond)/3600
-        error_sup_each_bin_this_cond = np.array(error_sup_each_bin_this_cond)/3600
+        error_inf_each_bin_this_cond = np.array(error_inf_each_bin_this_cond) / 3600
+        error_sup_each_bin_this_cond = np.array(error_sup_each_bin_this_cond) / 3600
 
         # Then, plot it
         if is_plot:
+            # Curve
             plt.errorbar(bin_with_values, average_each_bin_this_cond, [error_inf_each_bin_this_cond, error_sup_each_bin_this_cond],
-                         color=param.name_to_color[current_curve_name], capsize=5, marker="o", linewidth=2)
+                         color=param.name_to_color[current_curve_name], capsize=5, capthick=2,
+                         marker=param.distance_to_marker[param.nb_to_distance[param.name_to_nb[current_curve_name]]],
+                         markersize=10, linewidth=3)
+            # Average total time and nb of visits per patch
+            plt.scatter(avg_visit_per_patch, avg_total_time,
+                         color=param.name_to_color[current_curve_name], s=92, zorder=4,
+                         marker=param.distance_to_marker[param.nb_to_distance[param.name_to_nb[current_curve_name]]],
+                         path_effects=[pe.Stroke(linewidth=4, foreground="black"), pe.Normal()])
+            plt.errorbar(avg_visit_per_patch, avg_total_time,
+                         yerr=avg_total_time_errors,
+                         xerr=avg_visit_per_patch_errors,
+                         elinewidth=2, capthick=2,
+                         color="black", capsize=4, marker="*", markersize=8, zorder=3)
+
             #for i_bin in range(len(bin_with_values)):
             #    plt.text(bin_with_values[i_bin], average_each_bin_this_cond[i_bin] + 60, str(nb_of_points_each_bin_this_cond[i_bin]), fontsize=24)
 
             # Then, plot as a dashed line Alfonso's model
-            bin_with_values = np.array(bin_with_values)
-            t_first = t_first_model[current_curve_name]
-            constant = 2.4909
-            equation_values = (t_first / (np.log(1 + constant))) * np.log(1 + constant * bin_with_values)
-            plt.plot(bin_with_values, equation_values, color=param.name_to_color[current_curve_name], linestyle="dashed", linewidth=2)
+            # bin_with_values = np.array(bin_with_values)
+            # t_first = t_first_model[current_curve_name]
+            # constant = 2.4909
+            # equation_values = (t_first / (np.log(1 + constant))) * np.log(1 + constant * bin_with_values)
+            # plt.plot(bin_with_values, equation_values, color=param.name_to_color[current_curve_name], linestyle="dashed", linewidth=2)
 
         # But also add it to the bloody lists for the effing table
         final_table_conditions += [current_curve_name for _ in range(len(average_each_bin_this_cond))]
@@ -150,7 +183,14 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
         ax = plt.gca()
         lines = []
         for i_cond, cond in enumerate(curve_list):
-            line, = ax.plot([], [], color=param.name_to_color[cond], label=cond, linewidth=16)
+            line, = ax.plot([], [], color=param.name_to_color[cond], label=cond, linewidth=6,
+                             marker=param.distance_to_marker[param.nb_to_distance[param.name_to_nb[cond]]],
+                             markersize=14)
+            # line, = plt.plot([], [], color=param.name_to_color[param.nb_list_to_name[str(curve)]], linewidth=6,
+            #                  marker=param.distance_to_marker[param.nb_to_distance[curve[0]]], markersize=4,
+            #                  path_effects=[pe.Stroke(offset=(-0.2, 0.2), linewidth=8,
+            #                                          foreground=param.name_to_color[param.nb_to_distance[curve[0]]]),
+            #                                pe.Normal()])
             lines.append(line)
         lines = [lines[len(lines) - i] for i in range(1, len(lines) + 1)]  # invert it for nicer order in legend
         curve_list = [curve_list[len(curve_list) - i] for i in
@@ -159,14 +199,14 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
                    handler_map={lines[i]: custom_legends.HandlerLineImage(
                        "icon_" + param.nb_to_distance[param.name_to_nb[curve_list[i]]] + ".png") for i in
                        range(len(lines))},
-                   handlelength=1.6, labelspacing=0.0, fontsize=36, borderpad=0.10, loc=2,
+                   handlelength=1.6, labelspacing=0.0, fontsize=46, borderpad=0.10, loc=2,
                    handletextpad=0.05, borderaxespad=0.15)
 
-        plt.title("OD = " + param.nb_to_density[param.name_to_nb[curve_list[0]]], fontsize=20)
-        plt.xlabel("Number of visits", fontsize=16)
+        plt.title("OD = " + param.nb_to_density[param.name_to_nb[curve_list[0]]], fontsize=24)
+        plt.xlabel("Number of visits", fontsize=20)
         plt.xscale("log")
-        plt.ylabel("Total time in patch (hours)", fontsize=16)
-        plt.ylim(0, 2.3)
+        plt.ylabel("Total time in patch (hours)", fontsize=24)
+        plt.ylim(0, 2.72)
         plt.show()
 
 
@@ -209,6 +249,10 @@ def plot_t_first_each_density():
     plt.show()
 
 
+t_first_model = {"close 0.2": 0.1099, "med 0.2": 0.2021, "far 0.2": 0.2869, "superfar 0.2": 0.2477,
+                 "close 0.5": 0.2465, "med 0.5": 0.3513, "far 0.5": 0.4433, "superfar 0.5": 0.4627,
+                 "close 1.25": 0.3123, "med 1.25": 0.5296, "far 1.25": 0.5504, "superfar 1.25": 0.5635}
+
 #list_of_curves = param.name_to_nb_list.keys()
 list_of_curves = ["close 0", "med 0", "far 0", "superfar 0",
                   "close 0.2", "med 0.2", "far 0.2", "superfar 0.2",
@@ -216,9 +260,10 @@ list_of_curves = ["close 0", "med 0", "far 0", "superfar 0",
                   "close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
 #plot_Tp_vs_Nv(list_of_curves, False, True)
 
-# plot_Tp_vs_Nv(["close 0", "med 0", "far 0", "superfar 0"], False)
-# plot_Tp_vs_Nv(["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], False)
-# plot_Tp_vs_Nv(["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], False)
+plot_Tp_vs_Nv(["close 0", "med 0", "far 0", "superfar 0"], True)
+plot_Tp_vs_Nv(["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], True)
+# plot_Tp_vs_Nv(["close 0.5"], True)
+plot_Tp_vs_Nv(["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], True)
 plot_Tp_vs_Nv(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], True)
 # plot_t_first_each_density()
 
