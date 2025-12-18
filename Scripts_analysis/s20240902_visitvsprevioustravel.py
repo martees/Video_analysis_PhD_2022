@@ -27,7 +27,8 @@ def visit_versus_previous_travel(results, curve_list, travel_time_bins, only_fir
                                                                                                           patch_or_pixel="patch",
                                                                                                           only_first=only_first,
                                                                                                           custom_bins=travel_time_bins,
-                                                                                                          min_nb_data_points=min_nb_points)
+                                                                                                          min_nb_data_points=min_nb_points,
+                                                                                                          dynamic_binning=False)
 
             # Convert visit length to minutes and transit length to hours
             average_visit_duration = [avg / 60 for avg in average_visit_duration]
@@ -161,22 +162,28 @@ def visit_versus_previous_travel(results, curve_list, travel_time_bins, only_fir
     plt.xlabel("Duration of the previous travel (hours)", fontsize=16)
     plt.xscale("log")
     plt.yscale("linear")
+    if only_first:
+        plt.ylim(0, 50)
+    else:
+        plt.ylim(0, 30)
     # plt.ylim(0, 4)
     plt.show()
 
 path = gen.generate("", test_pipeline=False, shorten_traj=False)
 clean_results = pd.read_csv(path + "clean_results.csv")
-bin_list = [0, 200, 600, 1200, 2000, 3600, 7200, 10800, 14400, 18000]
+# bin_list = [0, 200, 600, 1200, 2000, 3600, 7200, 10800, 14400, 18000]
+# bin_list = [0, 0.01*60, 0.05*60, 0.1*60,  0.5*60, 1*60, 5*60, 10*60]
+bin_list = [0, 0.01*60, 0.1*60,  1*60, 10*60]
 only_first_visit = False
-#
-# visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
-#             [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
-# visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
-#              [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
-# visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
-#              [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
-# visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
-#              [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+
+visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
+            [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
+             [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
+             [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
+             [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
 
 only_first_visit = True
 
