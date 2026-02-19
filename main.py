@@ -61,6 +61,14 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
         else:
             condition_colors[i_curve] = param.name_to_color["all"]
 
+    old_plots=False
+    histogram_plots=False
+    if "bars" in what_to_plot:
+        what_to_plot.remove("bars")
+        old_plots=True
+    if "histogram" in what_to_plot:
+        what_to_plot.remove("histogram")
+        histogram_plots = True
     # TODO remove this loop, since the fork happens with if statements no need to run it once per element in what_to_plot
     for _ in range(len(what_to_plot)):
         # Transform "[["0.2"], ["med 0"]]" into '0.2 & med 0'
@@ -169,7 +177,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          "Number of visits",
                                          current_conditions, "nb_of_visits",
                                          divided_by="", is_plot=is_plot,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Number of visits per patch
             if "number_of_visits_per_patch" in what_to_plot:
@@ -178,7 +188,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          "Number of visits per total number of patch",
                                          current_conditions, "nb_of_visits",
                                          divided_by="nb_of_patches", is_plot=is_plot,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Number of visits per VISITED patch
             if "number_of_visits_per_visited_patch" in what_to_plot:
@@ -186,9 +198,11 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                 plots.plot_selected_data(result_table,
                                          "Number of visits per visited patch",
                                          current_conditions, "nb_of_visits",
-                                         hard_cut=False,
+                                         hard_cut=True,
                                          divided_by="nb_of_visited_patches", is_plot=is_plot,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Average total time spent in each patch
             if "total_visit_time" in what_to_plot:
@@ -196,7 +210,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          current_conditions, "total_visit_time",
                                          divided_by="nb_of_visited_patches", plot_model=False,
                                          is_plot=is_plot, hard_cut=True, remove_censored_events=False,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Visits plots
             if "visit_duration" in what_to_plot:
@@ -204,7 +220,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          current_conditions, "total_visit_time",
                                          divided_by="nb_of_visits", plot_model=False,
                                          is_plot=is_plot, remove_censored_events=True, soft_cut=False,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             if "long_enough_visit_duration" in what_to_plot:
                 plots.plot_selected_data(result_table, "Visits longer than 4 minutes",
@@ -212,7 +230,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          divided_by="nb_of_visits", plot_model=False,
                                          is_plot=is_plot, remove_censored_events=True, soft_cut=True,
                                          visits_longer_than=240,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             if "first_visit_duration_patch" in what_to_plot:
                 plots.plot_selected_data(result_table,
@@ -221,7 +241,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          divided_by="", plot_model=False,
                                          is_plot=is_plot, remove_censored_patches=True,
                                          only_first_visited_patch=False,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             if "first_visit_duration_video" in what_to_plot:
                 plots.plot_selected_data(result_table,
@@ -229,7 +251,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          current_conditions, "first_visit_duration",
                                          divided_by="", plot_model=False, is_plot=is_plot,
                                          remove_censored_patches=True, only_first_visited_patch=True,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             if "total_visit_time_first_patch" in what_to_plot:
                 print("Pay attention, the title has the density of the first condition!")
@@ -240,35 +264,47 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          current_conditions, "total_visit_time",
                                          divided_by="", plot_model=False, soft_cut=True,
                                          is_plot=is_plot, remove_censored_patches=True, only_first_visited_patch=True,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             if "visit_duration_mvt" in what_to_plot:
                 plots.plot_selected_data(result_table, "Average duration of MVT visits in " + plot_name + " conditions",
                                          current_conditions, "total_visit_time",
                                          divided_by="mvt_nb_of_visits", plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             if "visit_duration_dist_speeds" in what_to_plot:
                 # This should only be called from the 20240117-visitdistanceandspeed script
                 plots.plot_selected_data(result_table, "Average distance of visits in " + plot_name + " conditions",
                                          current_conditions, "average_distance_each_visit",
                                          divided_by="", plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
                 plots.plot_selected_data(result_table, "Average speed during visits in " + plot_name + " conditions",
                                          current_conditions, "average_speed_each_visit",
                                          divided_by="", plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
                 plots.plot_selected_data(result_table,
                                          "Average of inverse of speed during visits in " + plot_name + " conditions",
                                          current_conditions, "average_speed_each_visit_inv",
                                          divided_by="", plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Rate of visits (number of visits per transit time unit)
             if "visit_rate" in what_to_plot:
                 plots.plot_selected_data(result_table, "Average visit rate in " + plot_name + " conditions",
                                          current_conditions, "nb_of_visits",
-                                         divided_by="total_transit_time", is_plot=is_plot)
+                                         divided_by="total_transit_time", is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             if "visit_duration_vs_previous_transit" in what_to_plot:
                 plots.plot_visit_time(result_table, trajectories,
@@ -295,34 +331,44 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          current_conditions,
                                          "avg_visit_duration_to_pixels_inside_patches",
                                          divided_by="", plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
                 plots.plot_selected_data(result_table,
                                          "Average duration of visits to pixels outside food patches in " + plot_name + " conditions",
                                          current_conditions,
                                          "avg_visit_duration_to_pixels_outside_patches",
                                          divided_by="", plot_model=False,
-                                         is_plot=is_plot)
+                                         is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Proportion of time spent in patches
             if "proportion_of_time" in what_to_plot:
                 plots.plot_selected_data(result_table,
                                          "Average proportion of time spent in patches in" + plot_name + "conditions",
                                          current_conditions, "total_visit_time",
-                                         divided_by="total_video_time", is_plot=is_plot)
+                                         divided_by="total_video_time", is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
             # Number of visited patches
             if "number_of_visited_patches" in what_to_plot:
                 plots.plot_selected_data(result_table,
                                          "Average proportion of visited patches in patches in" + plot_name + "conditions",
                                          current_conditions, "nb_of_visited_patches",
                                          divided_by="", is_plot=is_plot, hard_cut=True, remove_censored_events=False,
-                                         full_list_of_conditions=curve_list)
+                                         full_list_of_conditions=curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Proportion of visited patches
             if "proportion_of_visited_patches" in what_to_plot:
                 plots.plot_selected_data(result_table,
                                          "Average proportion of visited patches in patches in" + plot_name + "conditions",
                                          current_conditions, "proportion_of_visited_patches",
-                                         divided_by="", is_plot=is_plot)
+                                         divided_by="", is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             if "print_parameters_for_model" in what_to_plot:
                 revisit_probability, cross_transit_probability, exponential_leaving_probability, min_visit, average_visit, average_same_patch, average_cross_patch = ana.transit_properties(
@@ -335,7 +381,9 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          current_conditions, "total_video_time",
                                          divided_by="", plot_model=False,
                                          is_plot=is_plot, hard_cut=True, remove_censored_events=False,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Sum of transit + visit events
             if "total_event_time" in what_to_plot:
@@ -344,13 +392,17 @@ def plot_graphs(result_table, what_to_plot, curve_list=None):
                                          current_conditions, "total_event_time",
                                          divided_by="", plot_model=False,
                                          is_plot=is_plot, hard_cut=False, remove_censored_events=False,
-                                         full_list_of_conditions = curve_list)
+                                         full_list_of_conditions = curve_list,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
             # Transits plot
             if "transit_duration" in what_to_plot:
                 plots.plot_selected_data(result_table, "Average duration of transits in " + plot_name + "conditions",
                                          current_conditions, "total_transit_time",
-                                         divided_by="nb_of_visits", is_plot=is_plot)
+                                         divided_by="nb_of_visits", is_plot=is_plot,
+                                         old_plot=old_plots,
+                                         histogram_plot=histogram_plots)
 
 
 if __name__ == "__main__":
@@ -385,6 +437,143 @@ if __name__ == "__main__":
     #       of clean_results.csv, which contains the full path to the results of a plate
     # from Generating_data_tables import converting_folder_names
     # converting_folder_names.switch_path(custom_path="E:/Results_minipatches_retracked/")
+
+
+    # TOTAL TIME PER PATCH
+    # plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plot_graphs(results, ["total_visit_time", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, ["total_visit_time", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, ["total_visit_time", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, ["total_visit_time", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # AVERAGE VISIT DURATION
+    # plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                           ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                           ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                           ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plot_graphs(results, ["visit_duration", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, ["visit_duration", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, ["visit_duration", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, ["visit_duration", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+
+    # AVERAGE DURATION OF FIRST VISIT OF THE VIDEO
+    # plot_graphs(results, "first_visit_duration_video", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                       ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                       ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                       ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    #
+    # plot_graphs(results, ["first_visit_duration_video", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, ["first_visit_duration_video", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, ["first_visit_duration_video", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, ["first_visit_duration_video", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+
+    # AVERAGE DURATION OF FIRST VISIT TO EACH PATCH
+    # plot_graphs(results, "first_visit_duration_patch", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                       ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                       ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                       ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+
+
+    # NB OF VISITS PER PATCH
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
+    plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+
+
+    # plot_graphs(results, "number_of_visited_patches", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                                       ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                                       ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                                       ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, "leaving_probability", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, "leaving_probability", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plot_graphs(results, "average_speed", [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, "average_speed", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, "average_speed", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, "average_speed", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["cross transits"], only_first=False, plot_cumulative=True)
+    # plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["cross transits"], only_first=False, plot_cumulative=True)
+    # plots.plot_variable_distribution(results, curve_list=[[4], [5], [6], [15]], variable_list=["cross transits"], only_first=False, plot_cumulative=True)
+    # plots.plot_variable_distribution(results, curve_list=[[12], [8], [13], [16]], variable_list=["cross transits"], only_first=False, plot_cumulative=True)
+    #
+    # plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["same transits"], only_first=False, plot_cumulative=True)
+    # plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["same transits"], only_first=False, plot_cumulative=True)
+    # plots.plot_variable_distribution(results, curve_list=[[4], [5], [6], [15]], variable_list=["same transits"], only_first=False, plot_cumulative=True)
+    # plots.plot_variable_distribution(results, curve_list=[[12], [8], [13], [16]], variable_list=["same transits"], only_first=False, plot_cumulative=True)
+
+    plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["visits"], only_first=False, plot_cumulative=True)
+    plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["visits"], only_first=False, plot_cumulative=True)
+    plots.plot_variable_distribution(results, curve_list=[[4], [5], [6], [15]], variable_list=["visits"], only_first=False, plot_cumulative=True)
+    plots.plot_variable_distribution(results, curve_list=[[12], [8], [13], [16]], variable_list=["visits"], only_first=False, plot_cumulative=True)
+
+    # plot_graphs(results, "total_event_time", [["close 0", "med 0", "far 0", "superfar 0"],
+    #                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+    #                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+    #                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
+    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
+
+    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0", "med 0", "far 0"]])
+    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
+    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
+
+    # plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0", "med 0", "far 0"]])
+    # plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.2", "med 0.2", "far 0.2"]])
+    # plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.5", "med 0.5", "far 0.5"]])
+
+    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
+    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
+    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0", "med 0", "far 0"]])
+
+    # plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, "visit_duration_vs_previous_transit", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plot_graphs(results, "number_of_visits_per_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, "number_of_visits_per_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, "number_of_visits_per_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, "number_of_visits_per_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+
+    # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
+    #                                               ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
+    # plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
+    # plot_graphs(results, "leaving_probability", [["med 0.2"]])
+    # plot_graphs(results, "leaving_probability", [["med 0", "med 0.2", "med 0.5", "med 1.25"]])
+    # plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
+    # plot_graphs(results, "leaving_probability", [["cluster 0"], ["cluster 0.2"], ["cluster 0.5"]])
+
+    # plot_graphs(results, "", [["close 0", "med 0", "far 0", "cluster 0"]])
+    # plot_graphs(results, "proportion_of_visited_patches", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
+    # plot_graphs(results, "proportion_of_visited_patches", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
 
     # plot_graphs(results, "visit_duration_vs_entry_speed",
     #            [["close 0.2"]])
@@ -442,113 +631,6 @@ if __name__ == "__main__":
 
     # plot_graphs(results, "total_visit_time", [["med 0.2"]])
     #
-    plot_graphs(results, "total_visit_time", [["close 0", "med 0", "far 0", "superfar 0"],
-                                                                  ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-                                                                  ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-                                                                  ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    # plot_graphs(results, "total_event_time", [["close 0", "med 0", "far 0", "superfar 0"],
-    #                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-    #                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-    #                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    #
-    # plot_graphs(results, "visit_duration", [["close 0", "med 0", "far 0", "superfar 0"],
-    #                                                           ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-    #                                                           ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-    #                                                           ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    #
-    # plot_graphs(results, "first_visit_duration_video", [["close 0", "med 0", "far 0", "superfar 0"],
-    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-    #
-    #
-    # plot_graphs(results, "first_visit_duration_patch", [["close 0", "med 0", "far 0", "superfar 0"],
-    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-    #
-    #
-    plot_graphs(results, "number_of_visited_patches", [["close 0", "med 0", "far 0", "superfar 0"],
-                                                                          ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-                                                                          ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-                                                                          ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-    # #
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"],
-    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-    # #
-
-    # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "leaving_probability", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "leaving_probability", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "leaving_probability", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    # plot_graphs(results, "average_speed", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "average_speed", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "average_speed", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "average_speed", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    # plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["cross transits"], only_first=False, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["cross transits"], only_first=False, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[4], [5], [6], [15]], variable_list=["cross transits"], only_first=False, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[12], [8], [13], [16]], variable_list=["cross transits"], only_first=False, plot_cumulative=True)
-    #
-    # plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["same transits"], only_first=False, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["same transits"], only_first=False, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[4], [5], [6], [15]], variable_list=["same transits"], only_first=False, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[12], [8], [13], [16]], variable_list=["same transits"], only_first=False, plot_cumulative=True)
-
-    # plots.plot_variable_distribution(results, curve_list=[[17], [18], [19], [20]], variable_list=["visits"], only_first=True, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[0], [1], [2], [14]], variable_list=["visits"], only_first=True, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[4], [5], [6], [15]], variable_list=["visits"], only_first=True, plot_cumulative=True)
-    # plots.plot_variable_distribution(results, curve_list=[[12], [8], [13], [16]], variable_list=["visits"], only_first=True, plot_cumulative=True)
-
-    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
-    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
-
-    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0", "med 0", "far 0"]])
-    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
-    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
-
-    # plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0", "med 0", "far 0"]])
-    # plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.2", "med 0.2", "far 0.2"]])
-    # plot_graphs(results, "visit_duration_vs_entry_speed", [["close 0.5", "med 0.5", "far 0.5"]])
-
-    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.2", "med 0.2", "far 0.2"]])
-    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0.5", "med 0.5", "far 0.5"]])
-    # plot_graphs(results, "visit_duration_vs_visit_start", [["close 0", "med 0", "far 0"]])
-
-    # plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "visit_duration_vs_previous_transit", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "visit_duration_vs_previous_transit", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    # plot_graphs(results, "number_of_visits_per_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "number_of_visits_per_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "number_of_visits_per_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "number_of_visits_per_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"]])
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-
-    # plot_graphs(results, "leaving_probability", [["close 0", "med 0", "far 0"], ["close 0.2", "med 0.2", "far 0.2"],
-    #                                               ["close 0.5", "med 0.5", "far 0.5"], ["med 1.25"]])
-    # plot_graphs(results, "leaving_probability", [["close 0"], ["close 0.2"], ["close 0.5"]])
-    # plot_graphs(results, "leaving_probability", [["med 0.2"]])
-    # plot_graphs(results, "leaving_probability", [["med 0", "med 0.2", "med 0.5", "med 1.25"]])
-    # plot_graphs(results, "leaving_probability", [["far 0"], ["far 0.2"], ["far 0.5"]])
-    # plot_graphs(results, "leaving_probability", [["cluster 0"], ["cluster 0.2"], ["cluster 0.5"]])
-
-    # plot_graphs(results, "", [["close 0", "med 0", "far 0", "cluster 0"]])
-    # plot_graphs(results, "proportion_of_visited_patches", [["close 0.2", "med 0.2", "far 0.2", "cluster 0.2"]])
-    # plot_graphs(results, "proportion_of_visited_patches", [["close 0.5", "med 0.5", "far 0.5", "cluster 0.5"]])
-
     # Possible arguments for plot_graphs:
     #               - "aggregated_visit_duration"
     #               - "average_speed"

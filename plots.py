@@ -549,7 +549,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                        plot_model=False, is_plot=True, normalize_by_video_length=False,
                        remove_censored_events=False, remove_censored_patches=False, soft_cut=False, hard_cut=False,
                        only_first_visited_patch=False, visits_longer_than=0, save_fig=True, old_plot=False,
-                       full_list_of_conditions=None, show_stats=True):
+                       full_list_of_conditions=None, show_stats=True, histogram_plot=False):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -578,14 +578,19 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     fig = plt.gcf()
     ax = fig.gca()
     fig.set_size_inches(7, 8.6)
-    # plt.style.use('dark_background')
 
     if column_name == "total_visit_time":
         if divided_by == "nb_of_visited_patches":
-            ax.set_ylabel("Total time spent in each patch (hours)", fontsize=20)
+            ax.set_ylabel("Time per patch (hours)", fontsize=20)
+            if histogram_plot:
+                ax.set_ylabel("")
+                ax.set_xlabel("Time per patch (hours)", fontsize=20)
             #ax.set_ylim(0, 4)
         if divided_by == "nb_of_visits":
             ax.set_ylabel("Average time per visit (hours)", fontsize=20)
+            if histogram_plot:
+                ax.set_ylabel("")
+                ax.set_xlabel("Average time per visit (hours)", fontsize=20)
             # ax.set_ylim(0, 0.6)
         if divided_by == "" and only_first_visited_patch:
             ax.set_ylabel("Total time spent in first visited patch (hours)", fontsize=20)
@@ -594,6 +599,9 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             ax.set_ylabel("Duration of 1st visit of the video (hours)", fontsize=20)
         else:
             ax.set_ylabel("Duration of 1st visit to each patch (hours)", fontsize=20)
+            if histogram_plot:
+                ax.set_ylabel("")
+                ax.set_xlabel("Duration of 1st visit to each patch (hours)", fontsize=20)
         #ax.set_ylim(0, 2.6)
     if column_name == "average_speed_inside":
         ax.set_ylabel("Average speed inside food patches (pixel/second)", fontsize=20)
@@ -602,6 +610,9 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     if column_name == "nb_of_visits":
         if divided_by == "nb_of_visited_patches":
             ax.set_ylabel("Average number of visits to each visited patch", fontsize=20)
+            if histogram_plot:
+                ax.set_ylabel("")
+                ax.set_xlabel("Average number of visits to each visited patch", fontsize=20)
             # ax.set_ylim(0, 90)
         if divided_by == "nb_of_patches":
             ax.set_ylabel("Average number of visits to each patch", fontsize=20)
@@ -609,7 +620,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     condition_names = [param.nb_to_name[cond] for cond in condition_list]
     condition_colors = [param.name_to_color[name] for name in condition_names]
 
-    # Old plot: bar plot
+    # Plot distribution of variable
     if old_plot:
         # Plot condition averages as a bar plot
         ax.bar(range(len(condition_list)), average_per_condition, color=condition_colors, label=condition_names)
@@ -628,7 +639,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             model_per_condition = ana.model_per_condition(results, condition_list, column_name, divided_by)
             ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
 
-        if is_plot or save_fig:
+        if (is_plot or save_fig) and not histogram_plot:
             # Set the x labels to the distance icons!
             # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
             for i in range(len(condition_list)):
@@ -664,43 +675,40 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         #     - each point has their own marker based on distance
         #     - distance legend is displayed as tiny images in the x axis
         if len(np.unique(density_each_condition)) == 1:
-            plt.errorbar(range(len(condition_list)), average_per_condition, errorbars, capsize=6,
-                         color=param.name_to_color[density_each_condition[0]], linewidth=4, elinewidth=2)
-            # Scatter points one by one because matplotlib cannot handle marker lists???
-            for c in range(len(condition_list)):
-                plt.scatter(c, average_per_condition[c],
-                            color=param.name_to_color[density_each_condition[c]],
-                            marker=param.distance_to_marker[distance_each_condition[c]],
-                            s=100)
+            if histogram_plot:
+                for c in range(len(condition_list)):
+                    # Bit of code from https://stackoverflow.com/a/75629005/21414975
+                    # Allows to prevent the curve from falling to 0 after last value
+                    # histtype=step returns a single patch, open polygon
+                    n, bins, patches = ax.hist(list_of_avg_each_plate[c], bins=16, density=True, histtype="step", linewidth=3,
+                                               edgecolor=condition_colors[c], label=param.nb_to_name[condition_list[c]],
+                                               cumulative=True, linestyle=param.distance_to_linestyle[distance_each_condition[c]])
+                    # just delete the last point
+                    patches[0].set_xy(patches[0].get_xy()[:-1])
+                plt.title("OD = "+density_each_condition[0], fontsize=24)
+                plt.tick_params(labelsize=12)
+
+            elif is_plot:
+                plt.errorbar(range(len(condition_list)), average_per_condition, errorbars, capsize=6,
+                             color=param.name_to_color[density_each_condition[0]], linewidth=4, elinewidth=2)
+                # Scatter points one by one because matplotlib cannot handle marker lists???
+                for c in range(len(condition_list)):
+                    plt.scatter(c, average_per_condition[c],
+                                color=param.name_to_color[density_each_condition[c]],
+                                marker=param.distance_to_marker[distance_each_condition[c]],
+                                s=100)
                 # plt.text(c, average_per_condition[c] + 0.1, "N="+str(len([i for i in list_of_avg_each_plate[c] if not np.isnan(i)])))
-
-            # Set the x labels to the distance icons!
-            # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
-            for i in range(len(condition_list)):
-                ax = plt.gcf().gca()
-                ax.set_xticks([])
-
-                # Image to use
-                arr_img = plt.imread(fd.return_icon_path(param.nb_to_distance[condition_list[i]]))
-
-                # Image box to draw it!
-                imagebox = OffsetImage(arr_img, zoom=0.8)
-                imagebox.image.axes = ax
-
-                x_annotation_box = AnnotationBbox(imagebox, (i, 0),
-                                                  xybox=(0, -8),
-                                                  # that's the shift that the image will have compared to (i, 0)
-                                                  xycoords=("data", "axes fraction"),
-                                                  boxcoords="offset points",
-                                                  box_alignment=(.5, 1),
-                                                  bboxprops={"edgecolor": "none", "alpha": 0})
-
-                ax.add_artist(x_annotation_box)
 
         # ELSE if all the conditions of the curve have the same distance:
         # Well it's not supported LMAO
         else:
-            print("You did not implement this feature yet.")
+            if histogram_plot:
+                for c in range(len(condition_list)):
+                    ax.hist(list_of_avg_each_plate[c], bins=30, density=True, histtype="step", linewidth=3,
+                            edgecolor=param.name_to_color[density_each_condition[c]])
+            else:
+                print("You did not implement this feature yet.")
+
 
     # Print statistical test results
     if show_stats:
@@ -752,11 +760,12 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
     if save_fig:
         plt.savefig(column_name + "_div_" + divided_by + "_" + str(condition_names) + ".png", transparent=True)
     if is_plot:
-        # Make fake lines for the OD legend
-        lines = []
-        for density in ["1.25", "0.5", "0.2", "0"]:
-            l, = plt.plot([], [], color=param.name_to_color[density], linewidth=4, label="OD="+density)
-            lines.append(l)
+        if not old_plot and not histogram_plot:
+            # Make fake lines for the OD legend
+            lines = []
+            for density in ["1.25", "0.5", "0.2", "0"]:
+                l, = plt.plot([], [], color=param.name_to_color[density], linewidth=4, label="OD="+density)
+                lines.append(l)
         plt.legend(fontsize=16)
         plt.show()
     else:
@@ -910,6 +919,7 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
             bins = np.linspace(0, 25000, 60)
         else:
             bins = np.linspace(0, 8500, 30)
+        bins = [b/3600 for b in bins]
         for i_scale in range(len(scale_list)):
             if len(scale_list) > 1 and len(variable_list) > 1:
                 ax = axs[i_scale, i_variable]
@@ -938,6 +948,7 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
                 else:
                     values = ana.return_value_list(results, variable, conditions, convert_to_duration=True,
                                                    only_first=only_first, end_time=end_time)
+                values = [i/3600 for i in values]
                 avg_values.append(np.mean(values))
                 print("Average value for curve ", str(name), ": ", np.mean(values))
                 median_values.append(np.median(values))
@@ -949,8 +960,8 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
 
         ax.vlines(avg_values, color=color_list, ymin=0, ymax=1, linestyles="dashed", transform=ax.get_xaxis_transform(),
                   label="average")
-        ax.vlines(median_values, color=color_list, ymin=0, ymax=1, linestyles="dotted",
-                  transform=ax.get_xaxis_transform(), label="median")
+        # ax.vlines(median_values, color=color_list, ymin=0, ymax=1, linestyles="dotted",
+        #           transform=ax.get_xaxis_transform(), label="median")
 
     if is_plot:
         plt.legend()
