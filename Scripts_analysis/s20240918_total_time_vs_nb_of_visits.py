@@ -17,9 +17,91 @@ import plots
 # for the food patch
 # In bin x of the plot, have the average total time spent in the patches that have at least x visits
 
+def Tp_vs_Nv(results, current_curve_name, full_folder_list, nb_of_bins, nb_of_visit_bins,
+             bypass_results=None):
+    total_time_each_bin_each_plate_this_cond = [[] for _ in range(nb_of_bins)]
+    nb_of_points_each_bin_each_plate_this_cond = [[] for _ in range(nb_of_bins)]
+    if bypass_results:
+        folder_list = range(len(bypass_results))
+    else:
+        current_curve_nb = param.name_to_nb_list[current_curve_name]
+        folder_list = fd.return_folders_condition_list(full_folder_list, current_curve_nb)
+    for i_folder in range(len(folder_list)):
+        total_time_each_bin_this_plate = [[] for _ in range(nb_of_bins)]
+        # Load stuff
+        if bypass_results is None:
+            current_data = results[results["folder"] == folder_list[i_folder]].reset_index()
+            visit_list = fd.load_list(current_data, "visits_to_uncensored_patches")
+        else:
+            visit_list = bypass_results[i_folder]
+        if len(visit_list) > 0:
+            # Just take the highest patch index to create big enough lists (with one item per patch)
+            max_visited_patch = int(np.max(np.array(visit_list)[:, 2]) + 1)
+            # Initialize lists at zero, and as the for loop runs, the nb of visits / time in each patch will be incremented
+            nb_of_visits_each_patch = np.zeros(max_visited_patch)
+            total_time_each_patch = np.zeros(max_visited_patch)
+            for i_visit, visit in enumerate(visit_list):
+                current_patch = int(visit[2])
+                nb_of_visits_each_patch[current_patch] += 1
+                total_time_each_patch[current_patch] += visit[1] - visit[0] + 1
+                # Then, add this total time in the right bin. Only add it when there's a change in bins, or if this is
+                # the first bin of the bin list
+                current_bin_index = np.searchsorted(nb_of_visit_bins, nb_of_visits_each_patch[current_patch])
+                previous_bin_index = np.searchsorted(nb_of_visit_bins, nb_of_visits_each_patch[current_patch] - 1)
+                if current_bin_index != previous_bin_index or current_bin_index == np.argmin(nb_of_visit_bins):
+                    total_time_each_bin_this_plate[current_bin_index].append(total_time_each_patch[current_patch])
+        # Add this folder's average values to the condition data table
+        for i_bin in range(nb_of_bins):
+            if len(total_time_each_bin_this_plate[i_bin]) > 0:
+                total_time_each_bin_each_plate_this_cond[i_bin].append(np.mean(total_time_each_bin_this_plate[i_bin]))
+                nb_of_points_each_bin_each_plate_this_cond[i_bin].append(len(total_time_each_bin_this_plate[i_bin]))
+    # Then, average and bootstrap for this condition + count the number of patches for each bin
+    average_each_bin_this_cond = [np.nan for _ in range(nb_of_bins)]
+    error_inf_each_bin_this_cond = [np.nan for _ in range(nb_of_bins)]
+    error_sup_each_bin_this_cond = [np.nan for _ in range(nb_of_bins)]
+    nb_of_points_each_bin_this_cond = [np.nan for _ in range(nb_of_bins)]
+    for i_bin in range(nb_of_bins):
+        if len(total_time_each_bin_each_plate_this_cond[i_bin]) > 0:  # if there's any data to work with
+            current_bin_values = total_time_each_bin_each_plate_this_cond[i_bin]
+            average_each_bin_this_cond[i_bin] = np.mean(current_bin_values)
+            [error_inf, error_sup] = ana.bottestrop_ci(current_bin_values, 1000)
+            error_inf_each_bin_this_cond[i_bin] = average_each_bin_this_cond[i_bin] - error_inf
+            error_sup_each_bin_this_cond[i_bin] = error_sup - average_each_bin_this_cond[i_bin]
+            nb_of_points_each_bin_this_cond[i_bin] = np.sum(nb_of_points_each_bin_each_plate_this_cond[i_bin])
 
+    # Then, keep only the bins that do not have NaN averages
+    bin_with_values = [nb_of_visit_bins[i] for i in range(len(nb_of_visit_bins)) if
+                       not np.isnan(average_each_bin_this_cond[i])]
+    error_inf_each_bin_this_cond = [error_inf_each_bin_this_cond[i] for i in range(len(error_inf_each_bin_this_cond)) if
+                                    not np.isnan(average_each_bin_this_cond[i])]
+    error_sup_each_bin_this_cond = [error_sup_each_bin_this_cond[i] for i in range(len(error_sup_each_bin_this_cond)) if
+                                    not np.isnan(average_each_bin_this_cond[i])]
+    nb_of_points_each_bin_this_cond = [nb_of_points_each_bin_this_cond[i] for i in
+                                       range(len(nb_of_points_each_bin_this_cond)) if
+                                       not np.isnan(average_each_bin_this_cond[i])]
+    average_each_bin_this_cond = [avg for avg in average_each_bin_this_cond if not np.isnan(avg)]
 
-def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
+    # Then, keep only the bins with more than 10 data points
+    bin_with_values = [bin_with_values[i] for i in range(len(bin_with_values)) if
+                       nb_of_points_each_bin_this_cond[i] > 10]
+    error_inf_each_bin_this_cond = [error_inf_each_bin_this_cond[i] for i in range(len(error_inf_each_bin_this_cond)) if
+                                    nb_of_points_each_bin_this_cond[i] > 10]
+    error_sup_each_bin_this_cond = [error_sup_each_bin_this_cond[i] for i in range(len(error_sup_each_bin_this_cond)) if
+                                    nb_of_points_each_bin_this_cond[i] > 10]
+    average_each_bin_this_cond = [average_each_bin_this_cond[i] for i in range(len(average_each_bin_this_cond)) if
+                                  nb_of_points_each_bin_this_cond[i] > 10]
+    nb_of_points_each_bin_this_cond = [nb_of_points_each_bin_this_cond[i] for i in
+                                       range(len(nb_of_points_each_bin_this_cond)) if
+                                       nb_of_points_each_bin_this_cond[i] > 10]
+
+    # Convert to hours
+    average_each_bin_this_cond = np.array(average_each_bin_this_cond) / 3600
+    error_inf_each_bin_this_cond = np.array(error_inf_each_bin_this_cond) / 3600
+    error_sup_each_bin_this_cond = np.array(error_sup_each_bin_this_cond) / 3600
+
+    return bin_with_values, average_each_bin_this_cond, error_inf_each_bin_this_cond, error_sup_each_bin_this_cond, nb_of_points_each_bin_this_cond
+
+def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False, linear_or_log="log"):
     results_path = gen.generate("", shorten_traj=False)
     results = pd.read_csv(results_path + "clean_results.csv")
     full_folder_list = results["folder"]
@@ -34,7 +116,10 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
     final_table_nb_of_points = []
 
     # nb_of_visit_bins = list(range(1, 300, 1))  # note: the code bugs if there's a value superior to the last bin
-    nb_of_visit_bins = list(np.logspace(0, 2.5, 20))  # note: the code bugs if there's a value superior to the last bin
+    if linear_or_log == "log":
+        nb_of_visit_bins = list(np.logspace(0, 2.5, 20))  # note: the code bugs if there's a value superior to the last bin
+    if linear_or_log == "linear":
+        nb_of_visit_bins = list(np.linspace(0, 300, 100))
     nb_of_bins = len(nb_of_visit_bins)
     for i_curve, current_curve_name in enumerate(curve_list):
         print("Condition ", current_curve_name, ", ", i_curve, " / ", len(curve_list))
@@ -57,78 +142,9 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
                                                                             remove_censored_patches=True,
                                                                             hard_cut=False)
 
-
-        total_time_each_bin_each_plate_this_cond = [[] for _ in range(nb_of_bins)]
-        nb_of_points_each_bin_each_plate_this_cond = [[] for _ in range(nb_of_bins)]
-        current_curve_nb = param.name_to_nb_list[current_curve_name]
-        folder_list = fd.return_folders_condition_list(full_folder_list, current_curve_nb)
-        for i_folder, folder in enumerate(folder_list):
-            total_time_each_bin_this_plate = [[] for _ in range(nb_of_bins)]
-            # Load stuff
-            current_data = results[results["folder"] == folder].reset_index()
-            visit_list = fd.load_list(current_data, "visits_to_uncensored_patches")
-            if len(visit_list) > 0:
-                # Just take the highest patch index to create big enough lists (with one item per patch)
-                max_visited_patch = int(np.max(np.array(visit_list)[:, 2]) + 1)
-                # Initialize lists at zero, and as the for loop runs, the nb of visits / time in each patch will be incremented
-                nb_of_visits_each_patch = np.zeros(max_visited_patch)
-                total_time_each_patch = np.zeros(max_visited_patch)
-                for i_visit, visit in enumerate(visit_list):
-                    current_patch = int(visit[2])
-                    nb_of_visits_each_patch[current_patch] += 1
-                    total_time_each_patch[current_patch] += visit[1] - visit[0] + 1
-                    # Then, add this total time in the right bin. Only add it when there's a change in bins, or if this is
-                    # the first bin of the bin list
-                    current_bin_index = np.searchsorted(nb_of_visit_bins, nb_of_visits_each_patch[current_patch])
-                    previous_bin_index = np.searchsorted(nb_of_visit_bins, nb_of_visits_each_patch[current_patch] - 1)
-                    if current_bin_index != previous_bin_index or current_bin_index == np.argmin(nb_of_visit_bins):
-                        total_time_each_bin_this_plate[current_bin_index].append(total_time_each_patch[current_patch])
-            # Add this folder's average values to the condition data table
-            for i_bin in range(nb_of_bins):
-                if len(total_time_each_bin_this_plate[i_bin]) > 0:
-                    total_time_each_bin_each_plate_this_cond[i_bin].append(np.mean(total_time_each_bin_this_plate[i_bin]))
-                    nb_of_points_each_bin_each_plate_this_cond[i_bin].append(len(total_time_each_bin_this_plate[i_bin]))
-        # Then, average and bootstrap for this condition + count the number of patches for each bin
-        average_each_bin_this_cond = [np.nan for _ in range(nb_of_bins)]
-        error_inf_each_bin_this_cond = [np.nan for _ in range(nb_of_bins)]
-        error_sup_each_bin_this_cond = [np.nan for _ in range(nb_of_bins)]
-        nb_of_points_each_bin_this_cond = [np.nan for _ in range(nb_of_bins)]
-        for i_bin in range(nb_of_bins):
-            if len(total_time_each_bin_each_plate_this_cond[i_bin]) > 0:  # if there's any data to work with
-                current_bin_values = total_time_each_bin_each_plate_this_cond[i_bin]
-                average_each_bin_this_cond[i_bin] = np.mean(current_bin_values)
-                [error_inf, error_sup] = ana.bottestrop_ci(current_bin_values, 1000)
-                error_inf_each_bin_this_cond[i_bin] = average_each_bin_this_cond[i_bin] - error_inf
-                error_sup_each_bin_this_cond[i_bin] = error_sup - average_each_bin_this_cond[i_bin]
-                nb_of_points_each_bin_this_cond[i_bin] = np.sum(nb_of_points_each_bin_each_plate_this_cond[i_bin])
-
-        # Then, keep only the bins that do not have NaN averages
-        bin_with_values = [nb_of_visit_bins[i] for i in range(len(nb_of_visit_bins)) if
-                           not np.isnan(average_each_bin_this_cond[i])]
-        error_inf_each_bin_this_cond = [error_inf_each_bin_this_cond[i] for i in range(len(error_inf_each_bin_this_cond)) if
-                                        not np.isnan(average_each_bin_this_cond[i])]
-        error_sup_each_bin_this_cond = [error_sup_each_bin_this_cond[i] for i in range(len(error_sup_each_bin_this_cond)) if
-                                        not np.isnan(average_each_bin_this_cond[i])]
-        nb_of_points_each_bin_this_cond = [nb_of_points_each_bin_this_cond[i] for i in range(len(nb_of_points_each_bin_this_cond)) if
-                                           not np.isnan(average_each_bin_this_cond[i])]
-        average_each_bin_this_cond = [avg for avg in average_each_bin_this_cond if not np.isnan(avg)]
-
-        # Then, keep only the bins with more than 10 data points
-        bin_with_values = [bin_with_values[i] for i in range(len(bin_with_values)) if
-                           nb_of_points_each_bin_this_cond[i] > 10]
-        error_inf_each_bin_this_cond = [error_inf_each_bin_this_cond[i] for i in range(len(error_inf_each_bin_this_cond)) if
-                                        nb_of_points_each_bin_this_cond[i] > 10]
-        error_sup_each_bin_this_cond = [error_sup_each_bin_this_cond[i] for i in range(len(error_sup_each_bin_this_cond)) if
-                                        nb_of_points_each_bin_this_cond[i] > 10]
-        average_each_bin_this_cond = [average_each_bin_this_cond[i] for i in range(len(average_each_bin_this_cond)) if
-                                      nb_of_points_each_bin_this_cond[i] > 10]
-        nb_of_points_each_bin_this_cond = [nb_of_points_each_bin_this_cond[i] for i in range(len(nb_of_points_each_bin_this_cond)) if
-                                           nb_of_points_each_bin_this_cond[i] > 10]
-
-        # Convert to hours
-        average_each_bin_this_cond = np.array(average_each_bin_this_cond) / 3600
-        error_inf_each_bin_this_cond = np.array(error_inf_each_bin_this_cond) / 3600
-        error_sup_each_bin_this_cond = np.array(error_sup_each_bin_this_cond) / 3600
+        (bin_with_values,
+         average_each_bin_this_cond, error_inf_each_bin_this_cond, error_sup_each_bin_this_cond,
+         nb_of_points_each_bin_this_cond) = Tp_vs_Nv(results, current_curve_name, full_folder_list, nb_of_bins, nb_of_visit_bins,)
 
         # Then, plot it
         if is_plot:
@@ -199,12 +215,12 @@ def plot_Tp_vs_Nv(curve_list, is_plot=True, is_save=False):
                    handler_map={lines[i]: custom_legends.HandlerLineImage(
                        "icon_" + param.nb_to_distance[param.name_to_nb[curve_list[i]]] + ".png") for i in
                        range(len(lines))},
-                   handlelength=1.6, labelspacing=0.0, fontsize=46, borderpad=0.10, loc=2,
+                   handlelength=1.6, labelspacing=0.0, fontsize=46, borderpad=0.10,
                    handletextpad=0.05, borderaxespad=0.15)
 
         plt.title("OD = " + param.nb_to_density[param.name_to_nb[curve_list[0]]], fontsize=24)
         plt.xlabel("Number of visits", fontsize=20)
-        plt.xscale("log")
+        plt.xscale(linear_or_log)
         plt.ylabel("Total time in patch (hours)", fontsize=24)
         plt.ylim(0, 2.72)
         plt.show()
@@ -249,23 +265,23 @@ def plot_t_first_each_density():
     plt.show()
 
 
-t_first_model = {"close 0.2": 0.1099, "med 0.2": 0.2021, "far 0.2": 0.2869, "superfar 0.2": 0.2477,
-                 "close 0.5": 0.2465, "med 0.5": 0.3513, "far 0.5": 0.4433, "superfar 0.5": 0.4627,
-                 "close 1.25": 0.3123, "med 1.25": 0.5296, "far 1.25": 0.5504, "superfar 1.25": 0.5635}
+if __name__ == "__main__":
+    t_first_model = {"close 0.2": 0.1099, "med 0.2": 0.2021, "far 0.2": 0.2869, "superfar 0.2": 0.2477,
+                     "close 0.5": 0.2465, "med 0.5": 0.3513, "far 0.5": 0.4433, "superfar 0.5": 0.4627,
+                     "close 1.25": 0.3123, "med 1.25": 0.5296, "far 1.25": 0.5504, "superfar 1.25": 0.5635}
 
-#list_of_curves = param.name_to_nb_list.keys()
-list_of_curves = ["close 0", "med 0", "far 0", "superfar 0",
-                  "close 0.2", "med 0.2", "far 0.2", "superfar 0.2",
-                  "close 0.5", "med 0.5", "far 0.5", "superfar 0.5",
-                  "close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
-#plot_Tp_vs_Nv(list_of_curves, False, True)
+    #list_of_curves = param.name_to_nb_list.keys()
+    list_of_curves = ["close 0", "med 0", "far 0", "superfar 0",
+                      "close 0.2", "med 0.2", "far 0.2", "superfar 0.2",
+                      "close 0.5", "med 0.5", "far 0.5", "superfar 0.5",
+                      "close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]
+    #plot_Tp_vs_Nv(list_of_curves, False, True)
 
-plot_Tp_vs_Nv(["close 0", "med 0", "far 0", "superfar 0"], True)
-plot_Tp_vs_Nv(["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], True)
-# plot_Tp_vs_Nv(["close 0.5"], True)
-plot_Tp_vs_Nv(["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], True)
-plot_Tp_vs_Nv(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], True)
-# plot_t_first_each_density()
+    plot_Tp_vs_Nv(["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], True, linear_or_log="linear")
+    plot_Tp_vs_Nv(["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], True, linear_or_log="linear")
+    plot_Tp_vs_Nv(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], True, linear_or_log="linear")
+    plot_Tp_vs_Nv(["close 0", "med 0", "far 0", "superfar 0"], True, linear_or_log="linear")
+    # plot_t_first_each_density()
 
 
 
