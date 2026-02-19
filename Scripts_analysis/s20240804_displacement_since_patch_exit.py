@@ -6,8 +6,10 @@ import matplotlib.pyplot as plt
 import datatable as dt
 from scipy import ndimage
 import time
+import matplotlib.patheffects as pe
 
 from Parameters import parameters as param
+from Parameters import custom_legends
 from main import *
 import find_data as fd
 from Generating_data_tables import main as gen
@@ -38,6 +40,16 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
     # average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
     # # Compute the average interpatch distance from boundary to boundary (so remove twice the radius)
     # smallest_distance = np.min(interpatch_dataframe["interpatch_distance"]) - 2 * average_radius
+
+    inter_patch_distances_table = pd.read_csv(gen.generate() + "interpatch_distance.csv")
+    average_patch_radius_each_cond = pd.read_csv(
+        path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
+    average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
+    inter_patch_distances_names = inter_patch_distances_table["distance"]
+    inter_patch_distances = inter_patch_distances_table["interpatch_distance"] - 2 * average_radius * param.one_pixel_in_mm
+    _, _, img_ymin, img_ymax = plt.axis()
+
+    curve_list = curve_list[::-1]
 
     #Init
     tic = time.time()
@@ -183,6 +195,7 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
             # Save it to a csv table
             if not os.path.isdir(analysis_subfolder):
                 os.mkdir(analysis_subfolder)
+            np.save(analysis_subfolder + "conditions_"+curve_name+"_displacement_bin_list.npy", displacement_bin_list)
             np.save(analysis_subfolder + "conditions_"+curve_name+"_avg_time_each_bin.npy", avg_time_each_bin_each_plate)
             np.save(analysis_subfolder + "conditions_"+curve_name+"_nb_of_points_each_bin.npy", nb_of_points_each_bin_each_plate)
             np.save(analysis_subfolder + "conditions_"+curve_name+"_uninterrupted_total_each_bin.npy", total_uninterrupted_transits_each_bin_each_plate)
@@ -192,6 +205,10 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
         nb_of_points_each_bin_each_plate = np.load(analysis_subfolder + "conditions_" + curve_name + "_nb_of_points_each_bin.npy")
         nb_uninterrupted_transits_each_bin_each_plate = np.load(analysis_subfolder + "conditions_" + curve_name + "_uninterrupted_total_each_bin.npy")
         nb_of_transits_each_plate = np.load(analysis_subfolder + "conditions_" + curve_name + "_nb_of_transits_each_plate.npy")
+        # To uncomment in next time you recompute stuff
+        # displacements = np.load(analysis_subfolder + "conditions_"+curve_name+"_displacement_bin_list.npy")
+        # if displacements != displacement_bin_list:
+        #   print("WARNING, loading existing data but you changed the bin list!!!")
 
         # Now that we have the full list of averages for each distance reached after exit, average and bootstrap all that
         avg_each_bin = np.empty(nb_of_bins)
@@ -212,6 +229,14 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
             values_this_distance = [values_this_distance[i] for i in range(len(values_this_distance)) if
                                     not np.isnan(values_this_distance[i])]
             if values_this_distance:
+                # Remove values beyond inter patch distance for that condition
+                # i_bin = 0
+                # dist_bin = displacement_bin_list[i_bin]
+                # while dist_bin < inter_patch_distances[inter_patch_distances_names == param.nb_to_distance[param.name_to_nb[curve_name]]].to_list()[0]:
+                #     i_bin += 1
+                #     dist_bin = displacement_bin_list[i_bin]
+                # values_this_distance = values_this_distance[:i_bin]
+                # Compute the things you'll plot
                 current_avg = np.nanmean(values_this_distance)
                 avg_each_bin[i_bin] = current_avg
                 bootstrap_ci = ana.bottestrop_ci(values_this_distance, 1000)
@@ -227,36 +252,63 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
         x_list *= param.one_pixel_in_mm  # Conversion to mm
 
         # Plot
-        plt.errorbar(x_list, y_list, [errors_inf, errors_sup], fmt='-o', capsize=5,
-                     color=param.name_to_color[curve_name], label=curve_name, linewidth=2.3, elinewidth=1.2)
+        plt.errorbar(x_list, y_list, [errors_inf, errors_sup], capsize=5, capthick=2,
+                     color=param.name_to_color[curve_name], label=curve_name, linewidth=3, elinewidth=2,
+                     marker=param.distance_to_marker[param.nb_to_distance[param.name_to_nb[curve_name]]],
+                     markersize=10)
 
     if is_plot:
-        plt.title("Average " + time_or_probability + " to reach each radius around the patches")
+        plt.gcf().set_size_inches(6, 5)
+        # plt.title("Average " + time_or_probability + " to reach each radius around the patches")
         plt.xticks(displacement_bin_list, [str(b) for b in displacement_bin_list])
         if time_or_probability == "time":
-            plt.ylabel("Average time post exit (seconds)")
+            plt.ylabel("Time to reach (s)", fontsize=22)
+            plt.ylim(1, 2000)
         else:
-            plt.ylabel("Probability to reach")
+            plt.ylabel("Probability to reach", fontsize=22)
+            plt.ylim(0.008, 1.1)
 
-        plt.xlabel("Radius around patch (mm)")
+        plt.xlabel("Radius around patch (mm)", fontsize=22)
         plt.xscale("log")
         plt.yscale("log")
 
         # Plot inter_patch distances as vertical lines
-        inter_patch_distances_table = pd.read_csv(gen.generate() + "interpatch_distance.csv")
-        average_patch_radius_each_cond = pd.read_csv(
-            path + "perfect_heatmaps/average_patch_radius_each_condition.csv")
-        average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
-        inter_patch_distances_names = inter_patch_distances_table["distance"]
-        inter_patch_distances = inter_patch_distances_table["interpatch_distance"] - 2*average_radius*param.one_pixel_in_mm
-        _, _, img_ymin, img_ymax = plt.axis()
         plt.vlines(inter_patch_distances, ymin=img_ymin, ymax=img_ymax,
                    colors=[param.name_to_color[d] for d in inter_patch_distances_names],
                    alpha=0.3,
-                   linestyle="--")
+                   linestyle="--",
+                   linewidth=2)
         plt.ylim(img_ymin, img_ymax)
 
-        plt.legend()
+        # Fancy legend
+        # Only use it when conditions do not all have same distance
+        if not len(np.unique([param.nb_to_distance[param.name_to_nb[cond]] for cond in curve_list])) == 1:
+            # Plot empty lines to make the custom legend
+            lines = []
+            for curve in curve_list:
+                line, = plt.plot([], [], color=param.name_to_color[curve], linewidth=6,
+                                 marker=param.distance_to_marker[param.nb_to_distance[param.name_to_nb[curve]]], markersize=4,
+                                 path_effects=[pe.Stroke(offset=(-0.2, 0.2), linewidth=8,
+                                               foreground=param.name_to_color[curve]),
+                                               pe.Normal()])
+                lines.append(line)
+            if time_or_probability == "probability":
+                legend_loc = 3
+            else:
+                legend_loc = 2
+
+            plt.legend(lines, ["" for _ in range(len(lines))],
+                       handler_map={lines[i]: custom_legends.HandlerLineImage(
+                           "icon_" + str(param.nb_to_distance[param.name_to_nb[curve_list[i]]]) + ".png") for i in
+                           range(len(lines))},
+                       handlelength=1.6, labelspacing=0.0, fontsize=40, borderpad=0.10, loc=legend_loc,
+                       handletextpad=0.1, borderaxespad=0.3)
+            # borderpad is the spacing between the legend and the bottom line of the rectangle around the legend
+            # handletextpad is spacing between the legend and the right line of the rectangle around the legend
+            # borderaxespad is the spacing between the legend rectangle and the axes of the figure
+        else:
+            plt.legend()
+        plt.tight_layout(pad=1)
         plt.show()
 
 
@@ -287,23 +339,23 @@ bin_list = [10, 20, 35, 55, 75, 100, 200, 400, 800]
 # print("Finished recomputing MSD analysis for all conditions grouped by distance / density !!!")
 
 # Probability to reach radius
-msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, True, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, True, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, True, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, True, "probability", True)
+msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "probability", True)
+msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "probability", True)
+msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "probability", True)
+msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
 
-msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "probability", True)
+# msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
 #
 # # Time to reach radius
-msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, True, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, True, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, True, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, True, "time", True)
-
-msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
+msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "time", True)
+msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "time", True)
+msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "time", True)
+msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
+#
+# msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "time", True)
+# msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
