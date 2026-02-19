@@ -11,13 +11,13 @@ def discrete_rainbow(nb_of_rainbow_points, nb_of_grey_points, plot=False):
 
     nb_of_points = nb_of_grey_points + nb_of_rainbow_points
 
-    cmap = plt.cm.jet(np.linspace(0, 1, nb_of_rainbow_points+1))  # define the colormap
+    cmap = plt.cm.turbo(np.linspace(0, 1, nb_of_rainbow_points+2))  # define the colormap
     # extract needed colors from the .jet map
-    rainbow_colors = [cmap[i] for i in range(nb_of_rainbow_points)]
+    rainbow_colors = [cmap[i+1] for i in range(nb_of_rainbow_points)]
     # force the first color entry to be grey
     grey_colors = []
     for g in range(nb_of_grey_points):
-        grey = g * (0.84/nb_of_grey_points)
+        grey = g * (0.92/nb_of_grey_points)
         grey_colors.append((grey, grey, grey, 1))
 
     cmaplist = grey_colors + rainbow_colors
