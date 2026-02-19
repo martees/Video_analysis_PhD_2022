@@ -100,17 +100,20 @@ def generate_patch_distances(box_plot=True, histogram=False):
             ax.axvline([median_dist], ymin=0, ymax=np.max(max_heights[i_distance]),
                        linestyle="dotted", color=param.name_to_color[distance],
                        label=distance, linewidth=2.5, alpha=0.5)
-            average_dist = np.mean(list_nearest_neighbor_distances[i_distance])
-            line = ax.axvline([average_dist], ymin=0, ymax=np.max(max_heights[i_distance]),
-                              linestyle="dashed", color=param.name_to_color[distance],
-                              label=distance, linewidth=2.5, alpha=0.5)
+            line, = plt.plot([], [], linewidth=3, color=param.name_to_color[distance])
+            # average_dist = np.mean(list_nearest_neighbor_distances[i_distance])
+            # line = ax.axvline([average_dist], ymin=0, ymax=np.max(max_heights[i_distance]),
+            #                   linestyle="dashed", color=param.name_to_color[distance],
+            #                   label=distance, linewidth=2.5, alpha=0.5)
             lines.append(line)
 
+        # line, = ax.plot([], color="gray", linestyle="dotted", label="median")
+        # lines.append(line)
         # Add first legend for median + mean
-        median, = ax.plot([], color="gray", linestyle="dotted", label="median")
-        mean, = ax.plot([], color="gray", linestyle="dashed", label="mean")
-        extra_legend = plt.legend(handles=[median, mean], loc="upper right")
-        plt.gca().add_artist(extra_legend)
+        # median, = ax.plot([], color="gray", linestyle="dotted", label="median")
+        # mean, = ax.plot([], color="gray", linestyle="dashed", label="mean")
+        # extra_legend = plt.legend(handles=[mean], loc="upper right")
+        # plt.gca().add_artist(extra_legend)
 
         # Custom legend with doodles as labels
         lines = [lines[len(lines) - i] for i in range(1, len(lines) + 1)]  # invert it for nicer order in legend
@@ -119,8 +122,8 @@ def generate_patch_distances(box_plot=True, histogram=False):
                    handler_map={lines[i]: custom_legends.HandlerLineImage(
                        "icon_" + distances_r[i] + ".png") for i in
                        range(len(lines))},
-                   handlelength=1.6, labelspacing=0.0, fontsize=30, borderpad=0.10, loc="upper left",
-                   handletextpad=0.05, borderaxespad=0.15)
+                   handlelength=1.6, labelspacing=0.0, fontsize=50, borderpad=0.10,
+                   handletextpad=0.05, borderaxespad=0.15, bbox_to_anchor=(0.6, 0.15), loc="lower left")
 
         plt.show()
 
