@@ -48,7 +48,7 @@ def generate_patch_distance_map(in_patch_matrix, folder_to_save):
     np.save(folder_to_save[:-len(folder_to_save.split("/")[-1])] + "distance_to_patch_map.npy", distance_transform)
 
 
-def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="Total"):
+def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, condition_each_folder, variable="Total"):
     visit_values_each_bin_each_plate = np.zeros((len(bin_list), len(folder_list)))
     visit_values_each_bin_each_plate[:] = np.nan
     for i_folder, folder in enumerate(folder_list):
@@ -57,6 +57,7 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
         current_traj = traj[dt.f.folder == folder, :]
         corrected_times = fd.correct_time_stamps(current_traj.to_pandas(), True)["time"]
         current_traj[:, dt.f.time] = corrected_times
+        nb_visited_patches_curr_plate = len(np.unique(current_traj[:, dt.f.patch_silhouette]))
 
         # Load the distance map
         distance_map_path = folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.csv"
@@ -66,13 +67,28 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
             generate_patch_distance_map(in_patch_matrix, folder)
         distance_map = np.load(folder[:-len(folder.split("/")[-1])] + "distance_to_patch_map.npy")
         print(">>>>>> Loaded distance map!")
+        # In all cases, linearize the distance map to match pixel_wise values (one value per pixel)
+        current_folder_distances = np.ravel(distance_map)
 
-        if variable in ["total_visit_each_pixel", "probability_of_presence", "total_time_each_pixel_each_patch"]:
+        if variable in ["time_in_avg_pixel", "probability_avg_patch", "time_sum_patch", "time_avg_visited_patch"]:
             pixel_wise_visits = heatmap_script.load_pixel_visits(current_traj[:, dt.f.time].to_list(),
                                                                  folder, regenerate=False)
             print(">>>>>> Loaded pixel_wise visit durations!")
             # Make it a list
             current_folder_values = np.ravel(pixel_wise_visits)
+
+            # I wanted to do this, but it's going to be impossibly long, 21000 possible distances for superfar...
+            # if variable == "time_sum_patch":
+            #     # In this case, we want to sum all pixels of each distance ring across the plate
+            #     # this is equivalent to building an idealized 1D landscape of total visit time vs distance to patch
+            #     possible_distances = np.sort(np.unique(current_folder_distances))
+            #     corresponding_times = [0 for _ in range(len(possible_distances))]
+            #     for i_distance, distance in enumerate(possible_distances):
+            #         if i_distance % len(possible_distances)//10 == 0:
+            #             print(">>>>>>>>> Summing distances... ", i_distance, "/", len(possible_distances))
+            #         corresponding_times[i_distance] = np.sum(current_folder_values[current_folder_distances == distance])
+            #     current_folder_distances = possible_distances
+            #     current_folder_values = corresponding_times
 
         if variable == "speed":
             pixel_wise_avg_speed = heatmap_script.load_avg_pixel_speed(current_traj, folder, regenerate=False)
@@ -81,30 +97,38 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, variable="
             #       so they are not taken into account in the averaging.
             current_folder_values = np.ravel(pixel_wise_avg_speed)
 
-        # In all cases, linearize the distance map to match pixel_wise values (one value per pixel)
-        current_folder_distances = np.ravel(distance_map)
-
         # Put all the gathered values in bins corresponding to the bin_List argument
         current_folder_distance_bins, current_folder_avg_each_bin, [_, _], binned_y_values = ana.xy_to_bins(
-            list(current_folder_distances),
-            list(current_folder_values),
-            bin_size=None,
-            print_progress=False,
-            custom_bins=bin_list,
-            do_not_edit_xy=False,
-            compute_bootstrap=False,
-            bins_in_middle=False)
+                                                                                            list(current_folder_distances),
+                                                                                            list(current_folder_values),
+                                                                                            bin_size=None,
+                                                                                            print_progress=False,
+                                                                                            custom_bins=bin_list,
+                                                                                            do_not_edit_xy=False,
+                                                                                            compute_bootstrap=False,
+                                                                                            bins_in_middle=False)
         for i_bin, distance_bin in enumerate(current_folder_distance_bins):
             if distance_bin in bin_list:  # check this because ana.xy_to_bins() adds max value to the output bin list
                 bin_index = np.where(np.asarray(bin_list) == distance_bin)[0]
                 # Sometimes bin_index is a list with one element for some reason, if that's the case convert to int
                 if type(bin_index.astype(int)) != int and len(bin_index) > 0:
                     bin_index = bin_index[0]
-                visit_values_each_bin_each_plate[bin_index][i_folder] = current_folder_avg_each_bin[i_bin]
+                if variable in ["time_in_avg_pixel", "speed", "probability_avg_patch"]:
+                    visit_values_each_bin_each_plate[bin_index][i_folder] = current_folder_avg_each_bin[i_bin]
+                elif variable in ["time_sum_patch"]:
+                    visit_values_each_bin_each_plate[bin_index][i_folder] = np.nansum(binned_y_values[i_bin])
+                    average_ring_area = len(binned_y_values[i_bin]) / param.nb_to_nb_of_patches[condition_each_folder[i_folder]]
+                    visit_values_each_bin_each_plate[bin_index][i_folder] /= average_ring_area
+                elif variable in ["time_avg_visited_patch"]:
+                    visit_values_each_bin_each_plate[bin_index][i_folder] = np.nansum(binned_y_values[i_bin])
+                    average_ring_area = len(binned_y_values[i_bin]) / param.nb_to_nb_of_patches[condition_each_folder[i_folder]]
+                    ring_area_visited_patches = average_ring_area * nb_visited_patches_curr_plate
+                    visit_values_each_bin_each_plate[bin_index][i_folder] /= ring_area_visited_patches
     return visit_values_each_bin_each_plate
 
 
-def plot_variable_vs_distance(full_folder_list, results, traj, curve_names, bin_list, variable, only_show_density=False):
+def plot_variable_vs_distance(full_folder_list, traj, curve_names, bin_list, variable, only_show_density=False,
+                              recompute=True, is_plot=True):
     """
     Function that will make a plot with the duration of visits as a function of distance to the closest patch boundary
     (negative distance => worm is inside the patch). Average is made over all pixels pooled together for each curve.
@@ -118,157 +142,323 @@ def plot_variable_vs_distance(full_folder_list, results, traj, curve_names, bin_
     print("CONDITIONS ", curve_names, "VARIABLE ", variable)
     tic = time.time()
     curve_list = [param.name_to_nb_list[curve] for curve in curve_names]
+    analysis_subfolder = path + "distance_to_edge_analysis/"
     for i_curve, curve in enumerate(curve_list):
-        print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
-        folder_list = fd.return_folders_condition_list(full_folder_list, curve)
-        values_each_bin_each_plate = pixel_visits_vs_distance_to_boundary(
-            folder_list,
-            traj, bin_list,
-            variable=variable)
+        if not os.path.isfile(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_avg_each_bin.npy") or recompute:
+            print(int(time.time() - tic), "s: Curve ", i_curve + 1, " / ", len(curve_list))
+            folder_list, folder_conditions = fd.return_folders_condition_list(full_folder_list, curve, return_conditions=True)
 
-        # At this point, visit_values has one value per bin/folder in each cell => average and bootstrap all that
-        nb_of_bins = len(bin_list)
-        centered_bin_list = copy.deepcopy(bin_list)
-        avg_each_bin = np.empty(nb_of_bins)
-        avg_each_bin[:] = np.nan  # just a convenient way of having a table full of NaNs
-        # Errors
-        errors_inf = np.empty(nb_of_bins)
-        errors_sup = np.empty(nb_of_bins)
-        errors_inf[:] = np.nan
-        errors_sup[:] = np.nan
-        # To normalize probabilities of presence, get the sum of times for each plate
-        total_time_steps_each_plate = [0 for _ in range(len(values_each_bin_each_plate[0]))]
-        for i_bin in range(nb_of_bins):
-            for i_plate in range(len(values_each_bin_each_plate[i_bin])):
-                total_time_steps_each_plate[i_plate] += values_each_bin_each_plate[i_bin][i_plate]
-        for i_bin in range(nb_of_bins):
-            # Rename
-            values_this_time_bin = values_each_bin_each_plate[i_bin]
-            # and remove nan values for bootstrapping
-            values_this_time_bin = [values_this_time_bin[i] for i in range(len(values_this_time_bin)) if
-                                    not np.isnan(values_this_time_bin[i])]
-            if values_this_time_bin:
-                for i_plate in range(len(values_this_time_bin)):
-                    # For speeds, convert to mm / s
-                    if variable == "speed":
-                        values_this_time_bin[i_plate] = values_this_time_bin[i_plate] * param.one_pixel_in_mm
-                    # For probability of presence, divide by the total number of time steps for the plate
-                    if variable == "probability_of_presence":
-                        values_this_time_bin[i_plate] /= total_time_steps_each_plate[i_plate]
-                    if variable == "total_time_each_pixel_each_patch":
-                        for i_plate in range(len(values_each_bin_each_plate[0])):
-                            nb_visited_patches_each_plate = ana.return_value_list(results[results["folder"]==folder_list[i_plate]],
-                                                                                  "nb_of_visited_patches")
-                            values_this_time_bin[i_plate] *= nb_visited_patches_each_plate
-                    # For pixel visits (total time spent in each pixel), just leave the list as is.
-                # Compute avg and confidence interval
-                current_avg = np.nanmean(values_this_time_bin)
-                avg_each_bin[i_bin] = current_avg
-                bootstrap_ci = ana.bottestrop_ci(values_this_time_bin, 1000)
-                errors_inf[i_bin] = current_avg - bootstrap_ci[0]
-                errors_sup[i_bin] = bootstrap_ci[1] - current_avg
+            # folder_list = folder_list[:3]
+            # folder_conditions = folder_conditions[:3]
 
-            # Put bin in the middle!
-            # First bin should be halfway between minimal value and its value
-            if i_bin == 0:
-                # I know the minimum is around 45, so I center it like that... would be cleaner to compute minimum
-                centered_bin_list[i_bin] = (bin_list[i_bin] - 45) / 2
-            # Other bins should be centered
+            values_each_bin_each_plate = pixel_visits_vs_distance_to_boundary(folder_list,
+                                                                              traj, bin_list,
+                                                                              variable=variable,
+                                                                              condition_each_folder=folder_conditions)
+
+            # At this point, visit_values has one value per bin/folder in each cell => average and bootstrap all that
+            nb_of_bins = len(bin_list)
+            centered_bin_list = copy.deepcopy(bin_list)
+            avg_each_bin = np.empty(nb_of_bins)
+            avg_each_bin[:] = np.nan  # just a convenient way of having a table full of NaNs
+            # Errors
+            errors_inf = np.empty(nb_of_bins)
+            errors_sup = np.empty(nb_of_bins)
+            errors_inf[:] = np.nan
+            errors_sup[:] = np.nan
+            # To normalize probabilities of presence, get the sum of times for each plate
+            total_time_steps_each_plate = [0 for _ in range(len(values_each_bin_each_plate[0]))]
+            for i_bin in range(nb_of_bins):
+                for i_plate in range(len(values_each_bin_each_plate[i_bin])):
+                    total_time_steps_each_plate[i_plate] += values_each_bin_each_plate[i_bin][i_plate]
+            for i_bin in range(nb_of_bins):
+                # Rename
+                values_this_bin = values_each_bin_each_plate[i_bin]
+                # and remove nan values for bootstrapping
+                values_this_bin = [values_this_bin[i] for i in range(len(values_this_bin)) if
+                                        not np.isnan(values_this_bin[i])]
+                if values_this_bin:
+                    for i_plate in range(len(values_this_bin)):
+                        # For speeds, convert to mm / s
+                        if variable == "speed":
+                            values_this_bin[i_plate] = values_this_bin[i_plate] * param.one_pixel_in_mm
+                        # For probability of presence, divide by the total number of time steps for the plate
+                        if variable == "probability_avg_patch":
+                            values_this_bin[i_plate] /= total_time_steps_each_plate[i_plate]
+                        if variable == "time_sum_patch":
+                            values_this_bin[i_plate] /= 60
+                        if variable == "time_avg_visited_patch":
+                            values_this_bin[i_plate] /= 60
+                        if variable == "time_in_avg_pixel":
+                            values_this_bin[i_plate] /= 60
+                        # For pixel visits (total time spent in each pixel), just leave the list as is.
+                    # Compute avg and confidence interval
+                    current_avg = np.nanmean(values_this_bin)
+                    avg_each_bin[i_bin] = current_avg
+                    bootstrap_ci = ana.bottestrop_ci(values_this_bin, 1000)
+                    errors_inf[i_bin] = current_avg - bootstrap_ci[0]
+                    errors_sup[i_bin] = bootstrap_ci[1] - current_avg
+
+                # Put bin in the middle!
+                # First bin should be halfway between minimal value and its value
+                if i_bin == 0:
+                    # I know the minimum is around 45, so I center it like that... would be cleaner to compute minimum
+                    centered_bin_list[i_bin] = (bin_list[i_bin] - 45) / 2
+                # Other bins should be centered
+                else:
+                    centered_bin_list[i_bin] = (bin_list[i_bin] + bin_list[i_bin - 1]) / 2
+
+            # Save it to a csv table
+            if not os.path.isdir(analysis_subfolder):
+                os.mkdir(analysis_subfolder)
+            np.save(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_bin_list.npy", centered_bin_list)
+            np.save(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_avg_each_bin.npy", avg_each_bin)
+            np.save(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_errors_inf.npy", errors_inf)
+            np.save(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_errors_sup.npy", errors_sup)
+
+        if is_plot:
+            centered_bin_list = np.load(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_bin_list.npy")
+            avg_each_bin = np.load(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_avg_each_bin.npy")
+            errors_inf = np.load(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_errors_inf.npy")
+            errors_sup = np.load(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_errors_sup.npy")
+
+            # Plot and add error bars
+            density = param.nb_to_density[curve[0]]
+            color_of_density = param.name_to_color[density]
+            color_of_condition = param.name_to_color[param.nb_to_name[curve[0]]]
+            if only_show_density:
+                color = color_of_density
+                label = "OD = " + density
             else:
-                centered_bin_list[i_bin] = (bin_list[i_bin] + bin_list[i_bin - 1]) / 2
+                color = color_of_condition
+                label = param.nb_to_name[curve[0]]
+            condition_color = param.name_to_color[param.nb_to_density[curve[0]]]
+            plt.plot(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin, color=color, label=label, linewidth=3)
+            plt.errorbar(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin, [errors_inf, errors_sup], color=color, capsize=5)
 
-        # Plot and add error bars
-        # Then, plot it
-        density = param.nb_to_density[curve[0]]
-        color_of_density = param.name_to_color[density]
-        color_of_condition = param.name_to_color[param.nb_to_name[curve[0]]]
-        if only_show_density:
-            color = color_of_density
-            label = "OD = " + density
-        else:
-            color = color_of_condition
-            label = param.nb_to_name[curve[0]]
-        condition_color = param.name_to_color[param.nb_to_density[curve[0]]]
-        plt.plot(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin, color=color, label=label, linewidth=3)
-        plt.errorbar(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin, [errors_inf, errors_sup], color=color, capsize=5)
+        print("Total time: ", int((time.time() - tic) // 60), "min")
 
-    print("Total time: ", int((time.time() - tic) // 60), "min")
-
-    plt.title(str(curve_names), fontsize=20)
-    if variable == "total_visit_each_pixel":
-        plt.ylabel("Total time in pixels in average patch (s)", fontsize=16)
-    if variable == "probability_of_presence":
-        plt.ylabel("Probability of presence", fontsize=16)
-        # plt.yscale("log")
-    if variable == "speed":
-        plt.ylabel("Average centroid speed (mm/s)", fontsize=16)
-    if variable == "total_time_each_pixel_each_patch":
-        plt.ylabel("Total time in pixels adding all patches (s)", fontsize=16)
-    plt.xlabel("Distance to patch boundary (< 0 inside, mm)", fontsize=16)
-    plt.legend(fontsize=14)
-    plt.show()
+    if is_plot:
+        plt.title(str(curve_names), fontsize=20)
+        if variable == "time_in_avg_pixel":
+            plt.ylabel("Time in average pixel (min)", fontsize=16)
+        if variable == "probability_avg_patch":
+            plt.ylabel("Probability of presence", fontsize=16)
+            # plt.yscale("log")
+        if variable == "speed":
+            plt.ylabel("Average centroid speed (mm/s)", fontsize=16)
+        if variable == "time_sum_patch":
+            plt.ylabel("Time in average pixel summed patches (min)", fontsize=16)
+        if variable == "time_avg_visited_patch":
+            plt.ylabel("Time in average pixel visited patches (min)", fontsize=16)
+        plt.xlabel("Distance to patch boundary (< 0 inside, mm)", fontsize=16)
+        plt.legend(fontsize=14)
+        plt.tight_layout(pad=2)
+        plt.show()
 
 
 if __name__ == "__main__":
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
-    path = gen.generate(starting_from="", shorten_traj=False, test_pipeline=True)
+    path = gen.generate(starting_from="", shorten_traj=False)
     results = pd.read_csv(path + "clean_results.csv")
     trajectories = dt.fread(path + "clean_trajectories.csv")
     full_list_of_folders = list(results["folder"])
     # list_of_distance_bins = [-35, -30, -25, -20, -15, -10, -5, 5, 10, 20, 30, 40, 50, 60, 100]
+    # list_of_distance_bins_mm = [-1.3, -1.1, -0.9, -0.7, -0.5, -0.3, -0.1, 0.1, 0.3, 0.7, 1.5, 2.4, 3.4, 4.5, 5.7, 7, 9, 11, 14, 17, 20]
     list_of_distance_bins_mm = [-1.3, -1.1, -0.9, -0.7, -0.5, -0.3, -0.1, 0.1, 0.3, 0.7, 1.5, 2.4]
     list_of_distance_bins = [b/param.one_pixel_in_mm for b in list_of_distance_bins_mm]
 
+    # (the following comment is not up to date)
     # Three options for the plot_visit_duration_vs_distance()
     # total_visit_each_pixel
     # probability_of_presence
     # speed
 
-    # MAIN FIGURE PLOTS: Total visit time and speed in med conditions
-    plot_variable_vs_distance(full_list_of_folders, results, trajectories,
-                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-                              variable="total_time_each_pixel_each_patch", only_show_density=True)
-    plot_variable_vs_distance(full_list_of_folders, results, trajectories,
-                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-                              variable="total_visit_each_pixel", only_show_density=True)
-    plot_variable_vs_distance(full_list_of_folders, results, trajectories,
-                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-                              variable="speed", only_show_density=True)
+    # REGENERATE ALL THE DATA
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                         ['close 0', 'close 0.2', 'close 0.5', 'close 1.25',
+    #                          'med 0', 'med 0.2', 'med 0.5', 'med 1.25',
+    #                          'far 0', 'far 0.2', 'far 0.5', 'far 1.25',
+    #                          'superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'],
+    #                           list_of_distance_bins,
+    #                           variable="time_avg_visited_patch", only_show_density=True, recompute=True, is_plot=False)
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                         ['close 0', 'close 0.2', 'close 0.5', 'close 1.25',
+    #                          'med 0', 'med 0.2', 'med 0.5', 'med 1.25',
+    #                          'far 0', 'far 0.2', 'far 0.5', 'far 1.25',
+    #                          'superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'],
+    #                           list_of_distance_bins,
+    #                           variable="time_sum_patch", only_show_density=True, recompute=True, is_plot=False)
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                         ['close 0', 'close 0.2', 'close 0.5', 'close 1.25',
+    #                          'med 0', 'med 0.2', 'med 0.5', 'med 1.25',
+    #                          'far 0', 'far 0.2', 'far 0.5', 'far 1.25',
+    #                          'superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'],
+    #                           list_of_distance_bins,
+    #                           variable="time_in_avg_pixel", only_show_density=True, recompute=True, is_plot=False)
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                         ['close 0', 'close 0.2', 'close 0.5', 'close 1.25',
+    #                          'med 0', 'med 0.2', 'med 0.5', 'med 1.25',
+    #                          'far 0', 'far 0.2', 'far 0.5', 'far 1.25',
+    #                          'superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'],
+    #                           list_of_distance_bins,
+    #                           variable="probability_avg_patch", only_show_density=True, recompute=True, is_plot=False)
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                         ['close 0', 'close 0.2', 'close 0.5', 'close 1.25',
+    #                          'med 0', 'med 0.2', 'med 0.5', 'med 1.25',
+    #                          'far 0', 'far 0.2', 'far 0.5', 'far 1.25',
+    #                          'superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'],
+    #                           list_of_distance_bins,
+    #                           variable="speed", only_show_density=True, recompute=True, is_plot=False)
 
-    # SUPPLEMENTARIES
-    # Total visit times
-    # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
-    #                           variable="total_visit_each_pixel")
-    # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
-    #                           variable="total_visit_each_pixel")
-    # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
-    #                           variable="total_visit_each_pixel")
-    #
-    # # Speed
-    # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
-    #                           variable="speed")
-    # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
-    #                           variable="speed")
-    # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
-    #                           variable="speed")
-    #
-    # # Probability of presence
-    # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
-    #                           variable="probability_of_presence")
+    # MAIN FIGURE PLOTS: Total visit time visited patches only, and speed in med conditions
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=True, recompute=False)
     # plot_variable_vs_distance(full_list_of_folders, trajectories,
     #                           ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-    #                           variable="probability_of_presence")
+    #                           variable="time_sum_patch", only_show_density=True, recompute=False)
     # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
-    #                           variable="probability_of_presence")
+    #                           ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+    #                           variable="probability_avg_patch", only_show_density=True, recompute=False)
     # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
-    #                           variable="probability_of_presence")
+    #                           ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+    #                           variable="speed", only_show_density=True, recompute=False)
+
+    # SUPPLEMENTARIES
+
+    # Total visit times only visited patches effect of distance
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+
+    # Total visit times only visited patches effect of distance
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'med 0', 'far 0', 'superfar 0'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.2', 'med 0.2', 'far 0.2', 'superfar 0.2'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.5', 'med 0.5', 'far 0.5', 'superfar 0.5'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 1.25', 'med 1.25', 'far 1.25', 'superfar 1.25'], list_of_distance_bins,
+                              variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+
+
+    # Total visit times effect of density
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+                              variable="time_in_avg_pixel", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+                              variable="time_in_avg_pixel", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+                              variable="time_in_avg_pixel", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
+                              variable="time_in_avg_pixel", only_show_density=False, recompute=False)
+
+    # Total visit times effect of distance
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'med 0', 'far 0', 'superfar 0'], list_of_distance_bins,
+                              variable="time_in_avg_pixel", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.2', 'med 0.2', 'far 0.2', 'superfar 0.2'], list_of_distance_bins,
+                              variable="time_in_avg_pixel", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.5', 'med 0.5', 'far 0.5', 'superfar 0.5'], list_of_distance_bins,
+                              variable="time_in_avg_pixel", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 1.25', 'med 1.25', 'far 1.25', 'superfar 1.25'], list_of_distance_bins,
+                              variable="time_in_avg_pixel", only_show_density=False, recompute=False)
+
+    # Visit times in summed patches
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+                              variable="time_sum_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+                              variable="time_sum_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+                              variable="time_sum_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
+                              variable="time_sum_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'med 0', 'far 0', 'superfar 0'], list_of_distance_bins,
+                              variable="time_sum_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.2', 'med 0.2', 'far 0.2', 'superfar 0.2'], list_of_distance_bins,
+                              variable="time_sum_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.5', 'med 0.5', 'far 0.5', 'superfar 0.5'], list_of_distance_bins,
+                              variable="time_sum_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 1.25', 'med 1.25', 'far 1.25', 'superfar 1.25'], list_of_distance_bins,
+                              variable="time_sum_patch", only_show_density=False, recompute=False)
+
+    # # Speed
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+                              variable="probability_avg_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+                              variable="probability_avg_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+                              variable="probability_avg_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
+                              variable="probability_avg_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'med 0', 'far 0', 'superfar 0'], list_of_distance_bins,
+                              variable="probability_avg_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.2', 'med 0.2', 'far 0.2', 'superfar 0.2'], list_of_distance_bins,
+                              variable="probability_avg_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.5', 'med 0.5', 'far 0.5', 'superfar 0.5'], list_of_distance_bins,
+                              variable="probability_avg_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 1.25', 'med 1.25', 'far 1.25', 'superfar 1.25'], list_of_distance_bins,
+                              variable="probability_avg_patch", only_show_density=False, recompute=False)
+
+    # # Probability of presence
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'close 0.2', 'close 0.5', 'close 1.25'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['far 0', 'far 0.2', 'far 0.5', 'far 1.25'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['superfar 0', 'superfar 0.2', 'superfar 0.5', 'superfar 1.25'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0', 'med 0', 'far 0', 'superfar 0'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.2', 'med 0.2', 'far 0.2', 'superfar 0.2'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.5', 'med 0.5', 'far 0.5', 'superfar 0.5'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 1.25', 'med 1.25', 'far 1.25', 'superfar 1.25'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
 
