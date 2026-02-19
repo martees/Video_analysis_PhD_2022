@@ -365,7 +365,8 @@ def visit_time_as_a_function_of(results, traj, condition_list, variable, patch_o
 
     # Fill up the lists depending on the variable specified as an argument
     if variable == "last_travel_time":
-        # TODO if we ever use this again, switch it to a much simpler version where we fuse visit and transit lists, sort by time, and then look at each element
+        # TODO if we ever use this again, switch it to a much simpler version where we fuse visit and transit lists,
+        #  sort by time, and then look at each element
         starts_with_visit = False
         for i_folder in range(len(folder_list)):
             # Initialization

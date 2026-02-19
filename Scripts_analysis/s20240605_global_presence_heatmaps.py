@@ -707,46 +707,46 @@ if __name__ == "__main__":
     path = gen.generate(starting_from="", test_pipeline=False)
 
     # 0
-    plot_existing_heatmap(path, [17], "speed", v_max=.2)
-    plot_existing_heatmap(path, [18], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [19], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [20], "speed", v_max=0.2)
-    # 0.2
-    plot_existing_heatmap(path, [0], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [1], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [2], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [14], "speed", v_max=0.2)
-    # 0.5
-    plot_existing_heatmap(path, [4], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [5], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [6], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [15], "speed", v_max=0.2)
-    # 1.25
-    plot_existing_heatmap(path, [12], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [8], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [13], "speed", v_max=0.2)
-    plot_existing_heatmap(path, [16], "speed", v_max=0.2)
-
-    0
-    plot_existing_heatmap(path, [17], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [18], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [19], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [20], "pixel_visits", v_max=0.00002)
-    # 0.2
-    plot_existing_heatmap(path, [0], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [1], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [2], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [14], "pixel_visits", v_max=0.00002)
-    # 0.5
-    plot_existing_heatmap(path, [4], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [5], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [6], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [15], "pixel_visits", v_max=0.00002)
-    # 1.25
-    plot_existing_heatmap(path, [12], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [8], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [13], "pixel_visits", v_max=0.00002)
-    plot_existing_heatmap(path, [16], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [17], "speed", v_max=.2)
+    # plot_existing_heatmap(path, [18], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [19], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [20], "speed", v_max=0.2)
+    # # 0.2
+    # plot_existing_heatmap(path, [0], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [1], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [2], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [14], "speed", v_max=0.2)
+    # # 0.5
+    # plot_existing_heatmap(path, [4], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [5], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [6], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [15], "speed", v_max=0.2)
+    # # 1.25
+    # plot_existing_heatmap(path, [12], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [8], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [13], "speed", v_max=0.2)
+    # plot_existing_heatmap(path, [16], "speed", v_max=0.2)
+    #
+    # 0
+    # plot_existing_heatmap(path, [17], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [18], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [19], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [20], "pixel_visits", v_max=0.00002)
+    # # 0.2
+    # plot_existing_heatmap(path, [0], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [1], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [2], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [14], "pixel_visits", v_max=0.00002)
+    # # 0.5
+    # plot_existing_heatmap(path, [4], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [5], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [6], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [15], "pixel_visits", v_max=0.00002)
+    # # 1.25
+    # plot_existing_heatmap(path, [12], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [8], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [13], "pixel_visits", v_max=0.00002)
+    # plot_existing_heatmap(path, [16], "pixel_visits", v_max=0.00002)
 
     # Load path and clean_results.csv, because that's where the list of folders we work on is stored
     results = pd.read_csv(path + "clean_results.csv")
@@ -759,7 +759,7 @@ if __name__ == "__main__":
     #compute_average_ref_points_distance(path, full_list_of_folders)
 
     #compute_average_ref_points_distance(path, full_list_of_folders)
-    #generate_average_patch_radius_each_condition(path, full_list_of_folders)
+    generate_average_patch_radius_each_condition(path, full_list_of_folders)
     #plot_distance_map_and_patches(path, full_list_of_folders[11])
 
     #import cProfile

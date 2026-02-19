@@ -213,6 +213,7 @@ name_to_color = {"close": "mediumslateblue", "med": "royalblue", "far": "deepsky
                  "mixed": "goldenrod"}
 
 distance_to_marker = {"close": "o", "med": "s", "far": "p", "superfar": "^"}
+distance_to_linestyle = {"close": "solid", "med": "dashed", "far": "dashdot", "superfar": "dotted"}
 
 # Add colors for single conditions, distance override but color is lighter when density is 0.2, darker when 1.25
 for condition in nb_to_name.keys():

@@ -176,15 +176,15 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
             elif modeled_data:
                 path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
     else:  # Windows path
-        path = "E:/Results_minipatches_retracked/"
+        path = "H:/Results_minipatches_retracked/"
         if test_pipeline:
-            path = "E:/Results_minipatches_retracked_test/"
+            path = "H:/Results_minipatches_retracked_test/"
         if modeled_data:
-            path = "E:/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
+            path = "H:/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
         if shorten_traj:
-            path = "E:/Only_Copy_Probably/Results_minipatches_retracked_shortened/"
+            path = "H:/Only_Copy_Probably/Results_minipatches_retracked_shortened/"
             if modeled_data:
-                path = "E:/Only_Copy_Probably/Results_minipatches_retracked_shortened_model_rw/"
+                path = "H:/Only_Copy_Probably/Results_minipatches_retracked_shortened_model_rw/"
 
     if custom_path != "":
         path = custom_path

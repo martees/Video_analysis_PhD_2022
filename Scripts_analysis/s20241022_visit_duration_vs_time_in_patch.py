@@ -46,7 +46,7 @@ def plot_visit_duration_vs_time_in_patch(results, curve_list, bin_list, min_nb_e
         current_folder_list = fd.return_folders_condition_list(full_list_of_folders, param.name_to_nb_list[curve])
         for i_folder, folder in enumerate(current_folder_list):
             current_results = results[results["folder"] == folder]
-            current_visits = fd.load_list(current_results, "no_hole_visits")
+            current_visits = fd.load_list(current_results, "visits_to_uncensored_patches")
             all_visit_lengths_each_bin = add_visit_vs_time_in_patch_1_folder(current_visits, bin_list,
                                                                              all_visit_lengths_each_bin)
         # Compute stats for each bin

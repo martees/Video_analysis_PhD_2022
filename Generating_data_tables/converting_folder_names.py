@@ -7,9 +7,9 @@ from Generating_data_tables import main as gen
 
 
 # CODE TO RUN WHEN ON WINDOWS WITH RESULTS PRODUCED IN LINUX
-def linux_to_windows():
-    linux_path = gen.generate("", shorten_traj=False, modeled_data=False, force_linux=True)
-    windows_path = gen.generate("", shorten_traj=False, modeled_data=False)
+def linux_to_windows(test):
+    linux_path = gen.generate("", shorten_traj=False, modeled_data=False, force_linux=True, test_pipeline=test)
+    windows_path = gen.generate("", shorten_traj=False, modeled_data=False, test_pipeline=test)
     results = pd.read_csv(windows_path + "clean_results.csv")  # the results are saved in the windows path
     for i_folder in range(len(results["folder"])):
         current_folder = results["folder"][i_folder]
@@ -32,6 +32,10 @@ def windows_to_linux():
 
 # CODE TO RUN WHEN RUNNING THE CODE ON A MACHINE WHICH IS NOT ALID'S
 def switch_path(custom_path):
+    """
+    Takes a path as an argument. This should be the path were all the data is currently.
+    Will change the path information stored in the clean_results.csv table.
+    """
     results = pd.read_csv(custom_path + "clean_results.csv")
     for i_folder in range(len(results["folder"])):
         current_folder = results["folder"][i_folder]
@@ -47,4 +51,5 @@ def switch_path(custom_path):
     results.to_csv(custom_path + "clean_results.csv")
 
 
-linux_to_windows()
+# linux_to_windows(test=True)
+switch_path(r"H:/Results_minipatches_retracked/")

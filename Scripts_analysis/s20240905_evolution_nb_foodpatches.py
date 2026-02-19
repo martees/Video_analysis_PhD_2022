@@ -80,15 +80,15 @@ def evolution_food_patches(curve_list, time_bins, min_length, min_nb_data_points
 
     if plot_diff:
         plt.title("New discovered food patch at different times in the videos", fontsize=12)
-        plt.ylabel("Number of new discovered food patches", fontsize=12)
+        plt.ylabel("New food patches discovered", fontsize=20)
     else:
         plt.title("Average nb of discovered food patch at different times in the videos", fontsize=12)
-        plt.ylabel("Total number of discovered food patches", fontsize=12)
+        plt.ylabel("Food patches discovered so far", fontsize=20)
 
     plt.gcf().set_size_inches(6.2, 6.6)
     plt.xticks(time_bins, [str(np.round(b/3600, 1)) for b in time_bins], rotation=50)  # hour conversion is here
-    plt.xlabel("Time in video (hours)", fontsize=12)
-    plt.legend()
+    plt.xlabel("Time in video (hours)", fontsize=20)
+    plt.legend(fontsize=16)
     plt.show()
 
 
@@ -98,7 +98,7 @@ results = pd.read_csv(path + "clean_results.csv")
 trajectories = dt.fread(path + "clean_trajectories.csv")
 
 
-time_bins = [0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400]
+time_bins = [0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800]
 min_length = 1  # minimal transit length to get considered
 min_nb_data_points = 10  # minimal number of transits for a point to get plotted
 
