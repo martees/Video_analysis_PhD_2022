@@ -1,5 +1,6 @@
 import pandas as pd
 from Generating_data_tables import main as gen
+import datatable as dt
 
 # Just a short script to take an existing clean_results.csv file and replace the folders in "folder" column by
 # ones starting with the right path for the results (which changes when switching from linux to windows)
@@ -52,4 +53,4 @@ def switch_path(custom_path):
 
 
 # linux_to_windows(test=True)
-switch_path(r"H:/Results_minipatches_retracked/")
+switch_path(r"E:/Results_minipatches_retracked/")

@@ -91,7 +91,7 @@ def pixel_visit_duration_vs_centroid_speed(results_path, trajectories, full_fold
     plt.title(str([param.nb_to_name[cond] for cond in condition_list]))
 
     print("Total time: ", int((time.time() - tic) // 60), "min")
-    plt.legend()
+    plt.legend(frameon=False, )
     plt.show()
 
 

@@ -113,7 +113,7 @@ def references_to_base(xy_holes, show=False):
         computed_positions = np.array([x0, x0 + v1, x0 + v2, x0 + v1 + v2])
         plt.plot(computed_positions[:, 0], computed_positions[:, 1], marker="o", label="Better square")
         plt.axis("equal")
-        plt.legend()
+        plt.legend(frameon=False)
         plt.show()
 
     return x0, v1, v2

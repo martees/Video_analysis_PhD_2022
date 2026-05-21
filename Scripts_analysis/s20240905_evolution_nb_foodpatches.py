@@ -88,7 +88,7 @@ def evolution_food_patches(curve_list, time_bins, min_length, min_nb_data_points
     plt.gcf().set_size_inches(6.2, 6.6)
     plt.xticks(time_bins, [str(np.round(b/3600, 1)) for b in time_bins], rotation=50)  # hour conversion is here
     plt.xlabel("Time in video (hours)", fontsize=20)
-    plt.legend(fontsize=16)
+    plt.legend(frameon=False, fontsize=16)
     plt.show()
 
 

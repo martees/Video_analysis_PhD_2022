@@ -46,7 +46,7 @@ def plot_parameter_distribution(condition_list, values_dictionary):
         current_axis.set_title(current_parameter)
         current_axis.set_yscale("log")
 
-    plt.legend()
+    plt.legend(frameon=False)
     plt.show()
 
 

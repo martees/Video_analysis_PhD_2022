@@ -71,7 +71,7 @@ def histogram_visit_distribution(results, traj, curve_list, curve_names, regener
     ymin, ymax = ax.get_ylim()
     plt.vlines([np.mean(px_visit_durations_each_curve[i_curve]) for i_curve in range(len(curve_list))], ymin=ymin, ymax=ymax, colors=[param.name_to_color[c] for c in curve_names])
 
-    plt.legend()
+    plt.legend(frameon=False, )
     plt.title("Distribution of " + only_first_visits * "first " + "pixel visit durations in the different conditions " + (1 - all_pixels) * "(inside patch)" + all_pixels * "(all pixels)")
     plt.yscale(y_scale)
     plt.show()

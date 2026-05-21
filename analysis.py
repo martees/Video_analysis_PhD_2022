@@ -58,6 +58,11 @@ def random_sample(array_1D):
     return np.apply_along_axis(random.choices, 0, array_1D, k=len(array_1D))
 
 
+def random_average(array_1D, nb_of_points_to_pick):
+    # This returns the average value of nb_of_points_to_pick randomly picked from array_1D
+    return np.mean(np.apply_along_axis(random.choices, 0, array_1D, k=nb_of_points_to_pick))
+
+
 def bottestrop_ci(data, nb_resample, operation="mean"):
     """
     Function that takes a dataset and returns a confidence interval using nb_resample samples for bootstrapping
@@ -70,7 +75,7 @@ def bottestrop_ci(data, nb_resample, operation="mean"):
     if operation == "leaving_probability":
         bootstrapped_stat = np.apply_along_axis(compute_leaving_probability, 0, random_samples)
     bootstrapped_stat.sort()
-    return [np.percentile(bootstrapped_stat, 5), np.percentile(bootstrapped_stat, 95)]
+    return [np.percentile(bootstrapped_stat, 2.5), np.percentile(bootstrapped_stat, 97.5)]
 
 
 def hard_cut_events(visit_list, transit_list):
@@ -219,8 +224,8 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
                 elif column_name == "total_visit_time":
                     # Compute total time with updated visit list
                     current_plate["total_visit_time"] = np.sum([pd.DataFrame(current_visits).apply(lambda t: t.iloc[1] - t.iloc[0], axis=1)])
-                    # Convert to hours
-                    current_plate["total_visit_time"] /= 3600
+                    # Convert to minutes
+                    current_plate["total_visit_time"] /= 60
             if column_name == "nb_of_visits":
                 if type(current_visits) is not list and np.isnan(current_visits):  # 1st statement to not do np.isnan on list
                     current_plate["nb_of_visits"] = np.nan
@@ -287,9 +292,14 @@ def results_per_condition(result_table, list_of_conditions, column_name, divided
             if normalize_by_video_length:
                 list_of_values[i_plate] /= current_plate["total_tracked_time"]
 
-        # This is a very cursed line I am so sorry please don't read it too hard T-T
+        # # This is a very cursed line I am so sorry please don't read it too hard T-T
+        # (Usually list_of_values should be one value per plate, but in this case we have one list per plate,
+        #  so we need to bypass the means and whatnot coming after that)
         if column_name in ["no_hole_visits", "aggregated_raw_transits"]:
-            return list_of_values
+            if len(list_of_conditions) == 1:
+                return list_of_values
+            else:
+                print("You did not implement that yet teehee (analysis.py / results_per_condition())")
 
         # Keep in memory the full list of averages
         full_list_of_values[i_condition] = list_of_values
@@ -573,9 +583,9 @@ def convert_to_durations(list_of_time_stamps, add_one=True):
     # Code using lambda function instead:
     if list_of_time_stamps:
         if add_one:
-            return list(np.apply_along_axis(lambda x: x[1] - x[0] + 1, 1, list_of_time_stamps))
+            return list(np.apply_along_axis(lambda x: np.round(x[1] - x[0] + param.one_frame_in_seconds, 4), 1, list_of_time_stamps))
         else:
-            return list(np.apply_along_axis(lambda x: x[1] - x[0], 1, list_of_time_stamps))
+            return list(np.apply_along_axis(lambda x: np.round(x[1] - x[0], 4), 1, list_of_time_stamps))
     else:  # If there are no time stamps
         return []
 

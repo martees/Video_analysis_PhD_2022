@@ -155,6 +155,6 @@ for condition in condition_names:
     axs[subplot_pos].errorbar(time_bins[:-1], avg_visit_each_time[condition], [errors_inf_each_time[condition], errors_sup_each_time[condition]], fmt='.k', capsize=5)
 
 for ax in axs:
-    ax.legend()
+    ax.legend(frameon=False)
 
 plt.show()

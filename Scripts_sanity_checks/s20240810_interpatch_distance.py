@@ -77,7 +77,7 @@ def generate_patch_distances(box_plot=True, histogram=False):
                        "icon_" + distances_r[i] + ".png") for i in
                        range(len(lines))},
                    handlelength=1.6, labelspacing=0.0, fontsize=50, borderpad=0.10, loc=2,
-                   handletextpad=0.05, borderaxespad=0.15)
+                   handletextpad=0.05, borderaxespad=0.15, frameon=False, )
 
         plt.show()
 
@@ -112,7 +112,7 @@ def generate_patch_distances(box_plot=True, histogram=False):
         # Add first legend for median + mean
         # median, = ax.plot([], color="gray", linestyle="dotted", label="median")
         # mean, = ax.plot([], color="gray", linestyle="dashed", label="mean")
-        # extra_legend = plt.legend(handles=[mean], loc="upper right")
+        # extra_legend = plt.legend(frameon=False, handles=[mean], loc="upper right")
         # plt.gca().add_artist(extra_legend)
 
         # Custom legend with doodles as labels
@@ -123,7 +123,8 @@ def generate_patch_distances(box_plot=True, histogram=False):
                        "icon_" + distances_r[i] + ".png") for i in
                        range(len(lines))},
                    handlelength=1.6, labelspacing=0.0, fontsize=50, borderpad=0.10,
-                   handletextpad=0.05, borderaxespad=0.15, bbox_to_anchor=(0.6, 0.15), loc="lower left")
+                   handletextpad=0.05, borderaxespad=0.15,
+                   bbox_to_anchor=(0.6, 0.15), loc="lower left", frameon=False, )
 
         plt.show()
 

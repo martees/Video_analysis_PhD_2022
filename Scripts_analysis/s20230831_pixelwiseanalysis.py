@@ -281,7 +281,7 @@ def patch_depletion_evolution(folder, nb_of_frames, depletion_rate):
     plt.title("Plate "+folder[-48:-9]+ ", depletion_rate = "+str(depletion_rate))
     plt.ylabel("Food level in each patch")
     plt.xlabel("Time (s)")
-    plt.legend()
+    plt.legend(frameon=False, )
     plt.show()
 
 

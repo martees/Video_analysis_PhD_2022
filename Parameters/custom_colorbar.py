@@ -39,5 +39,30 @@ def discrete_rainbow(nb_of_rainbow_points, nb_of_grey_points, plot=False):
 
     return cmap
 
+
+import matplotlib.ticker
+
+
+# From https://stackoverflow.com/a/43325107/21414975
+# Allows to tinker with the scientific writing of matplotlib colorbars
+class OOMFormatter(matplotlib.ticker.ScalarFormatter):
+    def __init__(self, order=0, fformat="%1.1f", offset=True, mathText=True):
+        self.oom = order
+        self.fformat = fformat
+        matplotlib.ticker.ScalarFormatter.__init__(self, useOffset=offset, useMathText=mathText)
+
+    def _set_order_of_magnitude(self):
+        self.orderOfMagnitude = self.oom
+
+    def _set_format(self, vmin=None, vmax=None):
+        self.format = self.fformat
+        if self._useMathText:
+            self.format = r'$\mathdefault{%s}$' % self.format
+
+    # Example use
+    # cbar = fig.colorbar(plot, format=OOMFormatter(-2, mathText=False))
+
+
+
 if __name__ == "__main__":
     discrete_rainbow(10, 2, plot=True)

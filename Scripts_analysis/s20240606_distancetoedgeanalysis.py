@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import datatable as dt
+import matplotlib.patheffects as pe
+
 
 from Generating_data_tables import main as gen
 from Generating_data_tables import generate_results as gr
@@ -115,10 +117,13 @@ def pixel_visits_vs_distance_to_boundary(folder_list, traj, bin_list, condition_
                     bin_index = bin_index[0]
                 if variable in ["time_in_avg_pixel", "speed", "probability_avg_patch"]:
                     visit_values_each_bin_each_plate[bin_index][i_folder] = current_folder_avg_each_bin[i_bin]
+                # In this case, we divide the obtained value by the area of one ring, proxy for summing food patches
                 elif variable in ["time_sum_patch"]:
                     visit_values_each_bin_each_plate[bin_index][i_folder] = np.nansum(binned_y_values[i_bin])
                     average_ring_area = len(binned_y_values[i_bin]) / param.nb_to_nb_of_patches[condition_each_folder[i_folder]]
                     visit_values_each_bin_each_plate[bin_index][i_folder] /= average_ring_area
+                # In this case we divide the obtained value by the total area of this ring across food patches,
+                # to get the average food patch
                 elif variable in ["time_avg_visited_patch"]:
                     visit_values_each_bin_each_plate[bin_index][i_folder] = np.nansum(binned_y_values[i_bin])
                     average_ring_area = len(binned_y_values[i_bin]) / param.nb_to_nb_of_patches[condition_each_folder[i_folder]]
@@ -222,6 +227,12 @@ def plot_variable_vs_distance(full_folder_list, traj, curve_names, bin_list, var
             errors_inf = np.load(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_errors_inf.npy")
             errors_sup = np.load(analysis_subfolder + variable + "_" + curve_names[i_curve] + "_errors_sup.npy")
 
+            # Change the unit for the y axis in the case of average time per pixel in visited food patches
+            if variable == "time_avg_visited_patch":
+                avg_each_bin = [avg / (param.one_pixel_in_mm * 2) for avg in avg_each_bin]
+                errors_inf = [err / (param.one_pixel_in_mm * 2) for err in errors_inf]
+                errors_sup = [err / (param.one_pixel_in_mm * 2) for err in errors_sup]
+
             # Plot and add error bars
             density = param.nb_to_density[curve[0]]
             color_of_density = param.name_to_color[density]
@@ -233,8 +244,12 @@ def plot_variable_vs_distance(full_folder_list, traj, curve_names, bin_list, var
                 color = color_of_condition
                 label = param.nb_to_name[curve[0]]
             condition_color = param.name_to_color[param.nb_to_density[curve[0]]]
-            plt.plot(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin, color=color, label=label, linewidth=3)
-            plt.errorbar(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin, [errors_inf, errors_sup], color=color, capsize=5)
+            # Plot ot twice otherwise it looks bad
+            plt.errorbar(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin,
+                         [errors_inf, errors_sup], color=color, capsize=8, elinewidth=0.8, ecolor="white",
+                     linewidth=3.5, path_effects=[pe.Stroke(linewidth=10, foreground="white"), pe.Normal()], zorder=-2)
+            plt.errorbar(np.array(centered_bin_list)*param.one_pixel_in_mm, avg_each_bin,
+                         [errors_inf, errors_sup], linewidth=3.5, elinewidth=1, color=color, capsize=5, label=label)
 
         print("Total time: ", int((time.time() - tic) // 60), "min")
 
@@ -250,9 +265,19 @@ def plot_variable_vs_distance(full_folder_list, traj, curve_names, bin_list, var
         if variable == "time_sum_patch":
             plt.ylabel("Time in average pixel summed patches (min)", fontsize=16)
         if variable == "time_avg_visited_patch":
-            plt.ylabel("Time in average pixel visited patches (min)", fontsize=16)
+            plt.ylabel("Time per unit area visited food patches (min/mm2)", fontsize=16)
         plt.xlabel("Distance to patch boundary (< 0 inside, mm)", fontsize=16)
-        plt.legend(fontsize=14)
+        y_min, y_max = plt.gca().get_ylim()
+        x_min, x_max = plt.gca().get_xlim()
+        plt.vlines([0], ymin=y_min, ymax=y_max, linestyle="--", color=(0.90, 0.89, 0.85), linewidth=3.5, zorder=-8)
+        plt.axvspan(x_min, 0.01, facecolor=(0.95, 0.94, 0.9), alpha=0.5, zorder=-10)
+        plt.ylim(0, y_max)
+        plt.xlim(x_min, x_max)
+        plt.xticks(fontsize=14)
+        if len(plt.gca().get_yticks()) > 5:
+            plt.gca().set_yticks(plt.gca().get_yticks()[::2])
+        plt.yticks(fontsize=14)
+        plt.legend(frameon=False, fontsize=14)
         plt.tight_layout(pad=2)
         plt.show()
 
@@ -312,18 +337,18 @@ if __name__ == "__main__":
     #                           variable="speed", only_show_density=True, recompute=True, is_plot=False)
 
     # MAIN FIGURE PLOTS: Total visit time visited patches only, and speed in med conditions
-    plot_variable_vs_distance(full_list_of_folders, trajectories,
-                              ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-                              variable="time_avg_visited_patch", only_show_density=True, recompute=False)
     # plot_variable_vs_distance(full_list_of_folders, trajectories,
     #                           ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-    #                           variable="time_sum_patch", only_show_density=True, recompute=False)
-    # plot_variable_vs_distance(full_list_of_folders, trajectories,
-    #                           ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
-    #                           variable="probability_avg_patch", only_show_density=True, recompute=False)
+    #                           variable="time_avg_visited_patch", only_show_density=True, recompute=False)
     # plot_variable_vs_distance(full_list_of_folders, trajectories,
     #                           ['med 0', 'med 0.2', 'med 0.5', 'med 1.25'], list_of_distance_bins,
     #                           variable="speed", only_show_density=True, recompute=False)
+    # plot_variable_vs_distance(full_list_of_folders, trajectories,
+    #                           ['close 0.5', 'med 0.5', 'far 0.5', 'superfar 0.5'], list_of_distance_bins,
+    #                           variable="time_avg_visited_patch", only_show_density=False, recompute=False)
+    plot_variable_vs_distance(full_list_of_folders, trajectories,
+                              ['close 0.5', 'med 0.5', 'far 0.5', 'superfar 0.5'], list_of_distance_bins,
+                              variable="speed", only_show_density=False, recompute=False)
 
     # SUPPLEMENTARIES
 

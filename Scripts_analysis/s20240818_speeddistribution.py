@@ -65,7 +65,7 @@ def plot_speed_distribution(full_folder_list, trajectories, condition_list, firs
         axs[1].hist(speeds_outside_this_condition, histtype="step", density=True, cumulative=-1, label=condition_name,
                  color=condition_color, bins=list(np.linspace(0, 4, 41)), linewidth=2)
 
-    plt.legend()
+    plt.legend(frameon=False)
     plt.show()
 
 

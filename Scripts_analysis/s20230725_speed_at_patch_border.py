@@ -2,6 +2,7 @@ import Parameters.parameters as param
 from main import *
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 import find_data as fd
 from Generating_data_tables import main as gen
 # Analysis of the worms' speeds near the patch border
@@ -16,7 +17,13 @@ def one_condition(clean_trajectories, clean_results, condition_list, condition_n
     avg_speed_around_entry_all_plates = [np.zeros(len(folder_list)) for _ in range(2*time_window)]
     avg_speed_around_exit_all_plates = [np.zeros(len(folder_list)) for _ in range(2*time_window)]
 
+    # func = np.vectorize(lambda x: "".join(str(x).split("/")[-3:]))
+    # endings = np.array([func(f) for f in folders])
+
+    print(">>> Condition ", condition_name, "...")
     for i_folder in range(len(folder_list)):
+        if i_folder % (len(folder_list)//10) == 0:
+            print(">>>>>> Folder ", i_folder, " / ", len(folder_list))
         folder = folder_list[i_folder]
         # Init
         speed_around_entry = [[] for _ in range(2*time_window)]
@@ -28,8 +35,8 @@ def one_condition(clean_trajectories, clean_results, condition_list, condition_n
         list_of_transits = fd.load_list(current_results, "aggregated_raw_transits")
         # Lists of frames where worm enters / exits patches (visit and transit starts) and it lasts more than time window
         # (any visit or transit shorter than time window would lead to an "impure" behavior => excluded from analysis)
-        long_enough_visits = [list_of_visits[i] for i in range(len(list_of_visits)) if list_of_visits[i][1]-list_of_visits[i][0] >= time_window]
-        long_enough_transits = [list_of_transits[i] for i in range(len(list_of_transits)) if list_of_transits[i][1]-list_of_transits[i][0] >= time_window]
+        long_enough_visits = [list_of_visits[i] for i in range(len(list_of_visits)) if list_of_visits[i][1] - list_of_visits[i][0] >= time_window]
+        long_enough_transits = [list_of_transits[i] for i in range(len(list_of_transits)) if list_of_transits[i][1] - list_of_transits[i][0] >= time_window]
         # Since we filtered the two lists, they now contain visits and transits that are not necessarily consecutive => fix that
         entry_time_stamps = [long_enough_visits[i][0] for i in range(len(long_enough_visits)) if any(long_enough_visits[i][0] in t for t in long_enough_transits)]
         exit_time_stamps = [long_enough_transits[i][0] for i in range(len(long_enough_transits)) if any(long_enough_transits[i][0] in t for t in long_enough_visits)]
@@ -37,7 +44,7 @@ def one_condition(clean_trajectories, clean_results, condition_list, condition_n
         # Fill entry list
         for i_entry in range(len(entry_time_stamps)):
             current_entry_time = entry_time_stamps[i_entry]
-            entry_index = fd.find_closest(current_traj["time"], current_entry_time)
+            # entry_index = fd.find_closest(current_traj["time"], current_entry_time)
             # Check if frames are continuous around entry: otherwise, exclude it completely (for now because I'm tired)
             # (check if the difference between the indexes in the "frame" column is the same as the difference between the frames)
             pre_entry_index = fd.find_closest(current_traj["time"], current_entry_time - time_window)
@@ -107,18 +114,35 @@ def one_condition(clean_trajectories, clean_results, condition_list, condition_n
         color = param.name_to_color[condition_name]
         label = condition_name
     conversion = param.one_pixel_in_mm/param.one_frame_in_seconds
-    axs[0].plot(range(-time_window, time_window), avg_speed_around_entry*conversion, color=color, label=label, linewidth=3)
+
+    # Plot ot twice otherwise it looks bad
     axs[0].errorbar(range(-time_window, time_window), avg_speed_around_entry*conversion,
-                    [errors_inf_around_entry*conversion, errors_sup_around_entry*conversion], fmt=color, capsize=5)
-    axs[1].plot(range(-time_window, time_window), avg_speed_around_exit*conversion, color=color, label=label, linewidth=3)
+                    [errors_inf_around_entry*conversion, errors_sup_around_entry*conversion],
+                    color = color, capsize = 8, elinewidth = 0.8, ecolor = "white", linewidth = 3.5,
+                    path_effects = [pe.Stroke(linewidth=10, foreground="white"), pe.Normal()], zorder = -2,
+                    errorevery=2)
+    axs[0].errorbar(range(-time_window, time_window), avg_speed_around_entry*conversion,
+                    [errors_inf_around_entry*conversion, errors_sup_around_entry*conversion],
+                    linewidth=3.5, elinewidth=1, color=color, capsize=5, label=label,
+                    errorevery=2)
+
     axs[1].errorbar(range(-time_window, time_window), avg_speed_around_exit*conversion,
-                    [errors_inf_around_exit*conversion, errors_sup_around_exit*conversion], fmt=color, capsize=5)
+                    [errors_inf_around_exit*conversion, errors_sup_around_exit*conversion],
+                    color = color, capsize = 8, elinewidth = 0.8, ecolor = "white", linewidth = 3.5,
+                    path_effects = [pe.Stroke(linewidth=10, foreground="white"), pe.Normal()], zorder = -2,
+                    errorevery=2)
+    axs[1].errorbar(range(-time_window, time_window), avg_speed_around_exit*conversion,
+                    [errors_inf_around_exit*conversion, errors_sup_around_exit*conversion],
+                    linewidth=3.5, elinewidth=1, color=color, capsize=5, label=label,
+                    errorevery=2)
+
 
 
 def condition_pool(condition_names, show_only_density=False):
     path = gen.generate("")
     clean_results = pd.read_csv(path + "/clean_results.csv", index_col=0)
     clean_trajectories = pd.read_csv(path + "/clean_trajectories.csv", index_col=0)
+    print("Finished retrieving data tables")
 
     # Find conditions and folders
     condition_list = [param.name_to_nb[name] for name in condition_names]
@@ -154,22 +178,33 @@ def condition_pool(condition_names, show_only_density=False):
     axs[1].set_xticks(ticks, [str(np.round(i,1)) for i in seconds])
     axs[1].tick_params(axis='both', which='major', labelsize=20)
 
+    # Draw a grey area inside food patch
+    x_min, x_max = plt.gca().get_xlim()
+    axs[0].axvspan(0.01, x_max+1, facecolor=(0.95, 0.94, 0.9), alpha=0.5, zorder=-10)
+    axs[1].axvspan(x_min-1, 0.01, facecolor=(0.95, 0.94, 0.9), alpha=0.5, zorder=-10)
+    axs[0].set_xlim(x_min, x_max)
+    axs[1].set_xlim(x_min, x_max)
+
     # if not show_only_density:
-    #     plt.legend(fontsize=14)
-    plt.tight_layout(pad=2)
+    #     plt.legend(frameon=False, fontsize=14)
+    plt.tight_layout(pad=0.2)
     plt.show()
 
 
-# condition_pool(["med 0", "med 0.2", "med 0.5", "med 1.25"], show_only_density=True)
-# condition_pool(["close 0", "med 0", "far 0", "superfar 0"], show_only_density=False)
-# condition_pool(["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], show_only_density=False)
-condition_pool(["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], show_only_density=False)
-# condition_pool(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], show_only_density=False)
-#
-# condition_pool(["close 0", "close 0.2", "close 0.5", "close 1.25"], show_only_density=False)
-# condition_pool(["med 0", "med 0.2", "med 0.5", "med 1.25"], show_only_density=False)
-# condition_pool(["far 0", "far 0.2", "far 0.5", "far 1.25"], show_only_density=False)
-# condition_pool(["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], show_only_density=False)
+if __name__ == "__main__":
+    # MAIN FIGURE
+    condition_pool(["med 0", "med 0.2", "med 0.5", "med 1.25"], show_only_density=True)
+    condition_pool(["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], show_only_density=False)
+
+    # SUPPLEMENTARIES
+    # condition_pool(["close 0", "med 0", "far 0", "superfar 0"], show_only_density=False)
+    # condition_pool(["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], show_only_density=False)
+    # condition_pool(["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], show_only_density=False)
+    #
+    # condition_pool(["close 0", "close 0.2", "close 0.5", "close 1.25"], show_only_density=False)
+    # condition_pool(["med 0", "med 0.2", "med 0.5", "med 1.25"], show_only_density=False)
+    # condition_pool(["far 0", "far 0.2", "far 0.5", "far 1.25"], show_only_density=False)
+    # condition_pool(["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], show_only_density=False)
 
 
 

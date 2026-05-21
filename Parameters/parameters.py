@@ -1,4 +1,5 @@
 import copy
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mc
 import colorsys
@@ -6,6 +7,7 @@ import colorsys
 from Parameters import patch_coordinates
 
 # General parameters
+
 
 # Just a parameter to toggle extensive printing in the functions (for debugging purposes)
 verbose = False
@@ -205,7 +207,7 @@ def lighten_color(color, amount=0.5):
 
 
 name_to_color = {"close": "mediumslateblue", "med": "royalblue", "far": "deepskyblue", "superfar": "turquoise",
-                 "cluster": "forestgreen", "0": "bisque",
+                 "cluster": "forestgreen", "0": "navajowhite",
                  "0.2": "burlywood", "0.5": "darkgoldenrod", "1.25": "brown", "0.2+0.5": "chocolate",
                  "0.5+1.25": "orange",
                  "control": "gray", "all": "teal",
@@ -226,7 +228,7 @@ for condition in nb_to_name.keys():
         # for mixed densities, density will be intermediate
         density = (float(density1) + float(density2)) / 2
     name_to_color[nb_to_name[condition]] = lighten_color(mc.cnames[distance_color],
-                                                         amount=min(1.35, max(0.1, density) * 2))
+                                                         amount=min(1.45, max(0.1, density) * 2.3))
 
 
 #name_to_color["med 1.25"] = "black"

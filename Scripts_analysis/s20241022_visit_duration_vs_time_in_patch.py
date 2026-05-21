@@ -100,34 +100,40 @@ def plot_visit_duration_vs_time_in_patch(results, curve_list, bin_list, min_nb_e
         bin_with_values = [0] + bin_with_values
         bin_with_values = [(bin_with_values[i-1]+bin_with_values[i])/2 for i in range(1, len(bin_with_values))]
 
-        plt.plot(np.array(bin_with_values)/3600, np.array(average_visit_length_each_bin)/60,
+        plt.plot(np.array(bin_with_values)/60, np.array(average_visit_length_each_bin)/60,
                  color=color, label=label, linewidth=4)
-        plt.errorbar(np.array(bin_with_values)/3600, np.array(average_visit_length_each_bin)/60,
+        plt.errorbar(np.array(bin_with_values)/60, np.array(average_visit_length_each_bin)/60,
                      [np.array(error_inf_visit_length_each_bin)/60, np.array(error_sup_visit_length_each_bin)/60],
                      color=color, capsize=5)
 
+    plt.gcf().set_size_inches(6, 4)
     plt.yscale("log")
     # plt.xscale("log")
     plt.title(str(curve_list), fontsize=20)
     #plt.xscale("log")
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
     plt.ylabel("Average visit duration (minutes)", fontsize=16)
-    plt.xlabel("Time spent in patch before this visit (hours)", fontsize=16)
-    plt.legend(fontsize=14)
+    plt.xlabel("Time spent in patch before this visit (minutes)", fontsize=16)
+    plt.legend(frameon=False, fontsize=14)
     plt.show()
 
 
 results_path = gen.generate("", shorten_traj=False)
-clean_results = pd.read_csv(results_path + "clean_results.csv")
+results = pd.read_csv(results_path + "clean_results.csv")
 bins = [100, 400, 1000, 1900, 3100, 4600, 6400, 8500, 10900, 13600]
 
-plot_visit_duration_vs_time_in_patch(clean_results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bins, 20, only_show_density=True)
+# MAIN TEXT
+# plot_visit_duration_vs_time_in_patch(results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bins, 20, only_show_density=True)
+plot_visit_duration_vs_time_in_patch(results, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bins, 20)
 
-plot_visit_duration_vs_time_in_patch(clean_results, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bins, 20)
-plot_visit_duration_vs_time_in_patch(clean_results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bins, 20)
-plot_visit_duration_vs_time_in_patch(clean_results, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bins, 20)
-plot_visit_duration_vs_time_in_patch(clean_results, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bins, 20)
+# SUPPS
+plot_visit_duration_vs_time_in_patch(results, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bins, 20)
+plot_visit_duration_vs_time_in_patch(results, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bins, 20)
+plot_visit_duration_vs_time_in_patch(results, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bins, 20)
+plot_visit_duration_vs_time_in_patch(results, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bins, 20)
 
-plot_visit_duration_vs_time_in_patch(clean_results, ["close 0", "med 0", "far 0", "superfar 0"], bins, 20)
-plot_visit_duration_vs_time_in_patch(clean_results, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bins, 20)
-plot_visit_duration_vs_time_in_patch(clean_results, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bins, 20)
-plot_visit_duration_vs_time_in_patch(clean_results, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bins, 20)
+plot_visit_duration_vs_time_in_patch(results, ["close 0", "med 0", "far 0", "superfar 0"], bins, 20)
+plot_visit_duration_vs_time_in_patch(results, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bins, 20)
+# plot_visit_duration_vs_time_in_patch(clean_results, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bins, 20)
+plot_visit_duration_vs_time_in_patch(results, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bins, 20)

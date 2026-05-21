@@ -83,7 +83,7 @@ def speed_dynamic(result_table, trajectory_table, condition_list, min_visit_star
             plt.plot(time_bins[:-1], avg_speed_each_bin[condition], color=param.name_to_color[condition.split(" ")[0]], label=condition, linewidth=3)
             # Plot error bars
             plt.errorbar(time_bins[:-1], avg_speed_each_bin[condition], [errors_inf_each_time[condition], errors_sup_each_time[condition]], fmt='.k', capsize=4)
-        plt.legend()
+        plt.legend(frameon=False, )
 
     else:
         # If only one bin, make a bar plot

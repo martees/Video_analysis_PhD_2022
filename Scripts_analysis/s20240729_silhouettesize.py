@@ -48,7 +48,7 @@ def distribution_silhouette_size(trajectories, folder_list, end_time_list):
         previous_end_time = end_time
     plt.title("Distribution of silhouette sizes, divided by avg until t="+str(end_time_list[0]))
     plt.yscale("log")
-    plt.legend()
+    plt.legend(frameon=False, )
     plt.show()
 
 

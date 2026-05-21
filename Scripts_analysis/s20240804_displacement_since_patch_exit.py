@@ -47,14 +47,13 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
     average_radius = np.mean(average_patch_radius_each_cond["avg_patch_radius"])
     inter_patch_distances_names = inter_patch_distances_table["distance"]
     inter_patch_distances = inter_patch_distances_table["interpatch_distance"] - 2 * average_radius * param.one_pixel_in_mm
-    _, _, img_ymin, img_ymax = plt.axis()
 
     curve_list = curve_list[::-1]
 
     #Init
     tic = time.time()
     nb_of_bins = len(displacement_bin_list)
-    print("Computing msd analysis for conditions ", curve_list)
+    print(">> Computing ", time_or_probability, " analysis for conditions ", curve_list)
     for i_curve in range(len(curve_list)):
         curve_name = curve_list[i_curve]
         current_condition_list = param.name_to_nb_list[curve_name]
@@ -229,19 +228,15 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
             values_this_distance = [values_this_distance[i] for i in range(len(values_this_distance)) if
                                     not np.isnan(values_this_distance[i])]
             if values_this_distance:
-                # Remove values beyond inter patch distance for that condition
-                # i_bin = 0
-                # dist_bin = displacement_bin_list[i_bin]
-                # while dist_bin < inter_patch_distances[inter_patch_distances_names == param.nb_to_distance[param.name_to_nb[curve_name]]].to_list()[0]:
-                #     i_bin += 1
-                #     dist_bin = displacement_bin_list[i_bin]
-                # values_this_distance = values_this_distance[:i_bin]
-                # Compute the things you'll plot
-                current_avg = np.nanmean(values_this_distance)
-                avg_each_bin[i_bin] = current_avg
-                bootstrap_ci = ana.bottestrop_ci(values_this_distance, 1000)
-                errors_inf[i_bin] = current_avg - bootstrap_ci[0]
-                errors_sup[i_bin] = bootstrap_ci[1] - current_avg
+                # Only keep values below inter patch distance for that condition
+                dist_bin = displacement_bin_list[i_bin]
+                if dist_bin*param.one_pixel_in_mm < inter_patch_distances[inter_patch_distances_names == param.nb_to_distance[param.name_to_nb[curve_name]]].to_list()[0]:
+                    # Compute the things you'll plot
+                    current_avg = np.nanmean(values_this_distance)
+                    avg_each_bin[i_bin] = current_avg
+                    bootstrap_ci = ana.bottestrop_ci(values_this_distance, 1000)
+                    errors_inf[i_bin] = current_avg - bootstrap_ci[0]
+                    errors_sup[i_bin] = bootstrap_ci[1] - current_avg
 
         # Plotting lists
         y_list = avg_each_bin[np.nansum(nb_of_points_each_bin_each_plate, axis=1) > min_nb_data_points]
@@ -273,6 +268,7 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
         plt.yscale("log")
 
         # Plot inter_patch distances as vertical lines
+        _, _, img_ymin, img_ymax = plt.axis()
         plt.vlines(inter_patch_distances, ymin=img_ymin, ymax=img_ymax,
                    colors=[param.name_to_color[d] for d in inter_patch_distances_names],
                    alpha=0.3,
@@ -302,60 +298,72 @@ def msd_analysis(results, trajectories, curve_list, displacement_bin_list, min_l
                            "icon_" + str(param.nb_to_distance[param.name_to_nb[curve_list[i]]]) + ".png") for i in
                            range(len(lines))},
                        handlelength=1.6, labelspacing=0.0, fontsize=40, borderpad=0.10, loc=legend_loc,
-                       handletextpad=0.1, borderaxespad=0.3)
+                       handletextpad=0.1, borderaxespad=0.3, frameon=False)
             # borderpad is the spacing between the legend and the bottom line of the rectangle around the legend
             # handletextpad is spacing between the legend and the right line of the rectangle around the legend
             # borderaxespad is the spacing between the legend rectangle and the axes of the figure
         else:
-            plt.legend()
+            plt.legend(frameon=False, fontsize=18)
+
+        plt.xticks(fontsize=18)
+        plt.yticks(fontsize=18)
+        # color_first_density = param.name_to_color[param.nb_to_density[param.name_to_nb[curve_list[0]]]]
+        # plt.gca().spines['bottom'].set(color=color_first_density, linewidth=2.5)
+        # plt.gca().spines['left'].set(color=color_first_density, linewidth=2.5)
+        # plt.gca().spines['top'].set(color=color_first_density, linewidth=2.5)
+        # plt.gca().spines['right'].set(color=color_first_density, linewidth=2.5)
+
         plt.tight_layout(pad=1)
         plt.show()
 
 
-
 path = gen.generate("", test_pipeline=False)
-clean_results = pd.read_csv(path + "clean_results.csv")
-# clean_results = pd.read_csv(path + "results_per_plate.csv")
-# clean_trajectories = dt.fread(path + "clean traj/clean_trajectories.csv")
-clean_trajectories = dt.fread(path + "clean_trajectories.csv")
-# clean_trajectories = dt.fread(path + "trajectories.csv")
-print("Finished retrieving tables")
+if __name__ == "__main__":
+    results = pd.read_csv(path + "clean_results.csv")
+    # clean_results = pd.read_csv(path + "results_per_plate.csv")
+    # clean_trajectories = dt.fread(path + "clean traj/clean_trajectories.csv")
+    trajectories = dt.fread(path + "clean_trajectories.csv")
+    # clean_trajectories = dt.fread(path + "trajectories.csv")
+    print("Finished retrieving tables")
 
-# Parameters
-bin_list = [10, 20, 35, 55, 75, 100, 200, 400, 800]
+    # Parameters
+    bin_list = [10, 20, 35, 55, 75, 100, 190, 470, 770]
 
-# msd_analysis(clean_results, clean_trajectories, ["far 0.2"], bin_list, 1, 4, True, "time", True)
+    # msd_analysis(clean_results, clean_trajectories, ["far 0.2"], bin_list, 1, 4, True, "time", True)
 
-# msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
-#             bin_list, 1, 4, False, time_or_probability="probability", is_plot=True)
-# msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
-#             bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
-# #
-# msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
-#             bin_list, 1, 4, False, time_or_probability="probability", is_plot=True)
-# msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
-#             bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
+    # msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
+    #             bin_list, 1, 4, False, time_or_probability="probability", is_plot=True)
+    # msd_analysis(clean_results, clean_trajectories, ["0", "0.2", "0.5", "1.25"],
+    #             bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
+    # #
+    # msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
+    #             bin_list, 1, 4, False, time_or_probability="probability", is_plot=True)
+    # msd_analysis(clean_results, clean_trajectories, ["close", "med", "far", "superfar"],
+    #             bin_list, 1, 4, False, time_or_probability="time", is_plot=True)
 
-# print("Finished recomputing MSD analysis for all conditions grouped by distance / density !!!")
+    # print("Finished recomputing MSD analysis for all conditions grouped by distance / density !!!")
 
-# Probability to reach radius
-msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "probability", True)
-msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
+    # MAIN TEXT
+    # # Probability to reach radius
+    # msd_analysis(results, trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "probability", True)
+    # msd_analysis(results, trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "probability", True)
+    # msd_analysis(results, trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "probability", True)
+    # msd_analysis(results, trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
+    # # # Time to reach radius
+    # msd_analysis(results, trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "time", True)
+    # msd_analysis(results, trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "time", True)
+    # msd_analysis(results, trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "time", True)
+    # msd_analysis(results, trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
 
-# msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "probability", True)
-# msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "probability", True)
-# msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "probability", True)
-# msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
-#
-# # Time to reach radius
-msd_analysis(clean_results, clean_trajectories, ["close 0", "med 0", "far 0", "superfar 0"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"], bin_list, 1, 4, False, "time", True)
-msd_analysis(clean_results, clean_trajectories, ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
-#
-# msd_analysis(clean_results, clean_trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "time", True)
-# msd_analysis(clean_results, clean_trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "time", True)
+    # SUPPLEMENTARIES
+    # Probability to reach radius
+    msd_analysis(results, trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "probability", True)
+    msd_analysis(results, trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "probability", True)
+    msd_analysis(results, trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "probability", True)
+    msd_analysis(results, trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4, False, "probability", True)
+    # # Time to reach radius
+    msd_analysis(results, trajectories, ["close 0", "close 0.2", "close 0.5", "close 1.25"], bin_list, 1, 4, False, "time",True)
+    msd_analysis(results, trajectories, ["med 0", "med 0.2", "med 0.5", "med 1.25"], bin_list, 1, 4, False, "time", True)
+    msd_analysis(results, trajectories, ["far 0", "far 0.2", "far 0.5", "far 1.25"], bin_list, 1, 4, False, "time", True)
+    msd_analysis(results, trajectories, ["superfar 0", "superfar 0.2", "superfar 0.5", "superfar 1.25"], bin_list, 1, 4,False, "time", True)
+

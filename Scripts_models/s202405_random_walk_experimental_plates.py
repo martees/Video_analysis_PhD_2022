@@ -338,7 +338,7 @@ def plot_model_vs_data(model_results, xp_results, condition_names, what_to_plot)
     # Create fake bars for the legend!
     plt.bar([0], [0], color="grey", edgecolor="grey", label="Experimental data")
     plt.bar([0], [0], color="white", edgecolor="grey", hatch="//", linewidth=4, label="Random walk model")
-    plt.legend()
+    plt.legend(frameon=False, )
 
     plt.show()
 

@@ -85,7 +85,7 @@ def bar_plot_first_visit_each_patch(results, condition_list, is_plot=True,
         for value in current_visits:
             if value[2] not in list_of_found_patches:
                 list_of_found_patches.append(value[2])
-                first_value_each_patch.append((value[1] - value[0])/3600)  # convert to hours
+                first_value_each_patch.append((value[1] - value[0])/60)  # convert to minutes
         if condition in condition_list and len(first_value_each_patch) > 0:
             condition_index = np.where(condition_list == condition)[0][0]
             avg_value_each_condition_each_plate[condition_index].append(np.nanmean(first_value_each_patch))

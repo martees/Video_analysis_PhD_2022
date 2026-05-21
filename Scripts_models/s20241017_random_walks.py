@@ -844,7 +844,7 @@ def effect_of_length(speed_in, speed_out):
     x_extent_points = np.linspace(min(nb_of_visits), max(nb_of_visits), 10)
     plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="turquoise", linewidth=2)
 
-    plt.legend()
+    plt.legend(frameon=False, )
 
     plt.show()
 
@@ -888,7 +888,7 @@ def effect_of_speed_out(length, speed_in):
     x_extent_points = np.linspace(min(nb_of_visits), max(nb_of_visits), 10)
     plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="turquoise", linewidth=2)
 
-    plt.legend()
+    plt.legend(frameon=False, )
 
     plt.show()
 
@@ -932,7 +932,7 @@ def effect_of_speed_in(length, speed_out):
     x_extent_points = np.linspace(min(nb_of_visits), max(nb_of_visits), 10)
     plt.plot(x_extent_points, ana.log_regression(nb_of_visits, time_out, x_extent_points), color="turquoise", linewidth=2)
 
-    plt.legend()
+    plt.legend(frameon=False, )
 
     plt.show()
 
@@ -1094,7 +1094,7 @@ def effect_of_walk_type(distance_list, length, nb_of_walkers, speed_in, speed_ou
     ax0.scatter([], [], color="black", marker="*", label="Highest inter-patch distance", s=200)
     # ax1.scatter([], [], color="black", marker="*", label="Highest inter-patch distance", s=200)
 
-    ax1.legend(fontsize=11)
+    ax1.legend(frameon=False, fontsize=11)
 
     # Reset axis limits because sometimes they get weird
     ax0.set_xlim(np.min(visit_values_list), np.max(visit_values_list))
@@ -1282,7 +1282,7 @@ def plot_dynamic_speed_function(speed_inside, speed_outside, sim_length, inverse
         plt.plot(range(sim_length), np.array(speed_table_6000), label="half_life = 6000")
         plt.plot(range(sim_length), np.array(speed_table_10000), label="half_life = 10000")
         plt.plot(range(sim_length), np.array(speed_table_20000), label="half_life = 20000")
-    plt.legend()
+    plt.legend(frameon=False, )
     plt.show()
 
 

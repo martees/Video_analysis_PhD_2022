@@ -106,7 +106,7 @@ for i_condition, condition in enumerate(all_conditions_list):
             heatmap_points[int(points_array[2, 0]), int(points_array[2, 1])] += 1
             heatmap_points[int(points_array[3, 0]), int(points_array[3, 1])] += 1
 
-            # plt.legend()
+            # plt.legend(frameon=False, )
             # plt.show()
 
     condition_names.append(param.nb_to_name[condition])

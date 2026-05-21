@@ -6,14 +6,14 @@ from Parameters import parameters as param
 from Generating_data_tables import main as gen
 import analysis as ana
 
-folder_path = "/home/admin/Desktop/Camera_setup_analysis/Egg_counting/"
-egg_counts_each_patch = pd.read_csv(folder_path + "Minipatches_egg_counts.csv")
-egg_counts_each_plate = pd.read_csv(folder_path + "Minipatches_egg_counts_metadata.csv")
-patch_locations = pd.read_csv(folder_path + "Minipatches_patch_positions.csv")
-inventory_plates = pd.read_csv(folder_path + "inventory_pretracking.csv")
-
+# folder_path = "/home/admin/Desktop/Camera_setup_analysis/Egg_counting/"
+folder_path = r"C:\Users\alid\Desktop\Thèse\APELabShared copy\Results\Alid Al-Asmar\2022-autumn-minipatches-MVT"
+egg_counts_each_patch = pd.read_csv(folder_path + "\Minipatches_egg_counts.csv")
+egg_counts_each_plate = pd.read_csv(folder_path + "\Minipatches_egg_counts_metadata.csv")
+patch_locations = pd.read_csv(folder_path + "\Minipatches_patch_positions.csv")
 
 def print_dates_and_hard_drives():
+    inventory_plates = pd.read_csv(folder_path + "\inventory_pretracking.csv")
     dates_with_egg_counts = []
     for plate in egg_counts_each_plate["plate_id"]:
         # Go from "1711-..." to "20221117T"
@@ -61,11 +61,25 @@ def hist_nb_of_eggs_each_plate(condition_list):
         errors = ana.bottestrop_ci(avg_nb_eggs_each_condition_each_plate[i_condition], 1000)
         errors_inf_each_condition[i_condition], errors_sup_each_condition[i_condition] = [avg_nb_eggs_each_condition[i_condition] - errors[0],
                                                                                           errors[1] - avg_nb_eggs_each_condition[i_condition]]
-    # Plotty plot
+
+    # For the plot colors I have to do some gymnastics because condition 11 (controls) is actually not used
+    # elsewhere so does not have a color etc. So I remove it from the list, do my nice conversion with existing
+    # color dictionaries, and then put it back in.
+    removed_control = False
+    if 11 in condition_list:
+        control_index = np.squeeze(np.where(np.array(condition_list) == 11))
+        condition_list.remove(11)
+        removed_control = True
     condition_names = [param.nb_to_name[cond] for cond in condition_list]
     condition_colors = [param.name_to_color[name] for name in condition_names]
+    if removed_control:
+        condition_names.insert(control_index, "control")
+        condition_colors.insert(control_index, "gray")
+        condition_list.insert(control_index, 11)  # put it back for later plots
+
+    # Plotty plot
     plt.title("Number of eggs")
-    plt.ylabel("Total time per patch")
+    plt.ylabel("Average number of eggs")
     # Bar plot
     plt.bar(range(len(condition_list)), avg_nb_eggs_each_condition, color=condition_colors)
     plt.xticks(range(len(condition_list)), condition_names, rotation=45)
@@ -80,9 +94,13 @@ def hist_nb_of_eggs_each_plate(condition_list):
     plt.show()
 
 
-list_by_density = param.name_to_nb_list["0"] + param.name_to_nb_list["0.2"] + param.name_to_nb_list["0.5"] + param.name_to_nb_list["1.25"]
+list_by_density = [11,
+                   0, 1, 2, 14,
+                   4, 5, 6, 15,
+                   12, 8, 13, 16]
 list_by_distance = (param.name_to_nb_list["close"] + param.name_to_nb_list["med"] + param.name_to_nb_list["far"]
                     + param.name_to_nb_list["superfar"] + param.name_to_nb_list["cluster"])
+hist_nb_of_eggs_each_plate(list_by_density)
 hist_nb_of_eggs_each_plate(list_by_distance)
 
 

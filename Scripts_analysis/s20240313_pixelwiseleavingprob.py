@@ -179,7 +179,7 @@ def plot_pixel_wise_leaving_probability(condition_list):
         plt.errorbar(bin_list, avg_list, [errors_inf, errors_sup], fmt='.k', capsize=5)
 
     plt.title("Leaving probability graph for conditions " + str(condition_list))
-    plt.legend()
+    plt.legend(frameon=False, )
     # plt.colorbar()
     plt.xlabel("Time spent in pixel")
     plt.ylabel("Leaving probability")
@@ -355,7 +355,7 @@ def visit_duration_previous_visit_pixel(curve_list, regenerate_pixel_visits=Fals
     # plt.yscale("log")
     plt.xlabel("Time spent there before this visit (to a pixel)")
     plt.ylabel("Current visit duration (to a pixel)")
-    plt.legend()
+    plt.legend(frameon=False, )
     plt.show()
 
     return 0

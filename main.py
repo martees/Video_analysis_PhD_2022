@@ -475,26 +475,26 @@ if __name__ == "__main__":
 
 
     # AVERAGE DURATION OF FIRST VISIT TO EACH PATCH
-    # plot_graphs(results, "first_visit_duration_patch", [["close 0", "med 0", "far 0", "superfar 0"],
-    #                                                                       ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-    #                                                                       ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-    #                                                                       ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-    plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "first_visit_duration_patch", [["close 0", "med 0", "far 0", "superfar 0"],
+                                                                          ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+                                                                          ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+                                                                          ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    # plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, ["first_visit_duration_patch", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
 
 
     # NB OF VISITS PER PATCH
-    # plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"],
-    #                                                                               ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
-    #                                                                               ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
-    #                                                                               ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
-    plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
-    plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
-    plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
-    plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    plot_graphs(results, "number_of_visits_per_visited_patch", [["close 0", "med 0", "far 0", "superfar 0"],
+                                                                                  ["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"],
+                                                                                  ["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"],
+                                                                                  ["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
+    # plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0", "med 0", "far 0", "superfar 0"]])
+    # plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0.2", "med 0.2", "far 0.2", "superfar 0.2"]])
+    # plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 0.5", "med 0.5", "far 0.5", "superfar 0.5"]])
+    # plot_graphs(results, ["number_of_visits_per_visited_patch", "histogram"], [["close 1.25", "med 1.25", "far 1.25", "superfar 1.25"]])
 
 
 

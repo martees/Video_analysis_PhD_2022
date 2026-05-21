@@ -165,5 +165,5 @@ if plot_encountered_both:  # to plot information about whether worms have encoun
     legend_list.append(Patch(facecolor="blue", label="Encountered 1 patch type"))
     legend_list.append(Patch(facecolor="red", label="Encountered 2 patch types"))
 
-plt.legend(handles=legend_list)
+plt.legend(frameon=False, handles=legend_list)
 plt.show()

@@ -84,6 +84,6 @@ plt.gcf().gca().add_patch(tracking_area)
 plt.xlim(-20, 1600)
 plt.ylim(-20, 1600)
 
-plt.legend()
+plt.legend(frameon=False, )
 plt.show()
 

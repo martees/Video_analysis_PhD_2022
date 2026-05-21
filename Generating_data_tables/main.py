@@ -32,14 +32,17 @@ def exclude_invalid_videos(trajectories, results_per_plate, bad_patches_folders,
     # Initialize a dictionary with one key per column
     cleaned_traj = {}
     trajectory_columns = list(trajectories.columns)
+    # "Unnamed:0"-like columns make the writer bug, remove them
+    trajectory_columns = [col for col in trajectory_columns if ":" not in col]
     for col in trajectory_columns:
         cleaned_traj[col] = []
     # Fill each dictionary list with the values in traj that correspond to valid folders
     for i_line in range(len(trajectories)):
+    # for i_line in range(10):
         if i_line % 2000000 == 0:
             print("Line ", i_line, " / ", len(trajectories))
         if trajectories["folder"].iloc[i_line] in valid_folders:
-            for col in list(trajectories.columns):
+            for col in trajectory_columns:
                 cleaned_traj[col].append(trajectories[col].iloc[i_line])
 
     print("Saving clean_trajectories...")
@@ -176,15 +179,15 @@ def generate(starting_from="", test_pipeline=False, modeled_data=False, old_data
             elif modeled_data:
                 path = "/media/admin/Expansion/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
     else:  # Windows path
-        path = "H:/Results_minipatches_retracked/"
+        path = "E:/Results_minipatches_retracked/"
         if test_pipeline:
-            path = "H:/Results_minipatches_retracked_test/"
+            path = "E:/Results_minipatches_retracked_test/"
         if modeled_data:
-            path = "H:/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
+            path = "E:/Only_Copy_Probably/Results_minipatches_20221108_clean_fp_model_rw/"
         if shorten_traj:
-            path = "H:/Only_Copy_Probably/Results_minipatches_retracked_shortened/"
+            path = "E:/Only_Copy_Probably/Results_minipatches_retracked_shortened/"
             if modeled_data:
-                path = "H:/Only_Copy_Probably/Results_minipatches_retracked_shortened_model_rw/"
+                path = "E:/Only_Copy_Probably/Results_minipatches_retracked_shortened_model_rw/"
 
     if custom_path != "":
         path = custom_path

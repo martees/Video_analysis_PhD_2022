@@ -151,3 +151,27 @@ xy_patches_cluster = [
 xy_patches_cluster = [[xy_patches_cluster[i][0], -xy_patches_cluster[i][1]] for i in range(len(xy_patches_cluster))]
 
 mediumSpaceHighDensityMask = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1]
+
+distance_to_patch_coord = {"close":xy_patches_close,
+                           "med":xy_patches_med,
+                           "far":xy_patches_far,
+                           "superfar":xy_patches_super_far,
+                           }
+if __name__ == "__main__":
+    for dist in ["close", "med", "far", "superfar"]:
+        patch_coord = distance_to_patch_coord[dist]
+        list_of_closest_neighbor_distances = []
+        for i_patch in range(len(patch_coord)):
+            current_patch = patch_coord[i_patch]
+            min_dist = 1000000
+            for j_patch in range(len(patch_coord)):
+                if j_patch != i_patch:
+                    neighbor_patch = patch_coord[j_patch]
+                    distance = np.sqrt((current_patch[0] - neighbor_patch[0])**2 + (current_patch[1] - neighbor_patch[1])**2)
+                    if distance <= min_dist:
+                        min_dist = distance
+            list_of_closest_neighbor_distances.append(np.round(min_dist, 1))
+        print("Distance: ", dist)
+        print("Average closest neighbor distance: ", np.mean(list_of_closest_neighbor_distances))
+        print("Unique values: ", np.unique(list_of_closest_neighbor_distances))
+

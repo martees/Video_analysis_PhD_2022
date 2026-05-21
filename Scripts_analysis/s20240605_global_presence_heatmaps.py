@@ -19,6 +19,7 @@ from Generating_data_tables import generate_results as gr
 from Generating_data_tables import generate_trajectories as gt
 from Scripts_analysis import s20240606_distancetoedgeanalysis as script_distance
 from Parameters import parameters as param
+from Parameters import custom_colorbar
 import find_data as fd
 import analysis as ana
 import ReferencePoints
@@ -391,7 +392,7 @@ def experimental_to_perfect_pixel_indices(folder_to_save, polar_map, ideal_patch
     # plt.scatter(np.where(distance_to_boundary_matrix == 0)[1], np.where(distance_to_boundary_matrix == 0)[0], color="grey")
     # plt.xlim(849, 856)
     # plt.ylim(990, 993)
-    # plt.legend()
+    # plt.legend(frameon=False, )
     # plt.show()
 
     # Stack all of those so that you get the array with for each pixel [x, y]
@@ -589,6 +590,7 @@ def plot_heatmap(results_path, traj, full_plate_list, curve_list, variable="pixe
                         counts_each_curve[i_curve][perfect_i][perfect_j] += 1
 
         # Divide the values by the number of pixels that went there
+        # (This is for the case where multiple xp pixels get mapped to the same idealized pixel)
         heatmap_each_curve[i_curve] = ana.array_division_ignoring_zeros(heatmap_each_curve[i_curve],
                                                                         counts_each_curve[i_curve])
 
@@ -626,7 +628,10 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1.0):
     heatmap_path = path + "perfect_heatmaps/" + variable + "_heatmap_cond_" + str(condition_list) + ".npy"
     counts_path = path + "perfect_heatmaps/" + variable + "_heatmap_counts_cond_" + str(condition_list) + ".npy"
     if not os.path.isfile(heatmap_path):
-        print("This heatmap does not exist! è_é")
+        print("This heatmap does not exist! è_é Generating it...")
+        plot_heatmap(path, trajectories, full_list_of_folders, [[17], [18], [19], [20]], variable=variable,
+                     regenerate_pixel_values=True, regenerate_polar_maps=True, regenerate_perfect_map=True,
+                     collapse_patches=False, show_plot=True)
     else:
         heatmap = np.load(heatmap_path)
         counts = np.load(counts_path)
@@ -659,7 +664,7 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1.0):
         plt.gcf().gca().add_patch(plate)
 
         # Plot the heatmap
-        plt.imshow(heatmap, vmin=v_min, vmax=v_max, cmap=cmap)
+        map = plt.imshow(heatmap, vmin=v_min, vmax=v_max, cmap=cmap)
 
         # Plot a scale bar
         plt.plot([300, 300 + 5*(1/param.one_pixel_in_mm)], [300, 300], color=scale_bar_color, linewidth=4)
@@ -693,8 +698,9 @@ def plot_existing_heatmap(path, condition_list, variable, v_min=0, v_max=1.0):
         plt.xticks([])
         plt.yticks([])
 
-        clb = plt.colorbar()
-        clb.ax.tick_params(labelsize=12)
+        clb = plt.gcf().colorbar(map, format=custom_colorbar.OOMFormatter(-5, mathText=True))
+        clb.ax.tick_params(labelsize=18)
+        clb.ax.yaxis.get_offset_text().set_fontsize(16)
         if variable == "speed":
             clb.set_label('Average speed (mm / s)', size=16)
         if variable == "pixel_visits":
@@ -738,10 +744,10 @@ if __name__ == "__main__":
     # plot_existing_heatmap(path, [2], "pixel_visits", v_max=0.00002)
     # plot_existing_heatmap(path, [14], "pixel_visits", v_max=0.00002)
     # # 0.5
-    # plot_existing_heatmap(path, [4], "pixel_visits", v_max=0.00002)
-    # plot_existing_heatmap(path, [5], "pixel_visits", v_max=0.00002)
-    # plot_existing_heatmap(path, [6], "pixel_visits", v_max=0.00002)
-    # plot_existing_heatmap(path, [15], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [4], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [5], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [6], "pixel_visits", v_max=0.00002)
+    plot_existing_heatmap(path, [15], "pixel_visits", v_max=0.00002)
     # # 1.25
     # plot_existing_heatmap(path, [12], "pixel_visits", v_max=0.00002)
     # plot_existing_heatmap(path, [8], "pixel_visits", v_max=0.00002)

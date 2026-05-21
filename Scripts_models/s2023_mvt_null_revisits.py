@@ -250,7 +250,7 @@ def opt_mvt(condition_name, nb_of_points, nb_of_time_steps, max_leaving_rate, pa
         ax1.axvline(leaving_rate_list[index], color="red", linestyle="dashdot", label="Analytical x=y-intercept")
         ax2.annotate("math_intercept=" + str(np.round(mvt_visit_length_list[index], 1)), [1.1*opt_leaving_rate_mvt, 1*opt_avg_visit_length_mvt], color="red")
 
-        ax1.legend(loc='upper left')
+        ax1.legend(frameon=False, loc='upper left')
         plt.show()
 
     if is_print:

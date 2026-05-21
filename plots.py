@@ -541,15 +541,16 @@ def binned_speed_as_a_function_of_time_window(traj, condition_list, list_of_time
     if is_plot:
         plt.xlabel("Average amount of food during time window")
         plt.ylabel("Average speed")
-        plt.legend(title="Time window size")
+        plt.legend(frameon=False, title="Time window size")
         plt.show()
 
 
 def plot_selected_data(results, plot_title, condition_list, column_name, divided_by="",
                        plot_model=False, is_plot=True, normalize_by_video_length=False,
                        remove_censored_events=False, remove_censored_patches=False, soft_cut=False, hard_cut=False,
-                       only_first_visited_patch=False, visits_longer_than=0, save_fig=True, old_plot=False,
-                       full_list_of_conditions=None, show_stats=True, histogram_plot=False):
+                       only_first_visited_patch=False, visits_longer_than=0, save_fig=False, old_plot=False,
+                       full_list_of_conditions=None, show_stats=True, histogram_plot=False,
+                       no_plot_at_all=False):
     """
     This function will make a bar plot from the selected part of the data. Selection is described as follows:
     - condition_list: list of conditions you want to plot (each condition = one bar)
@@ -581,27 +582,27 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
 
     if column_name == "total_visit_time":
         if divided_by == "nb_of_visited_patches":
-            ax.set_ylabel("Time per patch (hours)", fontsize=20)
+            ax.set_ylabel("Time per patch (min)", fontsize=20)
             if histogram_plot:
                 ax.set_ylabel("")
-                ax.set_xlabel("Time per patch (hours)", fontsize=20)
+                ax.set_xlabel("Time per patch (min)", fontsize=20)
             #ax.set_ylim(0, 4)
         if divided_by == "nb_of_visits":
-            ax.set_ylabel("Average time per visit (hours)", fontsize=20)
+            ax.set_ylabel("Average time per visit (min)", fontsize=20)
             if histogram_plot:
                 ax.set_ylabel("")
-                ax.set_xlabel("Average time per visit (hours)", fontsize=20)
+                ax.set_xlabel("Average time per visit (min)", fontsize=20)
             # ax.set_ylim(0, 0.6)
         if divided_by == "" and only_first_visited_patch:
-            ax.set_ylabel("Total time spent in first visited patch (hours)", fontsize=20)
+            ax.set_ylabel("Total time spent in first visited patch (min)", fontsize=20)
     if column_name == "first_visit_duration":
         if only_first_visited_patch:
-            ax.set_ylabel("Duration of 1st visit of the video (hours)", fontsize=20)
+            ax.set_ylabel("Duration of 1st visit of the video (min)", fontsize=20)
         else:
-            ax.set_ylabel("Duration of 1st visit to each patch (hours)", fontsize=20)
+            ax.set_ylabel("Duration of 1st visit to each patch (min)", fontsize=20)
             if histogram_plot:
                 ax.set_ylabel("")
-                ax.set_xlabel("Duration of 1st visit to each patch (hours)", fontsize=20)
+                ax.set_xlabel("Duration of 1st visit to each patch (min)", fontsize=20)
         #ax.set_ylim(0, 2.6)
     if column_name == "average_speed_inside":
         ax.set_ylabel("Average speed inside food patches (pixel/second)", fontsize=20)
@@ -639,34 +640,8 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             model_per_condition = ana.model_per_condition(results, condition_list, column_name, divided_by)
             ax.plot(range(len(condition_list)), model_per_condition, linestyle="dashed", color="blue")
 
-        if (is_plot or save_fig) and not histogram_plot:
-            # Set the x labels to the distance icons!
-            # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
-            for i in range(len(condition_list)):
-                ax = plt.gcf().gca()
-                ax.set_xticks([])
-
-                # Image to use
-                arr_img = plt.imread(
-                    os.getcwd().replace("\\", "/") + "/Parameters/icon_" +
-                                        param.nb_to_distance[condition_list[i]] + '.png')
-
-                # Image box to draw it!
-                imagebox = OffsetImage(arr_img, zoom=0.8)
-                imagebox.image.axes = ax
-
-                x_annotation_box = AnnotationBbox(imagebox, (i, 0),
-                                                  xybox=(0, -8),
-                                                  # that's the shift that the image will have compared to (i, 0)
-                                                  xycoords=("data", "axes fraction"),
-                                                  boxcoords="offset points",
-                                                  box_alignment=(.5, 1),
-                                                  bboxprops={"edgecolor": "none", "alpha": 0})
-
-                ax.add_artist(x_annotation_box)
-
     # New plot format: one line per condition_list in the main.py plot_graphs()
-    else:
+    elif not no_plot_at_all:
         density_each_condition = [param.nb_to_density[cond] for cond in condition_list]
         distance_each_condition = [param.nb_to_distance[cond] for cond in condition_list]
 
@@ -688,7 +663,7 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
                 plt.title("OD = "+density_each_condition[0], fontsize=24)
                 plt.tick_params(labelsize=12)
 
-            elif is_plot:
+            else:
                 plt.errorbar(range(len(condition_list)), average_per_condition, errorbars, capsize=6,
                              color=param.name_to_color[density_each_condition[0]], linewidth=4, elinewidth=2)
                 # Scatter points one by one because matplotlib cannot handle marker lists???
@@ -757,6 +732,33 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
         #         color=param.name_to_color[param.nb_to_density[condition_list[0]]],
         #         path_effects=[pe.SimplePatchShadow(offset=(0,-1), alpha=0.6, shadow_rgbFace="black"), pe.Normal()])
 
+    # Fancy x axis labels
+    if (is_plot or save_fig) and not histogram_plot:
+        # Set the x labels to the distance icons!
+        # Stolen from https://stackoverflow.com/questions/8733558/how-can-i-make-the-xtick-labels-of-a-plot-be-simple-drawings
+        for i in range(len(condition_list)):
+            ax = plt.gcf().gca()
+            ax.set_xticks([])
+
+            # Image to use
+            arr_img = plt.imread(
+                os.getcwd().replace("\\", "/") + "/icon_" +
+                                    param.nb_to_distance[condition_list[i]] + '.png')
+
+            # Image box to draw it!
+            imagebox = OffsetImage(arr_img, zoom=0.8)
+            imagebox.image.axes = ax
+
+            x_annotation_box = AnnotationBbox(imagebox, (i, 0),
+                                              xybox=(0, -8),
+                                              # that's the shift that the image will have compared to (i, 0)
+                                              xycoords=("data", "axes fraction"),
+                                              boxcoords="offset points",
+                                              box_alignment=(.5, 1),
+                                              bboxprops={"edgecolor": "none", "alpha": 0})
+
+            ax.add_artist(x_annotation_box)
+
     if save_fig:
         plt.savefig(column_name + "_div_" + divided_by + "_" + str(condition_names) + ".png", transparent=True)
     if is_plot:
@@ -764,9 +766,11 @@ def plot_selected_data(results, plot_title, condition_list, column_name, divided
             # Make fake lines for the OD legend
             lines = []
             for density in ["1.25", "0.5", "0.2", "0"]:
-                l, = plt.plot([], [], color=param.name_to_color[density], linewidth=4, label="OD="+density)
+                l, = plt.plot([], [], color=param.name_to_color[density], linewidth=4, label="OD = "+density)
                 lines.append(l)
-        plt.legend(fontsize=16)
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+        plt.legend(frameon=False, fontsize=16)
         plt.show()
     else:
         return average_per_condition, list_of_avg_each_plate, errorbars
@@ -860,7 +864,7 @@ def plot_visit_time(results, trajectory, plot_title, condition_list, variable, c
             plt.xscale("log")
 
     if is_plot:
-        plt.legend()
+        plt.legend(frameon=False, )
         plt.show()
     else:
         return variable_values_bins, average_visit_duration, [errors_inf, errors_sup], counts_each_bin, binned_current_visits
@@ -964,7 +968,7 @@ def plot_variable_distribution(results, curve_list, variable_list=None, scale_li
         #           transform=ax.get_xaxis_transform(), label="median")
 
     if is_plot:
-        plt.legend()
+        plt.legend(frameon=False, )
         plt.show()
 
 
@@ -1064,7 +1068,7 @@ def plot_leaving_probability(results, plot_title, condition_list, custom_bins, w
 
     if is_plot:
         # plt.xscale("log")
-        plt.legend()
+        plt.legend(frameon=False, )
         plt.show()
 
 

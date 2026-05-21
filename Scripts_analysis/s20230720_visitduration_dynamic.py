@@ -87,7 +87,7 @@ def visit_duration_dynamic(result_table, condition_list, min_visit_start, max_vi
             plt.plot(time_bins[:-1], avg_visit_each_time[condition], color=param.name_to_color[condition.split(" ")[1]], label=condition)
             # Plot error bars
             plt.errorbar(time_bins[:-1], avg_visit_each_time[condition], [errors_inf_each_time[condition], errors_sup_each_time[condition]], fmt='.k', capsize=5)
-        plt.legend()
+        plt.legend(frameon=False, )
 
     else:
         # If only one bin, make a bar plot

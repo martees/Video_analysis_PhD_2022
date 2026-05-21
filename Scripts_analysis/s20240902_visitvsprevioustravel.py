@@ -123,7 +123,7 @@ def visit_versus_previous_travel(results, curve_list, travel_time_bins, only_fir
         # In any case plot the lines all the same
         plt.plot(transit_bins, average_visit_duration,
                  color=current_curve_color, linewidth=4,
-                 label=current_curve_name, marker=param.distance_to_marker[param.nb_to_distance[curve[0]]], markersize=16)
+                 label=current_curve_name, marker=param.distance_to_marker[param.nb_to_distance[curve[0]]], markersize=10)
 
     print("Pay attention, title has density of first condition!!")
     plt.title("OD=" + param.nb_to_density[curve_list[0][0]], fontsize=20)
@@ -140,26 +140,23 @@ def visit_versus_previous_travel(results, curve_list, travel_time_bins, only_fir
         # Plot empty lines to make the custom legend
         lines = []
         for curve in curve_list:
-            line, = plt.plot([], [], color=param.name_to_color[param.nb_list_to_name[str(curve)]], linewidth=6,
-                             marker=param.distance_to_marker[param.nb_to_distance[curve[0]]], markersize=4,
-                             path_effects=[pe.Stroke(offset=(-0.2, 0.2), linewidth=8,
-                                                     foreground=param.name_to_color[param.nb_to_distance[curve[0]]]),
-                                           pe.Normal()])
+            line, = plt.plot([], [], color=param.name_to_color[param.nb_list_to_name[str(curve)]], linewidth=4,
+                             marker=param.distance_to_marker[param.nb_to_distance[curve[0]]], markersize=10)
             lines.append(line)
         plt.legend(lines, ["" for _ in range(len(lines))],
                    handler_map={lines[i]: custom_legends.HandlerLineImage(
                        "icon_" + str(param.nb_to_distance[curve_list[i][0]]) + ".png") for i in
                        range(len(lines))},
                    handlelength=1.6, labelspacing=0.0, fontsize=40, borderpad=0.10, loc=2,
-                   handletextpad=0.1, borderaxespad=0.3)
+                   handletextpad=0.1, borderaxespad=0.3, frameon=False, draggable=True)
         # borderpad is the spacing between the legend and the bottom line of the rectangle around the legend
         # handletextpad is spacing between the legend and the right line of the rectangle around the legend
         # borderaxespad is the spacing between the legend rectangle and the axes of the figure
     else:
-        plt.legend()
+        plt.legend(frameon=False, )
 
     plt.gcf().set_size_inches(6, 7)
-    plt.xlabel("Duration of the previous travel (hours)", fontsize=16)
+    plt.xlabel("Duration of the previous travel (hours)", fontsize=20)
     plt.xscale("log")
     plt.yscale("linear")
     if only_first:
@@ -167,34 +164,46 @@ def visit_versus_previous_travel(results, curve_list, travel_time_bins, only_fir
     else:
         plt.ylim(0, 30)
     # plt.ylim(0, 4)
+
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+
+    # color_first_density = param.name_to_color[param.nb_to_density[curve_list[0][0]]]
+    # plt.gca().spines['bottom'].set(color=color_first_density, linewidth=2.5)
+    # plt.gca().spines['left'].set(color=color_first_density, linewidth=2.5)
+    # plt.gca().spines['top'].set(color=color_first_density, linewidth=2.5)
+    # plt.gca().spines['right'].set(color=color_first_density, linewidth=2.5)
+
+    plt.gcf().set_size_inches(4, 5)
+
     plt.show()
 
 path = gen.generate("", test_pipeline=False, shorten_traj=False)
-clean_results = pd.read_csv(path + "clean_results.csv")
+results = pd.read_csv(path + "clean_results.csv")
 # bin_list = [0, 200, 600, 1200, 2000, 3600, 7200, 10800, 14400, 18000]
 # bin_list = [0, 0.01*60, 0.05*60, 0.1*60,  0.5*60, 1*60, 5*60, 10*60]
 bin_list = [0, 0.01*60, 0.1*60,  1*60, 10*60]
 only_first_visit = False
 
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
-            [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
-             [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
-             [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
-             [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+# visit_versus_previous_travel(results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
+#                                        [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+visit_versus_previous_travel(results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
+                                       [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+visit_versus_previous_travel(results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
+                                       [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
+visit_versus_previous_travel(results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
+                                       [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=10, show_counts=False)
 
 only_first_visit = True
 
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
-            [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
-             [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
-             [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
-visit_versus_previous_travel(clean_results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
-             [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
+visit_versus_previous_travel(results, [[param.name_to_nb["close 0"]], [param.name_to_nb["med 0"]], [param.name_to_nb["far 0"]],
+                                       [param.name_to_nb["superfar 0"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
+visit_versus_previous_travel(results, [[param.name_to_nb["close 0.2"]], [param.name_to_nb["med 0.2"]], [param.name_to_nb["far 0.2"]],
+                                       [param.name_to_nb["superfar 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
+visit_versus_previous_travel(results, [[param.name_to_nb["close 0.5"]], [param.name_to_nb["med 0.5"]], [param.name_to_nb["far 0.5"]],
+                                       [param.name_to_nb["superfar 0.5"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
+visit_versus_previous_travel(results, [[param.name_to_nb["close 1.25"]], [param.name_to_nb["med 1.25"]], [param.name_to_nb["far 1.25"]],
+                                       [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=3, show_counts=False)
 
 # visit_versus_previous_travel(clean_results, [[param.name_to_nb["far 0.2"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
 # visit_versus_previous_travel(clean_results, [[param.name_to_nb["far 1.25"]], [param.name_to_nb["superfar 1.25"]]], travel_time_bins=bin_list, only_first=only_first_visit, min_nb_points=1)
